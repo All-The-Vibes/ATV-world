@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import stephWalkUrl from '../../../assets/steph-walk.png';
 import { LibraryBridge } from '../../library/bridge';
+import { collectItem, ITEMS } from '../../backpack/inventory';
 import {
     HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { Directory, spotOf, spriteOf } from '../directory';
 import { BikeGang } from '../bikes/BikeGang';
 import { LockAndKey } from '../keyhouse/LockAndKey';
 import { Disco } from '../disco/Disco';
@@ -15,9 +17,11 @@ import { Factory } from '../factory/Factory';
 import { Billboard } from '../billboard/Billboard';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Roamers } from '../roamers/Roamers';
+import { Workout } from '../workout/Workout';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
+import { Atmosphere } from '../fx/Atmosphere';
 import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
@@ -25,16 +29,20 @@ import { Lake } from '../lake/Lake';
 import { daenerysSheet } from '../kit/daenerys';
 import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
+import { Ambience } from '../life/Ambience';
 import { Ollama } from '../llama/Ollama';
+import { RubberDuck } from '../rubberDuck/RubberDuck';
 import { LaunchPad } from '../mars/Rocket';
 import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
 import { Pool } from '../pool/Pool';
+import { Terrain } from '../terrain/Terrain';
 import { Tokens } from '../tokens/Tokens';
 import { TugOfWar } from '../tugOfWar/TugOfWar';
 import { Tarot } from '../tarot/Tarot';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
+import { MarkB } from '../markb/MarkB';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
 
@@ -63,13 +71,20 @@ export class Preview extends Phaser.Scene {
     private catchers?: Catchers;
     /** Friendly visitors who scare gremlins off and chat with the player (see ../roamers). */
     private roamers?: Roamers;
+    /** Christian, who gathers a crowd for a workout class (see ../workout). */
+    private workout?: Workout;
+    /** Everyone the character search can list and zoom in on (see ../directory). */
+    private directory?: Directory;
     /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
     private bikeGang?: BikeGang;
     /** The "Lock & Key" room (Keyhouse Manor) with lots of magical doors/windows and the 3 Locke siblings. */
     private lockAndKey?: LockAndKey;
     /** The Agent Factory: walk in to build agents with roles, who then wander town (see ../factory). */
     private factory?: Factory;
+    /** Day/night lighting, clouds, fireflies (see ../fx/Atmosphere.ts). */
+    atmosphere?: Atmosphere;
     private ollama?: Ollama;
+    private rubberDuck?: RubberDuck;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
     private giant?: Giant;
@@ -78,8 +93,13 @@ export class Preview extends Phaser.Scene {
     /** A tug of war that never ends, with people shouting about it (see ../tugOfWar). */
     private tugOfWar?: TugOfWar;
     private ufo?: UFO;
+    /** Mark B, jetpacking round the whole map and saying nerdy AI things (see ../markb). */
+    private markB?: MarkB;
     private incidents?: Incidents;
+    private ambience?: Ambience;
     private ground?: Phaser.GameObjects.TileSprite;
+    /** The painted town ground: meadow, plaza, lanes, pond (see ../terrain). */
+    private terrain?: Terrain;
     private player?: {
         sprite: Phaser.GameObjects.Sprite;
         shadow: Phaser.GameObjects.Image;
@@ -106,7 +126,7 @@ export class Preview extends Phaser.Scene {
     private moles?: Moles;
     /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
     private lake?: Lake;
-    /** The rocket to Mars, south-east of the library: walk into it to fly there (see ../mars). */
+    /** The rocket to Mars, just south of the town: walk into it to fly there (see ../mars). */
     private launchPad?: LaunchPad;
     /** The player is aboard the rocket (taking off for Mars, or landing back home). */
     private rocketing = false;
@@ -155,6 +175,7 @@ export class Preview extends Phaser.Scene {
 
     create() {
         this.grass();
+        this.terrain = new Terrain(this, { bounds: () => this.worldBounds });
         const buildings = [
             { x: -305, y: -76, spec: { w: 6, h: 5, style: 'house', roof: 'red', wall: 'cream', seed: 2 } },
         ] satisfies { x: number; y: number; spec: BuildingSpec }[];
@@ -199,7 +220,7 @@ export class Preview extends Phaser.Scene {
         this.lockAndKey = new LockAndKey(this, -195, 345);
         this.lockAndKey.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.lockAndKey.footprint);
-        this.launchPad = new LaunchPad(this, 330, 340);
+        this.launchPad = new LaunchPad(this, 644, 380);
         this.launchPad.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.launchPad.area);
         this.factory = new Factory(this, 290, 20, {
@@ -257,20 +278,35 @@ export class Preview extends Phaser.Scene {
         this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
         this.fitWorld();
         this.ollama = new Ollama(this);
+        this.rubberDuck = new RubberDuck(this);
         this.talkingMoles = new TalkingMoles(this);
         this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
+        this.markB = new MarkB(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
             open: (x, y) => {
                 const hq = this.hq?.bounds();
                 return !(hq && Phaser.Geom.Rectangle.Contains(hq, x, y - 10)) && !this.solids.some((r) => r.contains(x, y));
             },
-            onCollect: (by) => by.player && addToken(),
+            onCollect: (by, kind) => {
+                if (by.player) {
+                    if (kind === 'token') addToken();
+                    else collectItem(kind);
+                }
+            },
+        });
+        ITEMS.forEach((item, i) => {
+            const x = [-70, 65, 80, -65][i], y = [125, 100, 200, 240][i];
+            // A new landmark may occupy a starter spot; try farther along the plaza.
+            for (let shift = 0; shift <= 192; shift += 64) {
+                if (this.tokens!.drop(x - shift, y - 40, y, item.id)) break;
+            }
         });
         this.createVibes();
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
+        this.atmosphere = new Atmosphere(this, { bounds: () => this.worldBounds, player: this.player?.sprite, vibes: () => this.vibes.map((v) => v.sprite), hq: this.hq });
         this.kittens = new Kittens(this, {
             bounds: () => this.worldBounds,
             include: (object) => this.includeInWorld(object),
@@ -305,6 +341,21 @@ export class Preview extends Phaser.Scene {
             walkers: () => this.walkers.map((w) => w.sprite),
             dragon: () => this.dragon?.plaything(),
         });
+        this.ambience = new Ambience(this, { player: () => this.player?.sprite, walkers: () => this.walkers.map((w) => w.sprite), indoors: () => this.insideHQ });
+        this.workout = new Workout(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+            player: () => (this.player && !this.insideHQ ? this.player.sprite : undefined),
+            people: () => [
+                ...this.walkers.map((w) => ({
+                    sprite: w.sprite,
+                    shadow: w.shadow,
+                    label: w.label,
+                    hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
+                })),
+                ...(this.roamers?.people() ?? []),
+            ],
+        });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
             this.syncVibes(true);
@@ -329,13 +380,21 @@ export class Preview extends Phaser.Scene {
                 this.vibePulse();
             }
         };
+        this.registerCharacters();
+        const offFocus = onFocusCharacter((id) => {
+            const directory = this.directory;
+            if (!this.sys.isActive() || !directory?.locate(id)) return;
+            if (this.view?.focus(() => directory.locate(id))) directory.ping(id);
+        });
         const off = on('leaveHQ', () => this.leaveHQ());
         window.addEventListener('keydown', onKey);
         const stop = () => {
             off();
+            offFocus();
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
             this.syncVibes(false);
+            this.tokens?.destroy();
         };
         this.events.once('shutdown', stop);
         this.events.once('destroy', stop);
@@ -353,6 +412,23 @@ export class Preview extends Phaser.Scene {
         }
         if (q.has('teams') || q.has('hq') || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
         else if (q.has('mars')) this.time.delayedCall(0, () => this.blastOff(true));
+    }
+
+    /** List everyone worth finding in the character search. */
+    private registerCharacters() {
+        const dir = new Directory(this);
+        this.directory = dir;
+        const at = (get: () => Phaser.GameObjects.Sprite | undefined) => () => spotOf(get());
+        dir.add({ id: 'you', name: 'You', kind: 'player', locate: () => (this.insideHQ ? undefined : spotOf(this.player?.sprite)) });
+        this.walkers.forEach((w, i) => dir.add({ id: `walker-${i}`, name: w.sprite.name || `Townsperson ${i + 1}`, kind: 'local', locate: () => spotOf(w.sprite) }));
+        dir.add({ id: 'christian', name: 'Christian', kind: 'coach', locate: at(() => this.workout?.body) });
+        dir.add({ id: 'catcher', name: 'Gremlin Catcher', kind: 'scout', locate: at(() => this.catchers?.first()) });
+        dir.add({ id: 'gremlin', name: 'Gremlin', kind: 'thief', locate: at(() => this.gremlins?.first()) });
+        dir.add({ id: 'dragon', name: 'Dragon', kind: 'beast', locate: at(() => spriteOf(this.dragon)) });
+        dir.add({ id: 'ollama', name: 'Ollama', kind: 'llama', locate: at(() => spriteOf(this.ollama)) });
+        dir.add({ id: 'giant', name: 'The Giant', kind: 'giant', locate: at(() => spriteOf(this.giant)) });
+        dir.add({ id: 'ufo', name: 'Flying Saucer', kind: 'alien', locate: at(() => spriteOf(this.ufo)) });
+        this.roamers?.catalog().forEach(({ id, name }) => dir.add({ id: `visitor-${id}`, name, kind: 'visitor', locate: at(() => this.roamers?.spriteOf(id)) }));
     }
 
     /** Climb into the rocket and fly to Mars (`instantly` skips the countdown and liftoff). */
@@ -467,19 +543,24 @@ export class Preview extends Phaser.Scene {
         this.gremlins?.update(dt);
         this.catchers?.update(dt);
         this.roamers?.update(dt);
+        this.workout?.update(dt);
+        this.directory?.update(dt);
         this.bikeGang?.update(dt);
         this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
+        this.rubberDuck?.update(dt);
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
         this.pool?.update(dt);
         this.tugOfWar?.update(dt);
         this.ufo?.update(dt);
+        this.markB?.update(dt);
         this.disco?.update(dt);
         this.lake?.update(dt, this.player && !this.insideHQ && !this.inHell ? this.player : undefined);
         this.billboard?.update(dt);
         this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
         this.factory?.update(dt, this.insideHQ ? undefined : this.player?.sprite);
+        this.ambience?.update(dt);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
@@ -793,6 +874,8 @@ export class Preview extends Phaser.Scene {
         this.surfacePortal?.setVisible(!active);
         this.hellPortal?.setVisible(active);
         this.hellDecor.forEach((object) => object.setVisible(active));
+        this.ambience?.setVisible(!active);
+        this.terrain?.setVisible(!active);
 
         const exempt = new Set<Phaser.GameObjects.GameObject>([
             ...this.hellDecor,
@@ -807,6 +890,7 @@ export class Preview extends Phaser.Scene {
                 else if ('clearTint' in object && typeof object.clearTint === 'function') object.clearTint();
             }
         });
+        this.atmosphere?.setHell(active);
     }
 
     private usePortal() {
@@ -965,7 +1049,7 @@ export class Preview extends Phaser.Scene {
         if (this.lockAndKey) out.push(...this.lockAndKey.burnables());
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 56, nametag: this.player.nametag });
         if (this.disco) out.push(...this.disco.burnables());
-        out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []));
+        out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []), ...(this.workout?.burnables() ?? []));
         if (this.factory) out.push(...this.factory.burnables());
         return out;
     }

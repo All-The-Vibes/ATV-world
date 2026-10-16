@@ -73,3 +73,40 @@ export function isTyping(): boolean {
     const el = document.activeElement as HTMLElement | null;
     return !!el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName));
 }
+
+/** Someone the character search lists. `here` is false while they're away from town (a visitor between visits). */
+export interface CharacterInfo {
+    id: string;
+    name: string;
+    kind: string;
+    here: boolean;
+}
+
+let characterList: readonly CharacterInfo[] = [];
+
+/** The roster for the character search (same array until it changes, so React can compare it). */
+export const getCharacters = () => characterList;
+
+export function setCharacters(list: readonly CharacterInfo[]) {
+    const same = list.length === characterList.length
+        && list.every((c, i) => c.id === characterList[i].id && c.name === characterList[i].name && c.here === characterList[i].here);
+    if (same) return;
+    characterList = list;
+    bus.dispatchEvent(new Event('characters'));
+}
+
+/** Listen for the roster changing. Returns a function that stops listening. */
+export function onCharacters(fn: () => void): () => void {
+    bus.addEventListener('characters', fn);
+    return () => bus.removeEventListener('characters', fn);
+}
+
+/** Ask the camera to zoom in on one character (from the character search). */
+export const focusCharacter = (id: string) => bus.dispatchEvent(new CustomEvent('focusCharacter', { detail: id }));
+
+/** Listen for focus requests. Returns a function that stops listening. */
+export function onFocusCharacter(fn: (id: string) => void): () => void {
+    const handler = (e: Event) => fn((e as CustomEvent<string>).detail);
+    bus.addEventListener('focusCharacter', handler);
+    return () => bus.removeEventListener('focusCharacter', handler);
+}

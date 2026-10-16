@@ -1,0 +1,98 @@
+name: Deploy to atvworld.azurewebsites.net
+
+# Automatically redeploys https://atvworld.azurewebsites.net on every commit pushed to main.
+# Uses passwordless OpenID Connect (OIDC) federated identity with Azure (no stored secrets)
+# and ATV World's fault-tolerant build script (scripts/build.ts).
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  id-token: write
+  contents: read
+
+concurrency:
+  group: deploy-atvworld-webapp
+  cancel-in-progress: true
+
+env:
+  WEBAPP_NAME: atvworld
+  RESOURCE_GROUP: rg-atvworld
+  SITE: https://atvworld.azurewebsites.net
+
+jobs:
+  deploy-webapp:
+    if: github.repository == 'All-The-Vibes/ATV-world'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          filter: blob:none
+
+      - uses: actions/setup-node@v4
+        id: node
+        continue-on-error: true
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - if: steps.node.outcome == 'failure'
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24
+
+      - name: Find the live version on atvworld.azurewebsites.net
+        id: live
+        run: |
+          sha=$(curl -fsS --max-time 10 "$SITE/version.json" | jq -r '.sha // empty' 2>/dev/null || true)
+          if [ -n "$sha" ] && git cat-file -e "$sha^{commit}" 2>/dev/null; then
+            echo "sha=$sha" >> "$GITHUB_OUTPUT"
+            echo "Live: $sha"
+          else
+            echo "Live version unknown, so only plots can fall back this run."
+          fi
+
+      - name: Install dependencies
+        id: install
+        continue-on-error: true
+        env:
+          LIVE: ${{ steps.live.outputs.sha }}
+        run: |
+          npm ci || npm install && exit 0
+          [ -n "$LIVE" ] || exit 1
+          echo "::warning title=npm install failed::Using the live package.json and package-lock.json."
+          git checkout "$LIVE" -- package.json package-lock.json
+          npm ci
+
+      - name: Build (fault-tolerant)
+        id: build
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        env:
+          ATV_LIVE_SHA: ${{ steps.live.outputs.sha }}
+        run: |
+          node scripts/build.ts && exit 0
+          [ -n "$ATV_LIVE_SHA" ] && git cat-file -e "$ATV_LIVE_SHA:scripts/build.ts" 2>/dev/null || exit 1
+          echo "::warning title=scripts/build.ts crashed::Retrying with the live version of scripts/."
+          git checkout "$ATV_LIVE_SHA" -- scripts
+          node scripts/build.ts
+
+      - name: Azure Login via OIDC (Passwordless)
+        if: steps.build.outputs.deploy == 'true'
+        uses: azure/login@v2
+        with:
+          client-id: ${{ vars.AZURE_CLIENT_ID }}
+          tenant-id: ${{ vars.AZURE_TENANT_ID }}
+          subscription-id: ${{ vars.AZURE_SUBSCRIPTION_ID }}
+
+      - name: Deploy dist to Azure Web App (atvworld.azurewebsites.net)
+        if: steps.build.outputs.deploy == 'true'
+        run: |
+          cd dist && zip -qr ../atvworld-dist.zip . && cd ..
+          az webapp deploy \
+            --name "$WEBAPP_NAME" \
+            --resource-group "$RESOURCE_GROUP" \
+            --src-path atvworld-dist.zip \
+            --type zip

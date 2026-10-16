@@ -87,27 +87,6 @@ body,
     margin: auto;
 }
 
-/* The player's free tokens, top-left (the call panel takes the top-right). */
-.tokens {
-    position: fixed;
-    top: 16px;
-    left: 216px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 8px 12px;
-    font: 14px 'Press Start 2P', monospace;
-    color: var(--gold);
-    background: rgb(20 16 30 / 85%);
-    border: 3px solid var(--night);
-    box-shadow: 0 0 0 3px var(--ink);
-    pointer-events: auto;
-}
-
-.tokens svg {
-    display: block;
-}
-
 .live {
     position: fixed;
     left: 16px;
@@ -301,7 +280,6 @@ body,
     .banner h1 { font-size: 13px; }
     .banner p { font-size: 17px; }
     .vibe-meter { top: auto; bottom: 72px; left: 12px; width: 164px; }
-    .tokens { top: auto; bottom: 72px; left: 184px; font-size: 11px; padding: 6px 8px; }
     .world-actions { gap: 6px; font-size: 18px; }
     .world-actions button { padding: 8px; }
 }

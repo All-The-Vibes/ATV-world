@@ -1,4 +1,6 @@
 import Phaser from 'phaser';
+import { tokenCount } from '../commands';
+import { addTokenCounter } from '../tokens/counter';
 import { booksOn, shelves, type ShelfId } from '../../library/books';
 import { LibraryBridge } from '../../library/bridge';
 import {
@@ -47,6 +49,7 @@ export class Library extends Phaser.Scene {
         this.shadow = this.add.image(start.x, start.y, shadowTexture(this, 12)).setAlpha(0.3);
         this.player = this.add.sprite(start.x, start.y, 'preview-player', 'up-0').setOrigin(0.5, 1);
         addCreatorNametag(this.player, PLAYER_LOOK);
+        addTokenCounter(this.player, tokenCount);
         this.place();
         this.cursors = this.input.keyboard!.createCursorKeys();
 

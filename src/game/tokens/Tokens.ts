@@ -1,5 +1,9 @@
 import Phaser from 'phaser';
-import { shadowTexture } from '../kit';
+import { ensurePixels, shadowTexture } from '../kit';
+import { itemArt } from '../../backpack/art';
+import { ITEMS, type ItemId, type Loot } from '../../backpack/inventory';
+import { tokenCount } from '../commands';
+import { addTokenCounter } from './counter';
 import { CAR_H, CAR_W, bannerTexture, carTexture, popTexture, tokenTexture } from './art';
 
 /** Someone who can pick tokens up: the player or a passer-by. */
@@ -14,7 +18,7 @@ export interface TokensOptions {
     /** Whether a token may land here (not inside a building, where nobody could reach it). */
     open: (x: number, y: number) => boolean;
     /** Someone picked a token up. */
-    onCollect?: (by: Collector) => void;
+    onCollect?: (by: Collector, kind: Loot) => void;
 }
 
 interface Car {
@@ -24,10 +28,12 @@ interface Car {
     dir: 1 | -1;
     ground: number;
     drops: number[];
+    item?: ItemId;
     age: number;
 }
 
 interface Token {
+    kind: Loot;
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
     landed: boolean;
@@ -52,11 +58,17 @@ export class Tokens {
     private cars: Car[] = [];
     private tokens: Token[] = [];
     private nextCar = 3;
+    private nextItem = 0;
+    private counted = new WeakSet<Phaser.GameObjects.Sprite>();
 
     constructor(private scene: Phaser.Scene, private opts: TokensOptions) {
         const key = carTexture(scene);
         tokenTexture(scene);
         popTexture(scene);
+        for (const item of ITEMS) {
+            ensurePixels(scene, `loot-${item.id}`, () => itemArt(item.id));
+            popTexture(scene, item.id);
+        }
         const anim = (name: string, tex: string, frames: number[], frameRate: number) => {
             if (!scene.anims.exists(name)) {
                 scene.anims.create({ key: name, frames: frames.map((frame) => ({ key: tex, frame })), frameRate, repeat: -1 });
@@ -98,9 +110,10 @@ export class Tokens {
             .play(`tokens-banner-${side}-wave`);
         const shadow = this.scene.add.image(x, ground, shadowTexture(this.scene, 34)).setAlpha(0.18).setDepth(-1e8 + 1);
         const room = Math.max(0, MAX_TOKENS - this.tokens.length);
-        const drops = Array.from({ length: Math.min(room, Phaser.Math.Between(3, 5)) }, () =>
+        const drops = Array.from({ length: Math.min(room, Phaser.Math.Between(4, 6)) }, () =>
             Phaser.Math.FloatBetween(b.left + 40, b.right - 40)).sort((a, c) => (a - c) * dir);
-        this.cars.push({ car, banner, shadow, dir, ground, drops, age: 0 });
+        const item = ITEMS[this.nextItem++ % ITEMS.length].id;
+        this.cars.push({ car, banner, shadow, dir, ground, drops, item, age: 0 });
     }
 
     update(dt: number, collectors: Collector[]) {
@@ -120,7 +133,8 @@ export class Tokens {
             c.shadow.setPosition(x, c.ground);
             while (c.drops.length && (x - c.drops[0]) * c.dir >= 0) {
                 c.drops.shift();
-                this.drop(x, y - CAR_H / 2, c.ground);
+                const dropped = this.drop(x, y - CAR_H / 2, c.ground, c.item);
+                if (dropped) c.item = undefined;
             }
         }
         this.cars = this.cars.filter((c) => {
@@ -144,18 +158,25 @@ export class Tokens {
 
         for (const who of collectors) {
             const s = who.sprite;
+            if (!this.counted.has(s)) {
+                this.counted.add(s);
+                addTokenCounter(s, who.player ? tokenCount : () => s.getData('tokenCount') ?? 0, who.player ? 34 : 2);
+            }
             if (!s.visible) continue;
-            const t = this.tokens.find((t) => t.landed && Math.abs(t.sprite.x - s.x) <= REACH_X && Math.abs(t.sprite.y - s.y) <= REACH_Y);
+            const t = this.tokens.find((t) => t.landed && (who.player || t.kind === 'token') &&
+                Math.abs(t.sprite.x - s.x) <= REACH_X && Math.abs(t.sprite.y - s.y) <= REACH_Y);
             if (!t) continue;
             this.tokens.splice(this.tokens.indexOf(t), 1);
             this.remove(t);
-            this.pop(s.x, s.y - 32);
-            this.opts.onCollect?.(who);
+            if (t.kind === 'token' && !who.player) s.setData('tokenCount', (s.getData('tokenCount') ?? 0) + 1);
+            this.pop(s.x, s.y - 32, t.kind);
+            this.opts.onCollect?.(who, t.kind);
         }
     }
 
-    /** Let a token fall from the car and bounce onto open ground near the car's lane. */
-    private drop(fromX: number, fromY: number, ground: number) {
+    /** Drop from a car or seed the plaza; never put loot inside a building or exceed the ground limit. */
+    drop(fromX: number, fromY: number, ground: number, kind: Loot = 'token'): boolean {
+        if (this.tokens.length >= MAX_TOKENS) return false;
         const b = this.opts.bounds();
         let spot: { x: number; y: number } | undefined;
         for (let i = 0; i < 8 && !spot; i++) {
@@ -163,11 +184,13 @@ export class Tokens {
             const y = Phaser.Math.Clamp(ground + Phaser.Math.Between(-44, 44), b.top + 20, b.bottom - 14);
             if (this.opts.open(x, y)) spot = { x, y };
         }
-        if (!spot) return;
+        if (!spot) return false;
 
-        const sprite = this.scene.add.sprite(fromX, fromY, 'tokens-token', 0).setOrigin(0.5, 1).setDepth(SKY - 1).play('tokens-token-spin');
-        const shadow = this.scene.add.image(spot.x, spot.y, shadowTexture(this.scene, 8)).setAlpha(0).setScale(0.4).setDepth(-1e8 + 1);
-        const token: Token = { sprite, shadow, landed: false, age: 0, blinking: false };
+        const sprite = this.scene.add.sprite(fromX, fromY, kind === 'token' ? 'tokens-token' : `loot-${kind}`)
+            .setOrigin(0.5, 1).setDepth(SKY - 1);
+        if (kind === 'token') sprite.play('tokens-token-spin');
+        const shadow = this.scene.add.image(spot.x, spot.y, shadowTexture(this.scene, kind === 'token' ? 8 : 18)).setAlpha(0).setScale(0.4).setDepth(-1e8 + 1);
+        const token: Token = { kind, sprite, shadow, landed: false, age: 0, blinking: false };
         this.tokens.push(token);
         const duration = 1100;
         this.scene.tweens.add({ targets: sprite, x: spot.x, duration, ease: 'Linear' });
@@ -182,6 +205,7 @@ export class Tokens {
             },
         });
         this.scene.tweens.add({ targets: shadow, alpha: 0.3, scale: 1, duration, ease: 'Quad.easeIn' });
+        return true;
     }
 
     private remove(t: Token) {
@@ -190,8 +214,8 @@ export class Tokens {
         t.shadow.destroy();
     }
 
-    private pop(x: number, y: number) {
-        const pop = this.scene.add.image(x, y, 'tokens-pop').setOrigin(0.5, 1).setDepth(SKY + 2);
+    private pop(x: number, y: number, kind: Loot) {
+        const pop = this.scene.add.image(x, y, `tokens-pop-${kind}`).setOrigin(0.5, 1).setDepth(SKY + 2);
         this.scene.tweens.add({ targets: pop, y: y - 14, alpha: 0, duration: 900, ease: 'Quad.easeOut', onComplete: () => pop.destroy() });
     }
 
