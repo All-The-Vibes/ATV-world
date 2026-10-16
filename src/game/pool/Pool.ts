@@ -3,7 +3,7 @@ import {
     PixelCanvas, addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
     type ColorName, type Facing,
 } from '../kit';
-import { BOARD, DECK, POOL_FRAMES, STEPS_X, TOWER, WATER, boardArt, piranhaArt, poolArt, rippleArt, splashArt, towerArt, wakeArt, wednesdayArt } from './art';
+import { BOARD, DECK, POOL_FRAMES, STEPS_X, TOWER, WATER, boardArt, poolArt, rippleArt, splashArt, towerArt, wakeArt, wednesdayArt } from './art';
 import { FLOP_QUIPS, QUIPS, WEDNESDAY_QUOTES } from './quips';
 
 type Vec = { x: number; y: number };
@@ -67,17 +67,6 @@ export class Pool {
     private wednesdayQuoteTimer = 1.5;
     private wednesdayTalkRemaining = 0;
     private lastWednesdayQuote = -1;
-    private readonly piranhas: {
-        sprite: Phaser.GameObjects.Sprite;
-        wake: Phaser.GameObjects.Image;
-        cx: number;
-        cy: number;
-        rx: number;
-        ry: number;
-        speed: number;
-        phase: number;
-    }[] = [];
-    private piranhaClock = 0;
 
     constructor(private readonly scene: Phaser.Scene, private readonly x: number, private readonly y: number) {
         ensurePixels(scene, 'pool', poolArt);
@@ -87,8 +76,7 @@ export class Pool {
         ensurePixels(scene, 'pool-ripple', rippleArt);
         ensurePixels(scene, 'pool-wake', wakeArt);
         ensurePixels(scene, 'pool-wednesday', wednesdayArt);
-        ensurePixels(scene, 'pool-piranha', piranhaArt);
-        for (const [key, frames, frameRate] of [['pool', 3, 4], ['pool-splash', 5, 14], ['pool-piranha', 2, 7]] as const) {
+        for (const [key, frames, frameRate] of [['pool', 3, 4], ['pool-splash', 5, 14]] as const) {
             if (!scene.anims.exists(key)) {
                 scene.anims.create({ key, frames: Array.from({ length: frames }, (_, frame) => ({ key, frame })), frameRate, repeat: key === 'pool-splash' ? 0 : -1 });
             }
@@ -104,7 +92,7 @@ export class Pool {
             .setDepth(y + LADDER.y + 0.5);
         for (let i = 0; i < SWIMMERS; i++) this.addSwimmer(i);
 
-        // Wednesday Addams standing on the pool edge overlooking the piranha-filled water.
+        // Wednesday Addams standing on the pool edge, overlooking the water.
         const wx = x + WATER.x + WATER.w - 22;
         const wy = y + WATER.y + 2;
         scene.add.image(wx, wy, shadowTexture(scene, 10)).setAlpha(0.3).setDepth(-1e7 + 1);
@@ -128,23 +116,6 @@ export class Pool {
             .setDepth(1e5 + 2)
             .setVisible(false);
         addCreatorNametag(this.wednesday, { githubUsername: 'ShahabName' }, { gap: 16, speech: () => this.wednesdayBubble });
-
-        // School of snapping piranhas swimming in the pool water around Wednesday.
-        const piranhaSpots = [
-            { cx: x + WATER.x + 34, cy: y + WATER.y + 20, rx: 18, ry: 7, speed: 1.7, phase: 0 },
-            { cx: x + WATER.x + 68, cy: y + WATER.y + 34, rx: 22, ry: 8, speed: 2.1, phase: 1.4 },
-            { cx: x + WATER.x + 98, cy: y + WATER.y + 22, rx: 19, ry: 6, speed: 1.9, phase: 2.8 },
-            { cx: x + WATER.x + 84, cy: y + WATER.y + 46, rx: 20, ry: 7, speed: 2.3, phase: 4.1 },
-            { cx: x + WATER.x + 112, cy: y + WATER.y + 38, rx: 14, ry: 6, speed: 2.5, phase: 5.2 },
-        ];
-        for (const spot of piranhaSpots) {
-            const wake = scene.add.image(spot.cx, spot.cy + 2, 'pool-wake').setScale(0.75).setAlpha(0.7).setDepth(SWIM_DEPTH);
-            const sprite = scene.add.sprite(spot.cx, spot.cy, 'pool-piranha', 0)
-                .setOrigin(0.5, 0.5)
-                .setDepth(SWIM_DEPTH + 1.5)
-                .play('pool-piranha');
-            this.piranhas.push({ sprite, wake, ...spot });
-        }
     }
 
     /** The deck plus the tower, for fitting the world around it. */
@@ -319,17 +290,6 @@ export class Pool {
                 s.bubble.setPosition(Math.round(p.x), Math.round(p.y - 23));
             }
             s.bubble.setVisible(s.talk > 0);
-        }
-
-        // Update circling piranhas in the pool water.
-        this.piranhaClock += dt;
-        for (const f of this.piranhas) {
-            const angle = this.piranhaClock * f.speed + f.phase;
-            const px = Math.round(f.cx + Math.cos(angle) * f.rx);
-            const py = Math.round(f.cy + Math.sin(angle * 1.3) * f.ry);
-            const vx = -Math.sin(angle) * f.rx * f.speed;
-            f.sprite.setPosition(px, py).setFlipX(vx < 0);
-            f.wake.setPosition(px, py + 2);
         }
 
         // Wednesday says a random quote from the series with a 10-second pause between quotes.

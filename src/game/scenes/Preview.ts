@@ -36,6 +36,7 @@ import { Ollama } from '../llama/Ollama';
 import { RubberDuck } from '../rubberDuck/RubberDuck';
 import { LaunchPad } from '../mars/Rocket';
 import { Moles } from '../moles/Moles';
+import { Planetarium } from '../planetarium/Planetarium';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
 import { Pool } from '../pool/Pool';
 import { Terrain } from '../terrain/Terrain';
@@ -137,6 +138,8 @@ export class Preview extends Phaser.Scene {
     private launchPad?: LaunchPad;
     /** The player is aboard the rocket (taking off for Mars, or landing back home). */
     private rocketing = false;
+    /** The planetarium between the library and the town: walk in for the star show (see ../planetarium). */
+    private planetarium?: Planetarium;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     private opened = false;
@@ -285,6 +288,11 @@ export class Preview extends Phaser.Scene {
         } catch (e) {
             console.error('[lake]', e);
         }
+        // Between the library and the town, once the town has picked its spot.
+        this.planetarium = new Planetarium(this, 580, 60);
+        this.planetarium.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.planetarium.area);
+        this.planetarium.onClick = () => this.enterPlanetarium();
         this.fitWorld();
         this.billboard = new Billboard(this, 368, 415);
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
@@ -316,7 +324,14 @@ export class Preview extends Phaser.Scene {
         this.fitWorld();
         this.ollama = new Ollama(this);
         this.rubberDuck = new RubberDuck(this, {
-            bounds: () => this.worldBounds,
+            // The plaza between the campus and the town, from the pool and disco rows down to the south lawn.
+            area: () => {
+                const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity);
+                const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity);
+                const top = Math.max(this.worldBounds.top, -250);
+                const bottom = Math.min(this.worldBounds.bottom, 420);
+                return new Phaser.Geom.Rectangle(left, top, right - left, bottom - top);
+            },
             open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
         });
         this.talkingMoles = new TalkingMoles(this);
@@ -509,6 +524,20 @@ export class Preview extends Phaser.Scene {
         }
         if (wasInsideHQ || (first && (q.has('teams') || q.has('hq'))) || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
         else if (q.has('mars')) this.time.delayedCall(0, () => this.blastOff(true));
+        else if (q.has('planetarium')) this.time.delayedCall(0, () => this.enterPlanetarium());
+    }
+
+    /** Step into the planetarium for the star show, and come back out at the foot of its steps. */
+    private enterPlanetarium() {
+        const p = this.player?.sprite;
+        if (!p || !this.planetarium || this.insideHQ || this.rocketing || !this.sys.isActive()) return;
+        const { exit } = this.planetarium;
+        p.setPosition(exit.x, exit.y).setDepth(exit.y).stop();
+        this.player?.shadow.setPosition(exit.x, exit.y);
+        this.view?.trackPlayer();
+        setFactoryOpen(false);
+        this.scene.launch('StarShow');
+        this.scene.sleep();
     }
 
     /** List everyone worth finding in the character search. */
@@ -679,6 +708,8 @@ export class Preview extends Phaser.Scene {
             this.scene.sleep();
         } else if (p && !this.insideHQ && !this.rocketing && this.launchPad?.boards(p.x, p.y)) {
             this.blastOff();
+        } else if (p && !this.insideHQ && this.planetarium?.foot.contains(p.x, p.y)) {
+            this.enterPlanetarium();
         }
     }
 
