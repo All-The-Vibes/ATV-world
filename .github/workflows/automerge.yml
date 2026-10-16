@@ -1,0 +1,125 @@
+name: Auto-merge
+
+# Pull requests into main merge on their own, so opening one works like pushing to main.
+# That covers anyone who can push here and their agents. Fork PRs from outside wait for one of them.
+on:
+  pull_request_target:
+    types: [opened, reopened, synchronize, ready_for_review, review_requested, edited]
+  # Backstop for PRs whose events are held back (workflows on Copilot cloud agent PRs wait for approval).
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+  issues: write
+  actions: write
+
+env:
+  SITE: https://calm-sea-064d9241e.3.azurestaticapps.net
+
+jobs:
+  merge:
+    if: github.repository == 'All-The-Vibes/ATV-world'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      # Only talks to the GitHub API. PR code is never checked out or run here.
+      - name: Merge open pull requests
+        id: merge
+        run: |
+          set +e
+          MARK='<!-- atv-automerge -->'
+
+          # One comment from this workflow per PR, updated in place.
+          note() {
+            local body="$2"$'\n\n'"$MARK" found
+            found=$(gh api "repos/$GH_REPO/issues/$1/comments?per_page=100" |
+              jq -r --arg mark "$MARK" --arg want "$body" '
+                map(select(.body | contains($mark))) | first
+                | if . == null then "new" elif .body == $want then "same" else .id end')
+            case "$found" in
+              new) gh pr comment "$1" --body "$body" > /dev/null ;;
+              same | '') ;;
+              *) gh api -X PATCH "repos/$GH_REPO/issues/comments/$found" -f body="$body" > /dev/null ;;
+            esac
+          }
+
+          merged=0
+          while read -r n draft cross author asks; do
+            if [ "$cross" = true ]; then
+              perm=$(gh api "repos/$GH_REPO/collaborators/$author/permission" --jq .permission 2> /dev/null)
+              case "$perm" in
+                admin | maintain | write) ;;
+                *)
+                  echo "#$n comes from outside the repo, so it waits for someone who can push here."
+                  note "$n" "Pull requests from people who can push to this repo merge on their own. This one comes from outside, so someone with access needs to merge it."
+                  continue ;;
+              esac
+            fi
+
+            # Copilot cloud agent can't mark its drafts ready. It requests a review when it's done.
+            if [ "$draft" = true ]; then
+              if [ "$asks" = 0 ]; then
+                echo "#$n is a draft. It merges once it's marked ready or a review is requested."
+                continue
+              fi
+              gh pr ready "$n"
+            fi
+
+            # Retries cover main moving mid-merge, which happens a lot when everyone pushes at once.
+            for try in 1 2 3; do
+              out=$(gh pr merge "$n" --squash 2>&1) && { echo "::notice::Merged #$n"; merged=$((merged + 1)); out=; break; }
+              [ "$(gh pr view "$n" --json state --jq .state)" = OPEN ] || { out=; break; }
+              case "$out" in *onflict* | *"not mergeable"*) break ;; esac
+              sleep $((try * 5))
+            done
+            [ -z "$out" ] && continue
+
+            workflows=$(gh pr view "$n" --json files --jq '[.files[].path | select(startswith(".github/workflows/"))] | length')
+            if [ "${workflows:-0}" != 0 ]; then
+              note "$n" "This changes files in \`.github/workflows\`, and GitHub doesn't let automation merge those. Someone who can push here needs to merge it."
+            else
+              case "$out" in
+                *onflict* | *"not mergeable"*)
+                  note "$n" "This can't merge on its own because it conflicts with \`main\`. Merge \`main\` into this branch, keep both sides, and push. It merges as soon as the conflicts are gone." ;;
+                *) echo "::warning title=#$n didn't merge::${out//$'\n'/ }" ;;
+              esac
+            fi
+          done < <(gh pr list --base main --state open --limit 100 \
+            --json number,isDraft,isCrossRepository,author,reviewRequests \
+            --jq '.[] | "\(.number) \(.isDraft) \(.isCrossRepository) \(.author.login) \(.reviewRequests | length)"')
+
+          echo "merged=$merged" >> "$GITHUB_OUTPUT"
+          exit 0
+
+      # Merges made with this token don't trigger push workflows, so the deploy starts here.
+      # The same check redeploys once per commit if the site is behind main and no deploy is on the way.
+      - name: Deploy if the site is behind
+        env:
+          MERGED: ${{ steps.merge.outputs.merged }}
+        run: |
+          set +e
+          deploy() {
+            gh workflow run deploy.yml --ref main && echo "::notice::Started a deploy: $1." ||
+              echo "::warning::Couldn't start a deploy. The next push deploys instead."
+          }
+          if [ "${MERGED:-0}" != 0 ]; then
+            deploy "merged $MERGED pull request(s)"
+            exit 0
+          fi
+
+          tip=$(gh api "repos/$GH_REPO/commits/main" --jq .sha)
+          live=$(curl -fsS --max-time 10 "$SITE/version.json" | jq -r '.sha // empty')
+          if [ -z "$tip" ] || [ -z "$live" ] || [ "$tip" = "$live" ]; then exit 0; fi
+
+          busy=$(gh run list --workflow deploy.yml --limit 20 --json status --jq '[.[] | select(.status != "completed")] | length')
+          tried=$(gh run list --workflow deploy.yml --event workflow_dispatch --commit "$tip" --json databaseId --jq length)
+          if [ "${busy:-1}" = 0 ] && [ "${tried:-1}" = 0 ]; then
+            deploy "the site is on ${live:0:7} and main is on ${tip:0:7}"
+          fi
+          exit 0
