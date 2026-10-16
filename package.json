@@ -14,6 +14,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p .",
     "test:hq": "node --test tests/hq.test.cjs",
+    "test:daenerys": "node tests/daenerys-browser.mjs",
     "test:kittens": "node tests/kittens-browser.mjs",
     "test:ideas": "node tests/idea-machine-browser.mjs",
     "test:steph": "node tests/steph-browser.mjs",

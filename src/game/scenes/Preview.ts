@@ -22,6 +22,7 @@ import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
 import { Lake } from '../lake/Lake';
+import { daenerysSheet } from '../kit/daenerys';
 import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
 import { Ollama } from '../llama/Ollama';
@@ -236,6 +237,7 @@ export class Preview extends Phaser.Scene {
         this.createIdeaMachine(-85, 170);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
+        this.walker(7, 'Daenerys', -240, daenerysSheet());
         this.walker(8, 'Ahmed', -180);
         this.bikeGang = new BikeGang(this, () => {
             const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
@@ -893,10 +895,10 @@ export class Preview extends Phaser.Scene {
         }
     }
 
-    private walker(i: number, name?: string, startAt?: number) {
+    private walker(i: number, name?: string, startAt?: number, art?: ReturnType<typeof characterSheet>) {
         const look = randomLook(name ?? `preview-${i}`);
-        const key = lookKey(look);
-        const sheet = characterSheet(look);
+        const key = art ? `preview-walker-${name ?? i}` : lookKey(look);
+        const sheet = art ?? characterSheet(look);
         addPixels(this, key, sheet.canvas, sheet.frames);
         const anim = `${key}-walk`;
         if (!this.anims.exists(anim)) {
@@ -914,7 +916,7 @@ export class Preview extends Phaser.Scene {
             canvas.rect(0, 0, canvas.width, 9, 'ink');
             miniText(canvas, 3, 2, name, 'cream');
             addPixels(this, labelKey, canvas);
-            label = this.add.image(sprite.x, y - 26, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
+            label = this.add.image(sprite.x, y - sprite.displayHeight - 4, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
             sprite.setName(name);
         }
         this.walkers.push({ sprite, shadow, label, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
