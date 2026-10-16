@@ -10,6 +10,8 @@ import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
 import { MapButton, MiniMap } from './map/MiniMap';
 import { SoundButton } from './music/SoundButton';
+import { myName } from './multiplayer/identity';
+import { NamePrompt } from './multiplayer/NamePrompt';
 
 const buttons: [label: string, command: Command, title: string][] = [
     ['-', 'zoomOut', 'Zoom out (-)'],
@@ -24,12 +26,14 @@ export default function App() {
     const modes = useSyncExternalStore(onViewModes, getViewModes);
     const [backpackOpen, setBackpackOpen] = useState(false);
     const [searching, setSearching] = useState(false);
+    const [named, setNamed] = useState(() => !!myName() || navigator.webdriver);
     const insideHQ = useSyncExternalStore(onInsideHQ, isInsideHQ);
     // The world map sits out indoors, where the call panel and the library take the screen.
     const outdoors = !state.inside && !insideHQ;
     return (
         <>
-            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching} />
+            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching || !named} />
+            {!named && <NamePrompt onDone={() => setNamed(true)} />}
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
                 <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Space pulses · Collect vibes'}</p>
