@@ -103,9 +103,10 @@ jobs:
           skip_app_build: true
           skip_api_build: true
 
-      # One retry for a flaky upload, unless a newer push will deploy anyway.
+      # Azure turns an upload away while another deploy is uploading, so a failed upload waits and tries again.
+      # Retries are skipped once a newer push lands, since that one deploys with this push included.
       - name: Wait to retry
-        id: retry
+        id: wait1
         if: steps.deploy.outcome == 'failure'
         run: |
           sleep 20
@@ -116,8 +117,10 @@ jobs:
             echo "ok=true" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Deploy (retry)
-        if: steps.retry.outputs.ok == 'true'
+      - name: Deploy (second try)
+        id: deploy2
+        if: steps.wait1.outputs.ok == 'true'
+        continue-on-error: true
         uses: Azure/static-web-apps-deploy@v1
         with:
           azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
@@ -127,9 +130,42 @@ jobs:
           skip_app_build: true
           skip_api_build: true
 
+      - name: Wait to retry again
+        id: wait2
+        if: steps.deploy2.outcome == 'failure'
+        run: |
+          sleep 60
+          tip=$(git ls-remote origin refs/heads/main | cut -f1)
+          if [ -n "$tip" ] && [ "$tip" != "$GITHUB_SHA" ]; then
+            echo "::notice::Upload failed, but main has moved on to ${tip:0:7}, which deploys instead."
+          else
+            echo "ok=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Deploy (third try)
+        id: deploy3
+        if: steps.wait2.outputs.ok == 'true'
+        continue-on-error: true
+        uses: Azure/static-web-apps-deploy@v1
+        with:
+          azure_static_web_apps_api_token: ${{ secrets.AZURE_STATIC_WEB_APPS_API_TOKEN }}
+          action: upload
+          app_location: dist
+          output_location: ''
+          skip_app_build: true
+          skip_api_build: true
+
+      # Warnings, not failures: the pusher can't fix either case, and the next push deploys everything.
       - name: Report
-        if: steps.build.outcome != 'success'
-        run: echo "::warning title=Nothing deployed::This push didn't build, so the live world is unchanged. See the Install and Build logs."
+        if: steps.build.outputs.deploy != 'true' || steps.deploy3.outcome == 'failure'
+        env:
+          BUILT: ${{ steps.build.outputs.deploy }}
+        run: |
+          if [ "$BUILT" != true ]; then
+            echo "::warning title=Nothing deployed::This push didn't build, so the live world is unchanged. See the Install and Build logs."
+          else
+            echo "::warning title=Upload failed::Azure turned the upload away three times. The Auto-merge workflow redeploys within a few minutes, and so does the next push."
+          fi
 
   # Type errors show up as warnings on the run. They never block a deploy.
   typecheck:
