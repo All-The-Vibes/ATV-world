@@ -46,6 +46,6 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/game/scenes/Preview.ts` is the world on the live screen.
 - `src/game/view.ts` is the camera: F fits the whole world, +/- or the mouse wheel zooms, dragging looks around, and the view survives reloads.
 - `src/live.ts` is the LIVE badge in the bottom left. It shows the commit that's live and reloads the page when a newer push deploys.
-- `src/music/` is the background music: an 80s arcade loop made with Gemini. M mutes it.
+- `src/music/` is the background music: an 80s arcade loop made with Gemini. The speaker button or M turns it off and on.
 
 Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.

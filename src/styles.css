@@ -82,11 +82,16 @@ body,
     border-color: var(--gold);
 }
 
+.zoom .sound svg {
+    display: block;
+    margin: auto;
+}
+
 .live {
     position: fixed;
     left: 16px;
     bottom: 16px;
-    max-width: calc(100vw - 200px);
+    max-width: calc(100vw - 250px);
     padding: 6px 12px;
     overflow: hidden;
     font-size: 20px;
