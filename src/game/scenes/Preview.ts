@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { LibraryBridge } from '../../library/bridge';
 import {
     HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
-    miniText, miniTextWidth, shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
+    miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { Disco } from '../disco/Disco';
@@ -78,6 +78,14 @@ export class Preview extends Phaser.Scene {
     private surfacePortal?: Phaser.GameObjects.Sprite;
     private hellPortal?: Phaser.GameObjects.Sprite;
     private hellDecor: (Phaser.GameObjects.Image | Phaser.GameObjects.Sprite)[] = [];
+    private ideaMachine?: Phaser.GameObjects.Image;
+    private ideaBubble?: Phaser.GameObjects.Image;
+    private ideaIndex = -1;
+    private readonly buildChallenges = [
+        'Build an arcade game',
+        'Create an AI character',
+        'Add something that changes the whole world',
+    ];
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -121,6 +129,7 @@ export class Preview extends Phaser.Scene {
         this.solids.push(trafficLight.sprite.getBounds());
         this.includeInWorld(trafficLight.sprite);
         this.includeInWorld(trafficLight.label);
+        this.createIdeaMachine(-85, 170);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
         this.createHell();
@@ -161,6 +170,7 @@ export class Preview extends Phaser.Scene {
         const onKey = (e: KeyboardEvent) => {
             if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
             if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
+            else if (!e.repeat && e.key.toLowerCase() === 'e') this.rollIdea();
             else if (!this.insideHQ && !e.repeat && e.key === ' ') {
                 e.preventDefault();
                 this.vibePulse();
@@ -252,6 +262,7 @@ export class Preview extends Phaser.Scene {
             w.label?.setPosition(w.sprite.x, w.sprite.y - 26);
         }
         this.movePlayer(dt);
+        this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.dragon?.update(dt);
         this.ollama?.update(dt);
         this.ufo?.update(dt);
@@ -269,6 +280,57 @@ export class Preview extends Phaser.Scene {
             this.scene.launch('Library');
             this.scene.sleep();
         }
+    }
+
+    private createIdeaMachine(x: number, y: number) {
+        const art = new PixelCanvas(34, 48);
+        art.rect(3, 18, 28, 28, 'night').rect(5, 20, 24, 23, 'violet')
+            .rect(7, 22, 20, 10, 'ink').rect(9, 24, 16, 6, 'cyan')
+            .rect(7, 35, 12, 5, 'plum').rect(22, 34, 5, 5, 'gold')
+            .set(23, 35, 'yellow').rect(5, 45, 7, 2, 'ink').rect(22, 45, 7, 2, 'ink')
+            .rect(14, 13, 6, 6, 'steel').rect(14, 15, 6, 1, 'cloud')
+            .ellipse(17, 7, 7, 7, 'gold').ellipse(16, 6, 5, 5, 'yellow')
+            .rect(14, 3, 2, 5, 'white').line(5, 5, 2, 4, 'yellow')
+            .line(28, 5, 31, 4, 'yellow').line(17, 0, 17, 1, 'white')
+            .outline('ink');
+        addPixels(this, 'preview-idea-machine', art);
+        this.add.image(x, y, shadowTexture(this, 32)).setAlpha(0.3).setDepth(-1e8);
+        this.ideaMachine = this.add.image(x, y, 'preview-idea-machine')
+            .setOrigin(0.5, 1).setDepth(y).setInteractive({ useHandCursor: true });
+        this.ideaMachine.on('pointerdown', () => {
+            if (!isTyping()) this.rollIdea();
+        });
+        this.solids.push(this.ideaMachine.getBounds());
+        this.includeInWorld(this.ideaMachine);
+
+        const label = new PixelCanvas(miniTextWidth('IDEA MACHINE') + 6, 11);
+        label.rect(0, 0, label.width, label.height, 'ink');
+        miniText(label, 3, 3, 'IDEA MACHINE', 'yellow');
+        addPixels(this, 'preview-idea-label', label);
+        this.includeInWorld(this.add.image(x, y + 12, 'preview-idea-label').setDepth(y + 1));
+        addPixels(this, 'preview-idea-prompt', speechArt('Press E or click for a build challenge'));
+        this.buildChallenges.forEach((text, index) => {
+            addPixels(this, `preview-idea-${index}`, speechArt(`${text}! E or click for another.`));
+        });
+        this.ideaBubble = this.add.image(x, y - 49, 'preview-idea-prompt')
+            .setOrigin(0.5, 1).setDepth(1e5).setVisible(false);
+        this.includeInWorld(this.ideaBubble);
+    }
+
+    private nearIdeaMachine() {
+        const p = this.player?.sprite;
+        const m = this.ideaMachine;
+        return !!p && !!m && !this.insideHQ && this.sys.isActive()
+            && Phaser.Math.Distance.Between(p.x, p.y, m.x, m.y) <= 58;
+    }
+
+    private rollIdea() {
+        if (!this.nearIdeaMachine()) return;
+        // Pick a different challenge each time, without favoring either alternative.
+        this.ideaIndex = this.ideaIndex < 0
+            ? Phaser.Math.Between(0, this.buildChallenges.length - 1)
+            : (this.ideaIndex + Phaser.Math.Between(1, this.buildChallenges.length - 1)) % this.buildChallenges.length;
+        this.ideaBubble?.setTexture(`preview-idea-${this.ideaIndex}`).setVisible(true);
     }
 
     private grass() {
