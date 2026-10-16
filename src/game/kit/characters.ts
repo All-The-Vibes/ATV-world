@@ -49,11 +49,14 @@ export function randomLook(seed: number | string, base: CharacterLook = {}): Ful
 export const lookKey = (l: FullLook) =>
     `char|${l.skin}|${l.hair}|${l.hairStyle}|${l.hat}|${l.shirt}|${l.pants}|${l.shoes}`;
 
+/** Arm poses for front-facing frames: swinging (walking), both raised, or one raised (viewer's left/right) with the other on the hip. */
+type Arms = 'swing' | 'up' | 'left' | 'right';
+
 /**
  * Draw one 16x22 character frame at (ox, 0). Frame 0 = standing, 1/2 = walk steps.
  * Drawn without outlines; the sheet is outlined once at the end.
  */
-function drawFrame(pc: PixelCanvas, ox: number, facing: Facing, frame: number, look: FullLook) {
+function drawFrame(pc: PixelCanvas, ox: number, facing: Facing, frame: number, look: FullLook, arms: Arms = 'swing') {
     const oy = 1;
     const p = (x: number, y: number, c: Color) => pc.set(ox + x, oy + y, c);
     const row = (y: number, x0: number, x1: number, c: Color) => { for (let x = x0; x <= x1; x++) p(x, y, c); };
@@ -155,8 +158,14 @@ function drawFrame(pc: PixelCanvas, ox: number, facing: Facing, frame: number, l
     p(5, 12, Tl); p(6, 12, Tl);
     row(15, 4, 11, Ts);
     const leftUp = step < 0 ? 1 : 0, rightUp = step > 0 ? 1 : 0;
-    p(3, 12, T); p(3, 13 - leftUp, S); p(3, 14 - leftUp, S); if (!leftUp) p(3, 15, S);
-    p(12, 12, Ts); p(12, 13 - rightUp, Ss); p(12, 14 - rightUp, Ss); if (!rightUp) p(12, 15, Ss);
+    p(3, 12, T);
+    if (arms === 'up' || arms === 'left') { p(2, 11, T); p(1, 10, S); p(1, 9, S); p(1, 8, S); }
+    else if (arms === 'right') { p(2, 13, S); p(3, 14, S); }
+    else { p(3, 13 - leftUp, S); p(3, 14 - leftUp, S); if (!leftUp) p(3, 15, S); }
+    p(12, 12, Ts);
+    if (arms === 'up' || arms === 'right') { p(13, 11, Ts); p(14, 10, Ss); p(14, 9, Ss); p(14, 8, Ss); }
+    else if (arms === 'left') { p(13, 13, Ss); p(12, 14, Ss); }
+    else { p(12, 13 - rightUp, Ss); p(12, 14 - rightUp, Ss); if (!rightUp) p(12, 15, Ss); }
 
     row(16, 5, 10, P); p(10, 16, Ps);
     const leg = (x0: number, up: boolean, shaded: boolean) => {
@@ -171,7 +180,25 @@ function drawFrame(pc: PixelCanvas, ox: number, facing: Facing, frame: number, l
 
 /** A 9-frame sheet: down/up/side × stand/step/step (frames named e.g. 'down-0'). */
 export function characterSheet(look: FullLook): { canvas: PixelCanvas; frames: { name: string; x: number; y: number; w: number; h: number }[] } {
-    const pc = new PixelCanvas(FRAME_W * 9, FRAME_H);
+    return drawSheet(look, []);
+}
+
+/** Front-facing dance poses: 'cheer-0/1/2' (both arms up, standing/stepping) and 'point-l'/'point-r' (one arm up). */
+const DANCE_POSES: { name: string; arms: Arms; step: number }[] = [
+    { name: 'cheer-0', arms: 'up', step: 0 },
+    { name: 'cheer-1', arms: 'up', step: 1 },
+    { name: 'cheer-2', arms: 'up', step: 2 },
+    { name: 'point-l', arms: 'left', step: 2 },
+    { name: 'point-r', arms: 'right', step: 1 },
+];
+
+/** The 9-frame character sheet plus the dance poses, for people who dance (see ../disco). */
+export function dancerSheet(look: FullLook): { canvas: PixelCanvas; frames: { name: string; x: number; y: number; w: number; h: number }[] } {
+    return drawSheet(look, DANCE_POSES);
+}
+
+function drawSheet(look: FullLook, poses: typeof DANCE_POSES) {
+    const pc = new PixelCanvas(FRAME_W * (9 + poses.length), FRAME_H);
     const frames: { name: string; x: number; y: number; w: number; h: number }[] = [];
     FACINGS.forEach((facing, fi) => {
         for (let f = 0; f < 3; f++) {
@@ -179,6 +206,11 @@ export function characterSheet(look: FullLook): { canvas: PixelCanvas; frames: {
             drawFrame(pc, x, facing, f, look);
             frames.push({ name: `${facing}-${f}`, x, y: 0, w: FRAME_W, h: FRAME_H });
         }
+    });
+    poses.forEach(({ name, arms, step }, i) => {
+        const x = (9 + i) * FRAME_W;
+        drawFrame(pc, x, 'down', step, look, arms);
+        frames.push({ name, x, y: 0, w: FRAME_W, h: FRAME_H });
     });
     pc.outline('ink');
     return { canvas: pc, frames };

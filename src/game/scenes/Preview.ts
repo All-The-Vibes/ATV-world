@@ -1,10 +1,11 @@
 import Phaser from 'phaser';
 import { LibraryBridge } from '../../library/bridge';
 import {
-    HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
+    HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
+import { Disco } from '../disco/Disco';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
 import { Ollama } from '../llama/Ollama';
@@ -48,6 +49,8 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
     private town?: Town;
+    /** The disco down in the south-west corner: light-up floor, glitter ball, dancers (see ../disco). */
+    private disco?: Disco;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -103,6 +106,8 @@ export class Preview extends Phaser.Scene {
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
+        this.disco = new Disco(this, -250, 334);
+        this.disco.parts.forEach((part) => this.includeInWorld(part));
         try {
             this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
         } catch (e) {
@@ -233,6 +238,7 @@ export class Preview extends Phaser.Scene {
         this.dragon?.update(dt);
         this.ollama?.update(dt);
         this.ufo?.update(dt);
+        this.disco?.update(dt);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
@@ -566,6 +572,7 @@ export class Preview extends Phaser.Scene {
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
+        if (this.disco) out.push(...this.disco.burnables());
         return out;
     }
 
@@ -580,7 +587,8 @@ export class Preview extends Phaser.Scene {
             shoes: 'white',
         });
         const key = 'preview-player';
-        const sheet = characterSheet(look);
+        // The dancer sheet: the usual frames plus dance poses, for standing still on the disco floor.
+        const sheet = dancerSheet(look);
         addPixels(this, key, sheet.canvas, sheet.frames);
 
         for (const facing of ['down', 'up', 'side'] as const) {
@@ -915,6 +923,7 @@ export class Preview extends Phaser.Scene {
         } else {
             sprite.stop();
             sprite.setFrame(`${this.playerFacing}-0`);
+            if (this.disco?.contains(sprite.x, sprite.y)) this.disco.groove(sprite);
         }
 
         shadow.setPosition(sprite.x, sprite.y).setDepth(sprite.y - 1);

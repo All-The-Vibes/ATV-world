@@ -16,3 +16,4 @@ export * from './interior';
 export * from './dragon';
 export * from './speech';
 export * from './llama';
+export * from './disco';
