@@ -4,8 +4,9 @@ import {
     PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { isTyping, on, setInsideHQ } from '../commands';
+import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { HQ } from '../hq/HQ';
+import { Tokens } from '../tokens/Tokens';
 import { WorldView } from '../view';
 
 /** The world on the live screen: a little street built with the pixel-art kit. */
@@ -30,6 +31,10 @@ export class Preview extends Phaser.Scene {
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
     private entrance?: Phaser.Math.Vector2;
     private libraryFoot?: Phaser.Geom.Rectangle;
+    /** Buildings' footprints on screen, where dropped tokens would be out of reach. */
+    private readonly solids: Phaser.Geom.Rectangle[] = [];
+    /** Flying cars that drop free tokens for anyone to pick up (see ../tokens). */
+    private tokens?: Tokens;
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -63,6 +68,14 @@ export class Preview extends Phaser.Scene {
         this.prop('bench', 74, 230);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.createPlayer();
+        this.tokens = new Tokens(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => {
+                const hq = this.hq?.bounds();
+                return !(hq && Phaser.Geom.Rectangle.Contains(hq, x, y - 10)) && !this.solids.some((r) => r.contains(x, y));
+            },
+            onCollect: (by) => by.player && addToken(),
+        });
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.events.on('wake', () => this.input.keyboard?.resetKeys());
 
@@ -141,6 +154,10 @@ export class Preview extends Phaser.Scene {
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
         }
         this.movePlayer(dt);
+        this.tokens?.update(dt, [
+            ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
+            ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
+        ]);
         // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
         const p = this.player?.sprite;
         if (p && this.libraryFoot && !this.insideHQ && this.libraryFoot.contains(p.x, p.y)) {
@@ -165,6 +182,7 @@ export class Preview extends Phaser.Scene {
         const key = `preview-building-${x}`;
         addPixels(this, key, canvas);
         const image = this.add.image(x, y, key).setOrigin(0.5, 1).setDepth(y);
+        this.solids.push(image.getBounds());
         this.includeInWorld(image);
     }
 
@@ -173,6 +191,8 @@ export class Preview extends Phaser.Scene {
         const { canvas, info } = libraryArt();
         addPixels(this, 'preview-library', canvas);
         const image = this.add.image(x, y, 'preview-library').setOrigin(0.5, 1).setDepth(y);
+        // A little past the steps too, so a token never lands where grabbing it would walk you inside.
+        this.solids.push(new Phaser.Geom.Rectangle(image.x - canvas.width / 2, y - canvas.height, canvas.width, canvas.height + 12));
         this.includeInWorld(image);
         const left = x - canvas.width / 2;
         const top = y - canvas.height;

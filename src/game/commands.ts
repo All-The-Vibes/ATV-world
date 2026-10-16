@@ -31,6 +31,32 @@ export function onInsideHQ(fn: () => void): () => void {
     return () => bus.removeEventListener('insideHQ', fn);
 }
 
+/** The free tokens the player has picked up from the flying cars' drops, kept through reloads. */
+const TOKENS_KEY = 'atv-tokens';
+let tokens = (() => {
+    try {
+        return Math.max(0, Number(localStorage.getItem(TOKENS_KEY)) || 0);
+    } catch {
+        return 0;
+    }
+})();
+
+export const tokenCount = () => tokens;
+
+export function addToken() {
+    tokens++;
+    try {
+        localStorage.setItem(TOKENS_KEY, String(tokens));
+    } catch { /* private mode: the count just won't stick */ }
+    bus.dispatchEvent(new Event('tokens'));
+}
+
+/** Listen for the player's token count changing. Returns a function that stops listening. */
+export function onTokens(fn: () => void): () => void {
+    bus.addEventListener('tokens', fn);
+    return () => bus.removeEventListener('tokens', fn);
+}
+
 /** True while a text field has focus, so game keys don't steal typing. */
 export function isTyping(): boolean {
     const el = document.activeElement as HTMLElement | null;
