@@ -138,9 +138,9 @@ const spec: RoamerSpec = {
     every: [32, 48],
     stay: [38, 58],
     speed: 30,
-    greet: ['The night is calm. For now.', 'My escorts are on patrol.', 'Keep your eyes on the horizon.'],
-    foil: ['Stand down, little troublemaker.', 'The patrol has this covered.', 'Peace restored.'],
-    token: ['A curious energy source.', 'Secure the shiny object.', 'The patrol has found a token.'],
+    greet: ['The Force is strong with this one.', 'I find your lack of faith disturbing.', 'You underestimate the power of the dark side.'],
+    foil: ['There is no escape.', 'You have failed me for the last time.', 'The circle is now complete.'],
+    token: ['Impressive. Most impressive.', 'All too easy.', 'This will be a day long remembered.'],
     hooks: {
         update(r, dt) {
             follow(r, dt);
