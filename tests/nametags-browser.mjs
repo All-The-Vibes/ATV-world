@@ -27,9 +27,15 @@ try {
     await page.waitForFunction(() => window.atv?.game?.scene.getScene('Preview')?.player?.sprite);
     await page.evaluate(() => document.fonts.ready);
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 200));
+    const settings = page.getByRole('button', { name: 'Settings', exact: true });
+    await settings.click();
     const labelToggle = page.getByRole('button', { name: 'GitHub username labels', exact: true });
-    assert.equal(await labelToggle.count(), 1, 'a global GitHub-label button is beside the zoom controls');
-    assert.equal(await labelToggle.getAttribute('aria-pressed'), 'true', 'creator labels start on');
+    assert.equal(await labelToggle.count(), 1, 'the GitHub-label switch is in the Settings panel');
+    assert.equal(await labelToggle.getAttribute('aria-pressed'), 'false', 'creator labels start off');
+    await labelToggle.click();
+    await page.clock.runFor(50);
+    assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list
+        .filter(o => o.name === 'creator-nametag').some(o => o.visible)), true, 'turning on shows creator tags');
     await labelToggle.click();
     await page.clock.runFor(50);
     assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list

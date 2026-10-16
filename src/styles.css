@@ -84,6 +84,7 @@ body,
     bottom: 16px;
     display: flex;
     gap: 6px;
+    z-index: 9;
 }
 
 .zoom button {
@@ -100,15 +101,6 @@ body,
 .zoom button:hover {
     color: var(--gold);
     border-color: var(--gold);
-}
-
-.zoom .sound svg {
-    display: block;
-    margin: auto;
-}
-
-.zoom .github-labels[aria-pressed='false'] {
-    text-decoration: line-through;
 }
 
 .live {
@@ -218,52 +210,80 @@ body,
     color: #fbe46f;
 }
 
-/* Top-left switches for Night View and Stranger Things (Upside Down) View. */
-.view-switches {
-    position: fixed;
-    left: 16px;
-    top: 174px;
+/* The gear's panel: sound, Night View, Stranger Things (Upside Down) View, and GitHub @ tags. */
+.settings {
+    position: relative;
+    display: flex;
+}
+
+.zoom .settings-toggle svg {
+    display: block;
+    margin: auto;
+}
+
+.zoom .settings-toggle[aria-expanded='true'] {
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.settings-panel {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 8px);
+    z-index: 8;
     display: flex;
     flex-direction: column;
     gap: 6px;
-    z-index: 5;
-}
-
-.view-switch {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    font: 9px 'Press Start 2P', monospace;
-    color: var(--cream);
-    background: rgb(20 16 30 / 94%);
+    width: max-content;
+    padding: 8px;
+    background: rgb(20 16 30 / 96%);
     border: 3px solid var(--night);
     box-shadow: 0 0 0 3px var(--ink), 4px 4px 0 rgb(20 16 30 / 35%);
-    cursor: pointer;
-    text-align: left;
 }
 
-.view-switch:hover {
-    border-color: var(--gold);
+.settings-title {
+    padding: 2px 2px 4px;
+    font: 9px 'Press Start 2P', monospace;
     color: var(--gold);
 }
 
-.view-switch[data-active] {
+.zoom .settings-panel .settings-switch {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    min-height: 36px;
+    padding: 6px 10px;
+    font-size: 9px;
+    text-align: left;
+}
+
+.settings-icon {
+    width: 16px;
+    font-size: 12px;
+    line-height: 1;
+    text-align: center;
+}
+
+.settings-label {
+    flex: 1;
+}
+
+.settings-state {
+    min-width: 3ch;
+    opacity: 0.55;
+}
+
+.zoom .settings-panel .settings-switch[data-active] {
     border-color: #7fd6f0;
     color: #7fd6f0;
     background: rgb(28 47 94 / 92%);
 }
 
-.view-switch-stranger[data-active] {
-    border-color: #c4314b;
-    color: #fbe46f;
-    background: rgb(110 31 58 / 92%);
-    box-shadow: 0 0 0 3px var(--ink), 0 0 12px rgb(196 49 75 / 65%);
-}
-
-.view-switch-dot {
-    font-size: 12px;
-    line-height: 1;
+.settings-switch[data-active] .settings-state {
+    opacity: 1;
 }
 
 .sr-only {
@@ -353,8 +373,7 @@ body,
 }
 
 /* Touch screens: fingers need 44px targets. */
-[data-touch] .zoom button,
-[data-touch] .view-switch {
+[data-touch] .zoom button {
     min-width: 44px;
     min-height: 44px;
 }
@@ -392,7 +411,7 @@ body,
     }
     .hud-right { right: calc(12px + var(--safe-r)); align-items: flex-end; }
     .hud-left :is(.backpack-toggle, .vibe-meter, .char-search),
-    .hud-right :is(.view-switches, .zoom) {
+    .hud-right .zoom {
         position: static;
         inset: auto;
         transform: none;
@@ -401,25 +420,15 @@ body,
     .vibe-meter { width: 168px; padding: 6px 8px 5px; }
     .vibe-meter-track { margin: 5px 0 4px; }
 
-    .hud-right .zoom,
-    .hud-right .view-switches {
+    .hud-right .zoom {
         display: grid;
         grid-template-columns: repeat(2, 44px);
         gap: 6px;
     }
-    .hud-right .view-switches { order: 1; }
     .zoom button { min-width: 44px; height: 44px; padding: 0; }
     .zoom [data-cmd='zoomIn'] { order: -1; }
-    .view-switch { justify-content: center; width: 44px; height: 44px; padding: 0; }
-    .view-switch-dot { font-size: 18px; }
-    .view-switch-label {
-        position: absolute;
-        width: 1px;
-        height: 1px;
-        overflow: hidden;
-        clip-path: inset(50%);
-        white-space: nowrap;
-    }
+    /* The rail sits top-right here, so the settings panel drops down instead of up. */
+    .settings-panel { top: calc(100% + 8px); bottom: auto; }
 
     .world-actions { bottom: calc(160px + var(--safe-b)); }
 
@@ -439,8 +448,7 @@ body,
     .hud-right { top: calc(10px + var(--safe-t)); }
     .hud-left { max-width: 240px; }
     .hud-right { flex-direction: row; }
-    .hud-right .zoom,
-    .hud-right .view-switches {
+    .hud-right .zoom {
         grid-template-columns: none;
         grid-auto-flow: column;
     }

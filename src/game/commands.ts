@@ -14,12 +14,22 @@ export function on(command: Command, fn: () => void): () => void {
     return () => bus.removeEventListener(command, fn);
 }
 
-/** One switch for creator labels in every scene, including characters spawned later. */
-let githubLabels = true;
+/** One switch for creator labels in every scene, including characters spawned later. Off until turned on in Settings; the choice sticks. */
+const GITHUB_LABELS_KEY = 'atv-github-labels';
+let githubLabels = (() => {
+    try {
+        return localStorage.getItem(GITHUB_LABELS_KEY) === '1';
+    } catch {
+        return false;
+    }
+})();
 export const githubLabelsVisible = () => githubLabels;
 
 export function toggleGithubLabels() {
     githubLabels = !githubLabels;
+    try {
+        localStorage.setItem(GITHUB_LABELS_KEY, githubLabels ? '1' : '0');
+    } catch { /* Private mode: the switch still works for this visit. */ }
     bus.dispatchEvent(new Event('githubLabels'));
 }
 
