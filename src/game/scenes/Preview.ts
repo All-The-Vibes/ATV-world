@@ -1,12 +1,16 @@
 import Phaser from 'phaser';
 import { LibraryBridge } from '../../library/bridge';
 import {
-    HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
-    miniText, miniTextWidth, shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
+    HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
+    miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, setInsideHQ } from '../commands';
+import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { Disco } from '../disco/Disco';
+import { Gremlins } from '../gremlins/Gremlins';
 import { Dragon, type Burnable } from '../dragon/Dragon';
+import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
+import { TrafficLight } from '../health/TrafficLight';
 import { Kittens } from '../kittens';
 import { Ollama } from '../llama/Ollama';
 import { Tokens } from '../tokens/Tokens';
@@ -31,6 +35,10 @@ export class Preview extends Phaser.Scene {
     }[] = [];
     /** The dragon that circles town toasting people (see ../dragon). */
     private dragon?: Dragon;
+    /** The sorting hat on its stool: walk up to it to be sorted into a house (see ../hat). */
+    private sortingHat?: SortingHat;
+    /** Gremlins that run around stealing tokens (see ../gremlins). */
+    private gremlins?: Gremlins;
     private ollama?: Ollama;
     private ufo?: UFO;
     private ground?: Phaser.GameObjects.TileSprite;
@@ -49,6 +57,8 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
     private town?: Town;
+    /** The disco down in the south-west corner: light-up floor, glitter ball, dancers (see ../disco). */
+    private disco?: Disco;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -74,6 +84,14 @@ export class Preview extends Phaser.Scene {
     private surfacePortal?: Phaser.GameObjects.Sprite;
     private hellPortal?: Phaser.GameObjects.Sprite;
     private hellDecor: (Phaser.GameObjects.Image | Phaser.GameObjects.Sprite)[] = [];
+    private ideaMachine?: Phaser.GameObjects.Image;
+    private ideaBubble?: Phaser.GameObjects.Image;
+    private ideaIndex = -1;
+    private readonly buildChallenges = [
+        'Build an arcade game',
+        'Create an AI character',
+        'Add something that changes the whole world',
+    ];
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -105,12 +123,23 @@ export class Preview extends Phaser.Scene {
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
+        this.sortingHat = new SortingHat(this, -110, 30, () => this.player, () => !this.insideHQ);
+        this.includeInWorld(this.sortingHat.stool);
+        this.includeInWorld(this.sortingHat.hat);
+        [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', x, y));
+        this.disco = new Disco(this, -250, 334);
+        this.disco.parts.forEach((part) => this.includeInWorld(part));
         try {
             this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
         } catch (e) {
             console.error('[town]', e);
         }
         this.fitWorld();
+        const trafficLight = new TrafficLight(this, 60, 170);
+        this.solids.push(trafficLight.sprite.getBounds());
+        this.includeInWorld(trafficLight.sprite);
+        this.includeInWorld(trafficLight.label);
+        this.createIdeaMachine(-85, 170);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
         this.createHell();
@@ -129,14 +158,24 @@ export class Preview extends Phaser.Scene {
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
         this.kittens = new Kittens(this, {
+            bounds: () => this.worldBounds,
             include: (object) => this.includeInWorld(object),
             open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
             coins: () => this.tokens?.playthings() ?? [],
             dragon: () => this.dragon?.plaything(),
+            disco: (x, y) => this.disco?.contains(x, y) ?? false,
             people: this.walkers.map((w) => ({
                 sprite: w.sprite, shadow: w.shadow, label: w.label, anim: w.anim,
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
+        });
+        this.gremlins = new Gremlins(this, {
+            bounds: () => this.worldBounds,
+            victims: () => [
+                ...(this.player && !this.insideHQ && tokenCount() > 0 ? [{ sprite: this.player.sprite, player: true }] : []),
+                ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
+            ],
+            stealFromPlayer: () => removeToken(),
         });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
@@ -151,6 +190,7 @@ export class Preview extends Phaser.Scene {
         const onKey = (e: KeyboardEvent) => {
             if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
             if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
+            else if (!e.repeat && e.key.toLowerCase() === 'e') this.rollIdea();
             else if (!this.insideHQ && !e.repeat && e.key === ' ') {
                 e.preventDefault();
                 this.vibePulse();
@@ -242,9 +282,13 @@ export class Preview extends Phaser.Scene {
             w.label?.setPosition(w.sprite.x, w.sprite.y - 26);
         }
         this.movePlayer(dt);
+        this.ideaBubble?.setVisible(this.nearIdeaMachine());
+        this.sortingHat?.update(dt);
         this.dragon?.update(dt);
+        this.gremlins?.update(dt);
         this.ollama?.update(dt);
         this.ufo?.update(dt);
+        this.disco?.update(dt);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
@@ -258,6 +302,57 @@ export class Preview extends Phaser.Scene {
             this.scene.launch('Library');
             this.scene.sleep();
         }
+    }
+
+    private createIdeaMachine(x: number, y: number) {
+        const art = new PixelCanvas(34, 48);
+        art.rect(3, 18, 28, 28, 'night').rect(5, 20, 24, 23, 'violet')
+            .rect(7, 22, 20, 10, 'ink').rect(9, 24, 16, 6, 'cyan')
+            .rect(7, 35, 12, 5, 'plum').rect(22, 34, 5, 5, 'gold')
+            .set(23, 35, 'yellow').rect(5, 45, 7, 2, 'ink').rect(22, 45, 7, 2, 'ink')
+            .rect(14, 13, 6, 6, 'steel').rect(14, 15, 6, 1, 'cloud')
+            .ellipse(17, 7, 7, 7, 'gold').ellipse(16, 6, 5, 5, 'yellow')
+            .rect(14, 3, 2, 5, 'white').line(5, 5, 2, 4, 'yellow')
+            .line(28, 5, 31, 4, 'yellow').line(17, 0, 17, 1, 'white')
+            .outline('ink');
+        addPixels(this, 'preview-idea-machine', art);
+        this.add.image(x, y, shadowTexture(this, 32)).setAlpha(0.3).setDepth(-1e8);
+        this.ideaMachine = this.add.image(x, y, 'preview-idea-machine')
+            .setOrigin(0.5, 1).setDepth(y).setInteractive({ useHandCursor: true });
+        this.ideaMachine.on('pointerdown', () => {
+            if (!isTyping()) this.rollIdea();
+        });
+        this.solids.push(this.ideaMachine.getBounds());
+        this.includeInWorld(this.ideaMachine);
+
+        const label = new PixelCanvas(miniTextWidth('IDEA MACHINE') + 6, 11);
+        label.rect(0, 0, label.width, label.height, 'ink');
+        miniText(label, 3, 3, 'IDEA MACHINE', 'yellow');
+        addPixels(this, 'preview-idea-label', label);
+        this.includeInWorld(this.add.image(x, y + 12, 'preview-idea-label').setDepth(y + 1));
+        addPixels(this, 'preview-idea-prompt', speechArt('Press E or click for a build challenge'));
+        this.buildChallenges.forEach((text, index) => {
+            addPixels(this, `preview-idea-${index}`, speechArt(`${text}! E or click for another.`));
+        });
+        this.ideaBubble = this.add.image(x, y - 49, 'preview-idea-prompt')
+            .setOrigin(0.5, 1).setDepth(1e5).setVisible(false);
+        this.includeInWorld(this.ideaBubble);
+    }
+
+    private nearIdeaMachine() {
+        const p = this.player?.sprite;
+        const m = this.ideaMachine;
+        return !!p && !!m && !this.insideHQ && this.sys.isActive()
+            && Phaser.Math.Distance.Between(p.x, p.y, m.x, m.y) <= 58;
+    }
+
+    private rollIdea() {
+        if (!this.nearIdeaMachine()) return;
+        // Pick a different challenge each time, without favoring either alternative.
+        this.ideaIndex = this.ideaIndex < 0
+            ? Phaser.Math.Between(0, this.buildChallenges.length - 1)
+            : (this.ideaIndex + Phaser.Math.Between(1, this.buildChallenges.length - 1)) % this.buildChallenges.length;
+        this.ideaBubble?.setTexture(`preview-idea-${this.ideaIndex}`).setVisible(true);
     }
 
     private grass() {
@@ -579,6 +674,7 @@ export class Preview extends Phaser.Scene {
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
+        if (this.disco) out.push(...this.disco.burnables());
         return out;
     }
 
@@ -593,7 +689,8 @@ export class Preview extends Phaser.Scene {
             shoes: 'white',
         });
         const key = 'preview-player';
-        const sheet = characterSheet(look);
+        // The dancer sheet: the usual frames plus dance poses, for standing still on the disco floor.
+        const sheet = dancerSheet(look);
         addPixels(this, key, sheet.canvas, sheet.frames);
 
         for (const facing of ['down', 'up', 'side'] as const) {
@@ -928,6 +1025,7 @@ export class Preview extends Phaser.Scene {
         } else {
             sprite.stop();
             sprite.setFrame(`${this.playerFacing}-0`);
+            if (this.disco?.contains(sprite.x, sprite.y)) this.disco.groove(sprite);
         }
 
         shadow.setPosition(sprite.x, sprite.y).setDepth(sprite.y - 1);

@@ -127,6 +127,19 @@ const banner: PropDef = {
     },
 };
 
+const KEEP_OFF = ['KEEP OFF', 'THE GRASS'];
+
+const grassSign: PropDef = {
+    w: miniTextWidth(KEEP_OFF[1]) + 8, h: 26, solid: [4, 3], shadow: 12,
+    draw(pc, _f, x, y) {
+        const w = miniTextWidth(KEEP_OFF[1]) + 8;
+        const mid = x + Math.floor(w / 2);
+        pc.rect(mid - 1, y + 16, 2, 10, 'wood').rect(mid - 1, y + 16, 1, 10, 'clay');
+        pc.rect(x, y, w, 17, 'leaf').rect(x + 1, y + 1, w - 2, 15, 'white').rect(x + 1, y + 15, w - 2, 1, 'cloud');
+        KEEP_OFF.forEach((line, i) => miniText(pc, x + Math.floor((w - miniTextWidth(line)) / 2), y + 3 + i * 6, line, 'leaf'));
+    },
+};
+
 const mailbox: PropDef = {
     w: 10, h: 16, solid: [4, 3], shadow: 8,
     draw(pc, _f, x, y, o) {
@@ -459,7 +472,7 @@ const flowers: PropDef = {
 
 /** Every built-in prop. This is a starting set, not a limit: add or replace entries freely. */
 export const PROPS: Record<string, PropDef> = {
-    lamp, bench, sign, saleSign, banner, mailbox, barrel, crate, bush, rock, flowerpot, fence, fenceV,
+    lamp, bench, sign, saleSign, banner, grassSign, mailbox, barrel, crate, bush, rock, flowerpot, fence, fenceV,
     campfire, flag, well, fountain, stall, statue, chest, table, log, mushroom, cactus, pumpkin, trash,
     terminal, portal, flowers,
 };
