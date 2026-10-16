@@ -7,6 +7,7 @@ import {
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { Disco } from '../disco/Disco';
 import { Dragon, type Burnable } from '../dragon/Dragon';
+import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
 import { TrafficLight } from '../health/TrafficLight';
 import { Kittens } from '../kittens';
@@ -33,6 +34,8 @@ export class Preview extends Phaser.Scene {
     }[] = [];
     /** The dragon that circles town toasting people (see ../dragon). */
     private dragon?: Dragon;
+    /** The sorting hat on its stool: walk up to it to be sorted into a house (see ../hat). */
+    private sortingHat?: SortingHat;
     private ollama?: Ollama;
     private ufo?: UFO;
     private ground?: Phaser.GameObjects.TileSprite;
@@ -117,6 +120,9 @@ export class Preview extends Phaser.Scene {
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
+        this.sortingHat = new SortingHat(this, -110, 30, () => this.player, () => !this.insideHQ);
+        this.includeInWorld(this.sortingHat.stool);
+        this.includeInWorld(this.sortingHat.hat);
         this.disco = new Disco(this, -250, 334);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
         try {
@@ -263,6 +269,7 @@ export class Preview extends Phaser.Scene {
         }
         this.movePlayer(dt);
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
+        this.sortingHat?.update(dt);
         this.dragon?.update(dt);
         this.ollama?.update(dt);
         this.ufo?.update(dt);
