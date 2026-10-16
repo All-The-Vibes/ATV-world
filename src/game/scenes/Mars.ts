@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { addPixels, shadowTexture, speechArt, type Facing } from '../kit';
+import { PLAYER_LOOK, addCreatorNametag, addPixels, shadowTexture, speechArt, type Facing } from '../kit';
 import { marsTextures } from '../mars/art';
 import { Rocket } from '../mars/Rocket';
 
@@ -51,6 +51,7 @@ export class Mars extends Phaser.Scene {
         this.rocket = new Rocket(this, PAD.x, PAD.y);
         this.shadow = this.add.image(EXIT.x, EXIT.y, shadowTexture(this, 12)).setAlpha(0.3).setVisible(false);
         this.player = this.add.sprite(EXIT.x, EXIT.y, 'preview-player', 'down-0').setOrigin(0.5, 1).setVisible(false);
+        addCreatorNametag(this.player, PLAYER_LOOK);
         this.hint = this.add.image(PAD.x, PAD.y - 60, addPixels(this, 'mars-hint', speechArt('Walk into the rocket to fly home')))
             .setOrigin(0.5, 1)
             .setDepth(1e5)

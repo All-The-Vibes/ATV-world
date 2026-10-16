@@ -88,7 +88,7 @@ checked October 16, 2026):
 | Characters | Creator | Introduction commit |
 | --- | --- | --- |
 | Six street walkers (`preview-0` through `preview-5`) | `Bakar404` | `9c37211d647e5fba6a20dd7e8149f0509abd52de` |
-| Player, including the library copy (`PLAYER_LOOK`) | `vvundela1111` | `9fd2cf3a9bd3c02e8374a6dc25b13737725deb52` |
+| Player, including library and Mars copies (`PLAYER_LOOK`) | `vvundela1111` | `9fd2cf3a9bd3c02e8374a6dc25b13737725deb52` |
 | Abdallah (the named street walker) | `aifateen` | `3c1fb9c186c8051a961a26073761e970347316de` |
 | Disco dancers | `markbriggs-ms` | `c5fedcc91e9cd741957049bda145811b8a768dc4` |
 | Dragon | `markbriggs-ms` | `b13d64dd83a60f510e921dfeed1eb3d8bf8e4400` |

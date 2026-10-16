@@ -237,6 +237,24 @@ try {
         await page.evaluate(() => { window.atv.game.scene.getScene('Preview').player.sprite.setPosition(0, 158); });
     }
 
+    await page.evaluate(() => window.atv.game.scene.getScene('Preview').blastOff(true));
+    await page.clock.runFor(300);
+    assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Mars').children.list
+        .find(o => o.name === 'creator-nametag')?.visible), false, 'Mars hides the player label while landing');
+    await page.clock.runFor(2200);
+    assert.equal(await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Mars');
+        const label = scene.children.list.find(o => o.name === 'creator-nametag');
+        return label?.text === '@vvundela1111' && label.visible && label.x === scene.player.x;
+    }), true, 'Mars restores the same creator when the player disembarks');
+    await page.evaluate(() => window.atv.game.scene.getScene('Mars').flyHome());
+    await page.clock.runFor(7000);
+    assert.equal(await page.evaluate(() => {
+        const game = window.atv.game;
+        return !game.scene.getScene('Mars').children.list.some(o => o.name === 'creator-nametag')
+            && game.scene.getScene('Preview').player.nametag.visible;
+    }), true, 'returning from Mars cleans up its label and restores the world label');
+
     // HQ ownership is unresolved: changing a Teams identity, name, or "me" flag never claims authorship.
     await page.evaluate(async () => {
         const { call } = await import('/src/call/roster.ts');
