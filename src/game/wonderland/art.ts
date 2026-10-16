@@ -197,13 +197,6 @@ function ground() {
     return pc;
 }
 
-/** A red-and-cream checkerboard lawn. */
-function checker() {
-    const pc = new PixelCanvas(160, 96);
-    for (let y = 0; y < 96; y++) for (let x = 0; x < 160; x++) pc.set(x, y, (Math.floor(x / 10) + Math.floor(y / 8)) % 2 ? 'red' : 'cream');
-    return pc.outline('wine');
-}
-
 /** A giant toadstool. */
 function bigMushroom(cap: Color, dark: Color) {
     const pc = new PixelCanvas(48, 54);
@@ -245,16 +238,6 @@ function teaParty() {
     const cup = (x: number, c: Color) => pc.rect(x, 19, 5, 4, c).rect(x - 1, 23, 7, 1, 'cloud').set(x + 5, 20, c);
     ([[8, 'pink'], [32, 'violet'], [42, 'red'], [62, 'lime'], [90, 'pink'], [98, 'orange']] as const).forEach(([x, c]) => cup(x, c));
     pc.rect(50, 14, 10, 9, 'peach').rect(50, 14, 10, 2, 'pink').rect(54, 11, 1, 3, 'cream').set(54, 10, 'yellow');
-    return pc.outline('ink');
-}
-
-/** The Mad Hatter's tall green top hat, with its price tag. */
-function hatterHat() {
-    const pc = new PixelCanvas(20, 20);
-    pc.rect(4, 2, 12, 14, 'forest').rect(4, 2, 3, 14, 'leaf').rect(4, 11, 12, 3, 'pink');
-    pc.rect(0, 16, 20, 3, 'forest').rect(0, 16, 20, 1, 'leaf');
-    pc.rect(12, 4, 8, 7, 'white');
-    miniText(pc, 13, 5, '10', 'ink');
     return pc.outline('ink');
 }
 
@@ -336,13 +319,11 @@ function drinkMe() {
 export function wonderlandTextures(scene: Phaser.Scene) {
     rabbitTreeTextures(scene);
     ensurePixels(scene, 'wl-ground', ground);
-    ensurePixels(scene, 'wl-checker', checker);
     ensurePixels(scene, 'wl-mushroom-red', () => bigMushroom('red', 'wine'));
     ensurePixels(scene, 'wl-mushroom-blue', () => bigMushroom('sky', 'blue'));
     ensurePixels(scene, 'wl-caterpillar', caterpillar);
     ensurePixels(scene, 'wl-ring', ring);
     ensurePixels(scene, 'wl-tea', teaParty);
-    ensurePixels(scene, 'wl-hat', hatterHat);
     ensurePixels(scene, 'wl-cat', () => cheshire(false));
     ensurePixels(scene, 'wl-grin', () => cheshire(true));
     ensurePixels(scene, 'wl-card', cardSoldier);

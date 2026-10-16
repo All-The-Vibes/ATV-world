@@ -100,9 +100,53 @@ try {
     assert.ok(there.rabbit && there.cards > 0, 'Wonderland has the White Rabbit and the card soldiers');
     await page.waitForTimeout(1500);
     await shot(page, '2-wonderland');
-    await page.evaluate(() => window.atv.game.scene.getScene('Wonderland').cameras.main.setZoom(1.5).stopFollow().centerOn(-40, 0));
-    await page.waitForTimeout(2600);
-    await shot(page, '3-wonderland-wide');
+
+    const look = async (name, x, y, zoom = 2.5, player) => {
+        await page.evaluate(([x, y, zoom, player]) => {
+            const w = window.atv.game.scene.getScene('Wonderland');
+            if (player) w.player.setPosition(player[0], player[1]);
+            w.cameras.main.stopFollow().setZoom(zoom).centerOn(x, y);
+        }, [x, y, zoom, player]);
+        await page.waitForTimeout(1600);
+        await shot(page, name);
+    };
+    await look('3-tea-party', -300, 120);
+    await look('4-chess', 0, 120);
+    await look('5-croquet', 330, 190, 2.5);
+    await look('6-garden', -330, -230, 2.5, [-330, -190]);
+    await look('7-clocks-mirror', 30, -240, 2.5, [160, -205]);
+    await look('8-tweedles-ring', 440, -80, 2.5, [400, -40]);
+    await look('9-ring-signpost', -260, 0);
+    const world = await page.evaluate(() => {
+        const w = window.atv.game.scene.getScene('Wonderland');
+        return { features: w.features.length };
+    });
+    assert.ok(world.features >= 10, 'Wonderland is full of things to find');
+
+    // Drink me, eat me, and the topsy-turvy fairy ring.
+    const step = async (x, y, ok) => {
+        await page.evaluate(([x, y]) => {
+            const w = window.atv.game.scene.getScene('Wonderland');
+            w.player.setPosition(x, y);
+        }, [x, y]);
+        await page.waitForFunction(ok, null, { timeout: 8000 }).catch(() => {});
+        return page.evaluate(() => {
+            const w = window.atv.game.scene.getScene('Wonderland');
+            return { scale: w.player.scaleX, rotation: w.cameras.main.rotation, fps: window.atv.game.loop.actualFps, frame: window.atv.game.loop.frame, topsy: w.topsy, at: [w.player.x, w.player.y], status: w.sys.settings.status, armed: w.features.flatMap((f) => (f.triggers ?? (f.trigger ? [f.trigger] : [])).map((t) => t.armed)) };
+        });
+    };
+    const wl = 'window.atv.game.scene.getScene("Wonderland")';
+    await page.evaluate(() => window.atv.game.scene.getScene('Wonderland').cameras.main.startFollow(window.atv.game.scene.getScene('Wonderland').player, true));
+    if (errors.length) console.log('errors before potions:', errors.slice(0, 3));
+    const small = await step(-110, -26, `${wl}.player.scaleX < 0.55`);
+    assert.ok(small.scale < 0.6, `the "drink me" bottle shrinks you (${JSON.stringify(small)}; ${errors.slice(0, 3).join(" | ")})`);
+    await shot(page, '10-small');
+    const huge = await step(110, -26, `${wl}.player.scaleX > 1.9`);
+    assert.ok(huge.scale > 1.8, `the "eat me" cake makes you huge (${JSON.stringify(huge)})`);
+    await shot(page, '11-huge');
+    const topsy = await step(-350, -40, `Math.abs(Math.abs(${wl}.cameras.main.rotation) - Math.PI) < 0.02`);
+    assert.ok(Math.abs(Math.abs(topsy.rotation) - Math.PI) < 0.05, `the fairy ring turns the world upside down (${JSON.stringify(topsy)} after ${JSON.stringify(huge)}; errors: ${errors.slice(0, 3).join(" | ")})`);
+    await shot(page, '12-topsy');
 
     // Walk into the little door to go home, and step back out of the tree.
     await page.evaluate(() => window.atv.game.scene.getScene('Wonderland').player.setPosition(0, -125));
@@ -115,7 +159,7 @@ try {
     });
     assert.deepEqual([home.x, home.y, home.visible, home.scale, home.inTree], [0, 0, true, 1, false], 'the player comes back out in front of the tree');
     assert.deepEqual(errors, []);
-    console.log('wonderland: ok');
+    console.log(`wonderland: ok (${Math.round(small.fps)} fps)`);
 } finally {
     await browser?.close();
     server.kill();
