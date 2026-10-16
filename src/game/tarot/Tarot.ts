@@ -75,7 +75,7 @@ export class Tarot {
         this.visitor.stop();
         this.visitor.setTexture(`tarot-visitor-${this.visitorNumber}`, 'side-0')
             .setFlipX(false).setAngle(0).setAlpha(1).setVisible(true);
-        this.shadow.setVisible(true).setAlpha(0.3);
+        this.shadow.setVisible(true).setAlpha(0.3).setScale(1);
         this.cards.forEach((card) => card.setTexture('tarot-back'));
         this.spread = drawThree();
         this.outcome = undefined;
@@ -129,14 +129,18 @@ export class Tarot {
                 if (this.elapsed >= 2.4 && this.outcome) {
                     this.glow.setVisible(false);
                     this.sparks.forEach((spark) => spark.setVisible(false));
-                    this.visitor.play(`tarot-${this.outcome}-${this.visitorNumber}-walk`);
+                    this.visitor.play(`tarot-${this.outcome}-${this.visitorNumber}-${this.outcome === 'angel' ? 'fly' : 'walk'}`);
                     this.setState('departing');
                 }
                 break;
             case 'departing':
                 this.visitor.setAngle(this.outcome === 'zombie' ? Math.sin(this.elapsed * 7) * 7 : 0);
-                if (this.walkTo(this.x + 135, this.y + 70, this.outcome === 'zombie'
-                    ? 14 + 11 * Math.max(0, Math.sin(this.elapsed * 7)) : 43, dt)) {
+                if (this.outcome === 'angel') {
+                    this.feet.x += 24 * dt;
+                    this.visitor.setAlpha(Phaser.Math.Clamp((3.6 - this.elapsed) / 0.9, 0, 1));
+                }
+                if (this.outcome === 'angel' ? this.elapsed >= 3.6
+                    : this.walkTo(this.x + 135, this.y + 70, 14 + 11 * Math.max(0, Math.sin(this.elapsed * 7)), dt)) {
                     this.visitor.stop().setVisible(false).setAngle(0);
                     this.shadow.setVisible(false);
                     this.setState('waiting');
@@ -187,9 +191,12 @@ export class Tarot {
     }
 
     private positionCompanions() {
-        const bounce = this.state === 'departing' && this.outcome === 'angel' ? 2 + Math.sin(this.elapsed * 10) * 2 : 0;
-        this.visitor.setPosition(this.feet.x, this.feet.y - bounce).setDepth(this.feet.y);
+        const flying = this.state === 'departing' && this.outcome === 'angel';
+        const altitude = flying ? Math.min(120, this.elapsed * 34) : 0;
+        this.visitor.setPosition(this.feet.x, this.feet.y - altitude)
+            .setDepth(flying ? this.y + 120 : this.feet.y);
         this.shadow.setPosition(this.feet.x, this.feet.y).setDepth(this.feet.y - 1);
+        if (flying) this.shadow.setScale(1 - altitude / 160).setAlpha(0.3 * (1 - altitude / 120));
         this.glow.setPosition(this.feet.x, this.feet.y - 18);
     }
 }
