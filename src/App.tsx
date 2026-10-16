@@ -4,7 +4,7 @@ import { Backpack } from './backpack/Backpack';
 import { CallPanel } from './call/CallPanel';
 import { CharacterSearch } from './characters/CharacterSearch';
 import { FactoryPanel } from './factory/FactoryPanel';
-import { send, type Command } from './game/commands';
+import { getViewModes, onViewModes, send, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
@@ -19,6 +19,7 @@ const buttons: [label: string, command: Command, title: string][] = [
 export default function App() {
     const bridge = useMemo(() => new LibraryBridge(), []);
     const state = useSyncExternalStore(bridge.subscribe, bridge.getSnapshot);
+    const modes = useSyncExternalStore(onViewModes, getViewModes);
     const [backpackOpen, setBackpackOpen] = useState(false);
     const [searching, setSearching] = useState(false);
     return (
@@ -30,6 +31,34 @@ export default function App() {
             </div>
             <Backpack open={backpackOpen} onOpenChange={setBackpackOpen} />
             <CharacterSearch hidden={state.inside} onFocusChange={setSearching} />
+            {!state.inside && (
+                <div className="view-switches" role="group" aria-label="World view switches">
+                    <button
+                        type="button"
+                        className="view-switch"
+                        data-active={modes.night || undefined}
+                        aria-pressed={modes.night}
+                        title="Toggle Night View on/off"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => send('toggleNight')}
+                    >
+                        <span className="view-switch-dot" aria-hidden="true">🌙</span>
+                        <span>NIGHT: {modes.night ? 'ON' : 'OFF'}</span>
+                    </button>
+                    <button
+                        type="button"
+                        className="view-switch view-switch-stranger"
+                        data-active={modes.stranger || undefined}
+                        aria-pressed={modes.stranger}
+                        title="Toggle Stranger Things (Upside Down) View on/off"
+                        onMouseDown={(e) => e.preventDefault()}
+                        onClick={() => send('toggleStranger')}
+                    >
+                        <span className="view-switch-dot" aria-hidden="true">🚲</span>
+                        <span>STRANGER THINGS: {modes.stranger ? 'ON' : 'OFF'}</span>
+                    </button>
+                </div>
+            )}
             <CallPanel />
             <FactoryPanel hidden={state.inside} />
             <VibeMeter insideLibrary={state.inside} />

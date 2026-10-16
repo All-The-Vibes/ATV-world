@@ -6,7 +6,7 @@ import {
     HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, setViewModes, tokenCount } from '../commands';
 import { Directory, spotOf, spriteOf } from '../directory';
 import { BikeGang } from '../bikes/BikeGang';
 import { LockAndKey } from '../keyhouse/LockAndKey';
@@ -15,6 +15,7 @@ import { Catchers } from '../catchers/Catchers';
 import { setFactoryOpen } from '../../factory/bridge';
 import { Factory } from '../factory/Factory';
 import { Billboard } from '../billboard/Billboard';
+import { UsaBillboard } from '../billboard/UsaBillboard';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Roamers } from '../roamers/Roamers';
 import { Workout } from '../workout/Workout';
@@ -122,6 +123,8 @@ export class Preview extends Phaser.Scene {
     private disco?: Disco;
     /** The digital AI advertising board: rotates humorous AI ads (see ../billboard). */
     private billboard?: Billboard;
+    /** USA Super Intelligence welcome billboard towards the right corner (see ../billboard/UsaBillboard). */
+    private usaBillboard?: UsaBillboard;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
     private moles?: Moles;
     /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
@@ -255,6 +258,10 @@ export class Preview extends Phaser.Scene {
         this.billboard = new Billboard(this, 368, 415);
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.billboard.bounds());
+        const rightEdge = Math.max(this.town?.bounds().right ?? 420, 420);
+        this.usaBillboard = new UsaBillboard(this, rightEdge - 75, -165);
+        this.usaBillboard.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.usaBillboard.footprint);
         const trafficLight = new TrafficLight(this, 60, 170);
         this.solids.push(trafficLight.sprite.getBounds());
         this.includeInWorld(trafficLight.sprite);
@@ -387,12 +394,26 @@ export class Preview extends Phaser.Scene {
             if (this.view?.focus(() => directory.locate(id))) directory.ping(id);
         });
         const off = on('leaveHQ', () => this.leaveHQ());
+        const offNight = on('toggleNight', () => {
+            if (!this.atmosphere) return;
+            const next = !this.atmosphere.nightMode;
+            this.atmosphere.setNightMode(next);
+            setViewModes({ night: next });
+        });
+        const offStranger = on('toggleStranger', () => {
+            this.setHellTheme(!this.inHell);
+            this.cameras.main.flash(220, this.inHell ? 200 : 255, this.inHell ? 30 : 220, this.inHell ? 50 : 150);
+            this.cameras.main.shake(180, 0.004);
+        });
         window.addEventListener('keydown', onKey);
         const stop = () => {
             off();
             offFocus();
+            offNight();
+            offStranger();
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
+            setViewModes({ night: false, stranger: false });
             this.syncVibes(false);
             this.tokens?.destroy();
         };
@@ -869,6 +890,7 @@ export class Preview extends Phaser.Scene {
 
     private setHellTheme(active: boolean) {
         this.inHell = active;
+        setViewModes({ stranger: active });
         this.ground?.setTexture(active ? 'preview-hell-ground' : 'preview-grass');
         this.cameras.main.setBackgroundColor(active ? '#0a0d18' : '#14101e');
         this.surfacePortal?.setVisible(!active);

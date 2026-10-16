@@ -35,3 +35,15 @@ export const FLOP_QUIPS = [
     'SLAP! THAT WAS ME.',
     'ANYONE HAVE ALOE? NO? OK.',
 ];
+
+/** Famous quotes from Wednesday Addams in the Wednesday series. */
+export const WEDNESDAY_QUOTES = [
+    'The only person who gets to torture my brother is me.',
+    'I find social media to be a soul-sucking void of meaningless affirmation.',
+    'I act as if I do not care if people dislike me. Deep down... I secretly enjoy it.',
+    'Every day is all about me. This one just comes with cake and a bad song.',
+    'I will ignore you, stomp on your heart, and always put my needs first.',
+    'If he breaks your heart, I will nail-gun his.',
+    'For the record, I do not believe I am better than everyone else. Just that I am better than you.',
+];
+

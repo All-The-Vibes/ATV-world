@@ -1,5 +1,5 @@
 /** Tiny bus between the React UI and the game (e.g. the zoom buttons). */
-export type Command = 'zoomIn' | 'zoomOut' | 'fit' | 'leaveHQ';
+export type Command = 'zoomIn' | 'zoomOut' | 'fit' | 'leaveHQ' | 'toggleNight' | 'toggleStranger';
 
 /** Screen px that UI panels cover along each edge (the panels keep it current), so the camera can frame things beside them. */
 export const insets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -12,6 +12,28 @@ export const send = (command: Command) => bus.dispatchEvent(new Event(command));
 export function on(command: Command, fn: () => void): () => void {
     bus.addEventListener(command, fn);
     return () => bus.removeEventListener(command, fn);
+}
+
+/** Whether Night View and Stranger Things (Upside Down) View are active. */
+export interface ViewModes {
+    night: boolean;
+    stranger: boolean;
+}
+
+let viewModes: ViewModes = { night: false, stranger: false };
+
+export const getViewModes = (): ViewModes => viewModes;
+
+export function setViewModes(patch: Partial<ViewModes>) {
+    const next: ViewModes = { ...viewModes, ...patch };
+    if (next.night === viewModes.night && next.stranger === viewModes.stranger) return;
+    viewModes = next;
+    bus.dispatchEvent(new Event('viewModes'));
+}
+
+export function onViewModes(fn: () => void): () => void {
+    bus.addEventListener('viewModes', fn);
+    return () => bus.removeEventListener('viewModes', fn);
 }
 
 /** Whether the player is inside ATV HQ. The game sets it; the call panel only shows in there. */
