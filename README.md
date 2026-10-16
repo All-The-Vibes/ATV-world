@@ -69,6 +69,19 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 
 Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.
 
+## @vics on a hoverboard
+
+**@vics** (`vicslive`) visits on a pink retro hoverboard: an original fuzzy purple
+puppet in a cyan-and-magenta space suit. The suit emits neon light at night
+(including Night View); a proximity shield rises within 130 world pixels of the
+dragon, and a blast earns "Thanks for the warm welcome!" The `@vics` nameplate
+stays visible independently of the global creator-label toggle. Find `@vics` in
+character search when visiting, or summon with
+`atv.game.scene.getScene('Preview').roamers.spawn('vics')`. Run `npm run test:vics`
+for the focused browser regression. Character behavior lives in
+`src/game/roamers/characters/vics.ts`; original pixel art lives in
+`src/game/roamers/props/vics.ts`.
+
 ## Character creator nametags
 
 The **@** button beside **− / FIT / +**, at the bottom right, turns all GitHub

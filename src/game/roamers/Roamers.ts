@@ -12,6 +12,7 @@ interface Roamer {
     shadow: Phaser.GameObjects.Image;
     anim: string;
     prop?: Phaser.GameObjects.Sprite;
+    tag?: Phaser.GameObjects.Text;
     bubble?: Phaser.GameObjects.Image;
     bubbleLeft: number;
     state: 'wander' | 'pause' | 'leave';
@@ -82,7 +83,9 @@ export class Roamers {
     burnables(): Burnable[] {
         return [...this.active.values()].map((r) => ({
             sprite: r.sprite,
-            headroom: 38,
+            headroom: Math.max(38, r.sprite.displayHeight + 12),
+            nametag: r.tag,
+            quip: r.spec.burnReply,
             hold: (seconds: number) => {
                 if (r.rest <= 0) r.spec.hooks?.onBurn?.(r.handle);
                 r.rest = Math.max(r.rest, seconds);
@@ -107,8 +110,8 @@ export class Roamers {
 
     private add(spec: RoamerSpec) {
         const look = randomLook(spec.id, spec.look);
-        const key = lookKey(look);
-        const sheet = characterSheet(look);
+        const key = spec.sheet ? `roamer-${spec.id}` : lookKey(look);
+        const sheet = spec.sheet ? spec.sheet() : characterSheet(look);
         addPixels(this.scene, key, sheet.canvas, sheet.frames);
         const anim = `${key}-roam`;
         if (!this.scene.anims.exists(anim)) {
@@ -125,6 +128,15 @@ export class Roamers {
         } as Roamer;
         r.handle = this.handleFor(r);
         addCreatorNametag(sprite, look, { speech: () => r.bubble });
+        if (spec.showName) {
+            r.tag = this.scene.add.text(x, y, spec.name, {
+                fontFamily: 'VT323, monospace', fontSize: '16px', color: '#9ffff7',
+                backgroundColor: '#101629', padding: { x: 3, y: 1 }, resolution: 2,
+            }).setOrigin(0.5, 1).setName(`roamer-name-${spec.id}`).setData('gap', 2);
+            const syncName = () => this.followName(r);
+            this.scene.events.on('postupdate', syncName);
+            sprite.once('destroy', () => this.scene.events.off('postupdate', syncName));
+        }
         const prop = spec.prop;
         if (prop) {
             const tex = ensurePixels(this.scene, prop.key, prop.make);
@@ -145,6 +157,8 @@ export class Roamers {
         }
         this.pickWaypoint(r);
         this.active.set(spec.id, r);
+        spec.hooks?.onSpawn?.(r.handle);
+        this.follow(r);
     }
 
     private handleFor(r: Roamer): RoamerHandle {
@@ -276,7 +290,23 @@ export class Roamers {
         const dir = s.flipX ? -1 : 1;
         const off = r.spec.prop?.offset;
         if (off) r.prop?.setPosition(Math.round(s.x + dir * off[0]), Math.round(s.y + off[1])).setFlipX(s.flipX).setDepth(s.y + 1);
-        r.bubble?.setPosition(Math.round(s.x), Math.round(s.y - 30)).setDepth(SKY + 2);
+        this.followName(r);
+    }
+
+    private followName(r: Roamer) {
+        const s = r.sprite;
+        const creator: Phaser.GameObjects.Text | undefined = s.getData('creatorNametag');
+        if (r.tag) {
+            const zoom = this.scene.cameras.main.zoom;
+            const head = s.getTopCenter();
+            const gap = creator?.visible ? creator.height / zoom + 6 : 2;
+            r.tag.setPosition(head.x, head.y - gap).setScale(1 / zoom).setDepth(s.depth + 0.2)
+                .setVisible(s.visible && s.active).setAlpha(s.alpha);
+        }
+        const bubbleY = r.tag
+            ? r.tag.y - r.tag.displayHeight - 4
+            : s.y - Math.max(30, s.displayHeight + 8);
+        r.bubble?.setPosition(Math.round(s.x), Math.round(bubbleY)).setDepth(SKY + 2);
     }
 
     private pickWaypoint(r: Roamer) {
@@ -346,6 +376,7 @@ export class Roamers {
         r.sprite.destroy();
         r.shadow.destroy();
         r.prop?.destroy();
+        r.tag?.destroy();
         r.bubble?.destroy();
         this.active.delete(r.spec.id);
     }

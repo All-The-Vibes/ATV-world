@@ -2,6 +2,7 @@ import type Phaser from 'phaser';
 import type { CharacterLook, Color, ColorName, FrameRect, PixelCanvas } from '../kit';
 import type { Gremlins } from '../gremlins/Gremlins';
 import type { Tokens } from '../tokens/Tokens';
+import type { Atmosphere } from '../fx/Atmosphere';
 
 /** A small thing a roamer carries (a lantern, a guitar, a clipboard...), drawn in code and following them around. */
 export interface RoamerProp {
@@ -20,6 +21,7 @@ export interface RoamerProp {
 /** What a roamer's hooks can see of the town. */
 export interface RoamerWorld {
     scene: Phaser.Scene;
+    atmosphere?: Atmosphere;
     bounds: () => Phaser.Geom.Rectangle;
     open: (x: number, y: number) => boolean;
     /** The player's sprite, or nothing while they're out of sight (inside HQ). */
@@ -55,6 +57,7 @@ export interface RoamerHandle {
 
 /** Extra behaviour on top of the shared loop (wandering, greeting the player, scaring gremlins). All optional. */
 export interface RoamerHooks {
+    onSpawn?(r: RoamerHandle): void;
     update?(r: RoamerHandle, dt: number): void;
     /** The player came up to say hello. */
     onGreet?(r: RoamerHandle): void;
@@ -73,6 +76,10 @@ export interface RoamerSpec {
     id: string;
     name: string;
     look: CharacterLook;
+    /** Custom sheets use the same side-0/1/2 frame names as the built-in walkers. */
+    sheet?: () => { canvas: PixelCanvas; frames: FrameRect[] };
+    showName?: boolean;
+    burnReply?: string;
     prop?: RoamerProp;
     /** Colour of its sparkles and its ward. */
     glow: ColorName;

@@ -441,6 +441,7 @@ export class Preview extends Phaser.Scene {
         });
         this.catchers = new Catchers(this, { bounds: () => this.worldBounds, gremlins: () => this.gremlins });
         this.roamers = new Roamers(this, {
+            atmosphere: this.atmosphere,
             bounds: () => this.worldBounds,
             open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
             player: () => (this.player && !this.insideHQ ? this.player.sprite : undefined),

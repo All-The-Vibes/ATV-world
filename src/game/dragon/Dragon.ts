@@ -11,6 +11,8 @@ export interface Burnable {
     /** How far above their feet the speech bubble goes. */
     headroom: number;
     nametag?: Phaser.GameObjects.Text;
+    /** A character-specific reply; other targets keep the shared rotating quips. */
+    quip?: string;
     /** Stop walking for a moment to complain. */
     hold?(seconds: number): void;
 }
@@ -271,7 +273,7 @@ export class Dragon {
         if (old) this.endBurn(old);
         t.hold?.(BURN_LIFE - 0.6);
         s.setTint(0x3a3a3a);
-        const quip = this.nextQuip();
+        const quip = t.quip ?? this.nextQuip();
         const key = `dragon-quip-${quip}`;
         addPixels(this.scene, key, speechArt(quip));
         const burn: Burn = {
@@ -314,7 +316,11 @@ export class Dragon {
         b.bubble.setAlpha(Phaser.Math.Clamp(Math.min(talk / 0.15, (BURN_LIFE - b.age) / 0.35), 0, 1));
         const rise = talk < 0.15 ? Math.max(0, 3 * (1 - talk / 0.15)) : 0;
         const headroom = b.nametag?.visible
-            ? Math.max(b.headroom, s.y - s.getTopCenter().y + b.nametag.getData('gap') + b.nametag.height / this.scene.cameras.main.zoom + 6)
+            ? Math.max(
+                b.headroom,
+                s.y - s.getTopCenter().y + b.nametag.getData('gap') + b.nametag.height / this.scene.cameras.main.zoom + 6,
+                s.y - b.nametag.y + b.nametag.height / this.scene.cameras.main.zoom + 6,
+            )
             : b.headroom;
         b.bubble.setPosition(Math.round(s.x), Math.round(s.y - headroom + rise));
     }
