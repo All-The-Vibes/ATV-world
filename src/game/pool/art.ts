@@ -166,38 +166,11 @@ export function wednesdayArt() {
     p(6, 11, 'white'); p(5, 12, 'white'); p(6, 12, 'white');
     p(9, 11, 'white'); p(9, 12, 'white'); p(10, 12, 'white');
     p(7, 13, 'slate'); p(7, 15, 'slate'); // dress buttons
-    // Pale hands at sides (holding a tiny piranha bag)
+    // Pale hands at sides
     p(3, 14, 'cloud'); p(12, 14, 'cloud');
     // Legs & black Mary Jane shoes
     row(18, 5, 6, 'cloud'); row(18, 9, 10, 'cloud');
     row(19, 4, 6, 'ink'); row(19, 9, 11, 'ink');
     return pc.outline('ink');
-}
-
-/** 2-frame snapping piranha sprite (silver/slate body, red belly, dorsal fin, and sharp white teeth). */
-export function piranhaArt() {
-    const W = 12, H = 8, F = 2;
-    const pc = new PixelCanvas(W * F, H);
-    for (let f = 0; f < F; f++) {
-        const ox = f * W;
-        const p = (x: number, y: number, c: 'ink' | 'night' | 'slate' | 'steel' | 'mist' | 'white' | 'red' | 'orange') => pc.set(ox + x, y, c);
-        // Tail fin (left)
-        p(1, 2 + f, 'slate'); p(1, 5 - f, 'slate');
-        p(2, 3, 'steel'); p(2, 4, 'steel');
-        // Body
-        for (let y = 2; y <= 5; y++) {
-            for (let x = 3; x <= 9; x++) p(x, y, y >= 4 ? 'red' : y === 2 ? 'slate' : 'steel');
-        }
-        // Dorsal fin
-        p(5, 1, 'slate'); p(6, 1, 'slate');
-        // Glowing red/white eye
-        p(8, 2, 'white'); p(9, 2, 'ink');
-        // Snapping jaw with sharp white teeth
-        p(10, 3, 'steel');
-        p(10, 4 + f, 'red');
-        p(9, 4, 'white'); p(10, 4, 'white');
-    }
-    pc.outline('ink');
-    return { canvas: pc, frames: stripFrames(F, W, H) };
 }
 
