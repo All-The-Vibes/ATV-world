@@ -63,7 +63,7 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
     private town?: Town;
-    /** The disco down in the south-west corner: light-up floor, glitter ball, dancers (see ../disco). */
+    /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
     private moles?: Moles;
@@ -125,8 +125,10 @@ export class Preview extends Phaser.Scene {
             { x: -190, y: -106, kind: 'cherry' },
             { x: 190, y: -70, kind: 'autumn' },
             { x: 370, y: 112, kind: 'pine' },
+            { x: -65, y: 195, kind: 'atv' },
         ].forEach(({ x, y, kind }, i) => this.tree(x, y, kind, i + 1));
         this.prop('fountain', -150, 205);
+        this.prop('fountain', 55, 195, { colors: ['cyan', 'pink', 'gold', 'lime', 'violet', 'orange'] });
         this.prop('lamp', -210, 133);
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
@@ -138,7 +140,7 @@ export class Preview extends Phaser.Scene {
         this.pool = new Pool(this, 160, -215);
         this.solids.push(this.pool.deckBounds());
         this.includeInWorld(this.pool);
-        this.disco = new Disco(this, -250, 334);
+        this.disco = new Disco(this, -290, -250);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
         this.moles = new Moles(this, 150, 335);
         this.moles.parts.forEach((part) => this.includeInWorld(part));
@@ -156,6 +158,7 @@ export class Preview extends Phaser.Scene {
         this.createIdeaMachine(-85, 170);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
+        this.walker(7, 'Shahab');
         this.createHell();
         this.createPlayer();
         this.incidents = new Incidents(this, () => this.sys.isActive() && !this.insideHQ);
@@ -650,7 +653,8 @@ export class Preview extends Phaser.Scene {
 
     private prop(name: string, x: number, y: number, opts: PropOptions = {}) {
         const p = paintProp(PROPS[name], opts);
-        const key = `preview-prop-${name}`;
+        const optSuffix = Object.keys(opts).length ? `-${JSON.stringify(opts)}` : '';
+        const key = `preview-prop-${name}${optSuffix}`;
         addPixels(this, key, p.canvas, stripFrames(p.frames, p.frameW, p.frameH));
         if (p.shadow) this.add.image(x, y, shadowTexture(this, p.shadow)).setAlpha(0.25).setDepth(-1e8);
         const s = this.add.sprite(x, y + 1, key, 0).setOrigin(0.5, 1).setDepth(y);
@@ -672,9 +676,11 @@ export class Preview extends Phaser.Scene {
         if (!this.anims.exists(anim)) {
             this.anims.create({ key: anim, frames: ['side-1', 'side-0', 'side-2', 'side-0'].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1 });
         }
-        const y = [62, 124, 184, 96, 154, 42, 214][i];
+        const lanes = [62, 124, 184, 96, 154, 42, 214, 140];
+        const y = lanes[i % lanes.length];
         const shadow = this.add.image(0, y, shadowTexture(this, 10)).setAlpha(0.25).setDepth(-1e8);
-        const sprite = this.add.sprite(-310 + i * 120, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
+        const startX = Phaser.Math.Clamp(-310 + i * 95, this.worldBounds.left + 28, this.worldBounds.right - 28);
+        const sprite = this.add.sprite(startX, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
         let label: Phaser.GameObjects.Image | undefined;
         if (name) {
             const labelKey = `preview-walker-label-${name}`;

@@ -1,4 +1,5 @@
-import { toRamp, type Color, type RampLike } from './palette';
+import { lighter, toRamp, type Color, type RampLike } from './palette';
+import { miniText, miniTextWidth } from './font';
 import { PixelCanvas } from './pixels';
 import { bayer, hash, rng } from './noise';
 
@@ -14,6 +15,10 @@ export interface TreeStyle {
     size?: number;
     /** Sprinkle of accent pixels: blossoms, fruit, fairy lights… */
     accent?: Color;
+    /** Hanging fruits in the canopy (single color or palette of colors). */
+    fruits?: Color | readonly Color[];
+    /** Optional wooden plaque label on the trunk (e.g. 'ATV'). */
+    label?: string;
     snow?: boolean;
 }
 
@@ -23,7 +28,14 @@ export const TREE_PRESETS: Record<string, TreeStyle> = {
     pine: { shape: 'cone', leaves: ['pine', 'forest', 'leaf', 'grass'] },
     cherry: { shape: 'round', leaves: ['plum', 'violet', 'pink', 'peach', 'cream'], accent: 'white' },
     autumn: { shape: 'round', leaves: ['wine', 'red', 'orange', 'gold', 'yellow'] },
-    fruit: { shape: 'round', leaves: ['pine', 'forest', 'leaf', 'grass', 'lime'], accent: 'red' },
+    fruit: { shape: 'round', leaves: ['pine', 'forest', 'leaf', 'grass', 'lime'], accent: 'red', fruits: 'red' },
+    atv: {
+        shape: 'round',
+        leaves: ['pine', 'forest', 'leaf', 'grass', 'lime'],
+        size: 1.2,
+        fruits: ['red', 'gold', 'orange', 'pink', 'cyan'],
+        label: 'ATV',
+    },
     palm: { shape: 'palm', leaves: ['pine', 'forest', 'leaf', 'grass', 'lime'] },
     snowpine: { shape: 'cone', leaves: ['pine', 'forest', 'leaf', 'grass'], snow: true },
     birch: { shape: 'round', leaves: ['forest', 'leaf', 'grass', 'lime', 'yellow'], trunk: ['steel', 'cloud', 'white'], size: 0.85 },
@@ -90,6 +102,34 @@ function roundTree(style: TreeStyle, seed: number): TreeArt {
             pc.set(x, y, leaves[quantize(tone, x, y, leaves.length)]);
             if (style.accent && hash(x, y, seed + 7) < 0.04 && tone > 0.35) pc.set(x, y, style.accent);
         }
+    }
+    if (style.fruits) {
+        const palette = (typeof style.fruits === 'string' || typeof style.fruits === 'number')
+            ? [style.fruits]
+            : style.fruits;
+        if (palette.length) {
+            const spots: [number, number][] = [
+                [-0.62, 0.25], [-0.32, -0.22], [0.05, -0.35], [0.42, -0.15], [0.65, 0.28],
+                [-0.45, 0.62], [-0.08, 0.22], [0.28, 0.55], [-0.18, 0.78], [0.52, 0.72],
+            ];
+            spots.forEach(([ox, oy], i) => {
+                const fx = Math.round(cx + ox * R + (hash(i, seed, 19) - 0.5) * 2);
+                const fy = Math.round(cy + oy * R + (hash(i, seed, 23) - 0.5) * 2);
+                const c = palette[i % palette.length];
+                const hi = lighter(c);
+                // Stem hanging from canopy
+                pc.set(fx, fy - 2, 'bark').set(fx + 1, fy - 2, 'lime');
+                // Plump 2x2 hanging fruit with highlight
+                pc.rect(fx - 1, fy - 1, 2, 2, c).set(fx - 1, fy - 1, hi);
+            });
+        }
+    }
+    if (style.label) {
+        const tw = miniTextWidth(style.label);
+        const sx = Math.round(cx - tw / 2) - 2;
+        const sy = H - 10;
+        pc.rect(sx, sy, tw + 4, 7, 'wood').rect(sx, sy, tw + 4, 1, 'clay');
+        miniText(pc, sx + 2, sy + 1, style.label, 'gold');
     }
     pc.outline('ink');
     return { canvas: pc, trunkW };
