@@ -28,7 +28,7 @@ export function teamsManifest(site: URL = siteUrl()) {
             full:
                 'Add ATV World to a Teams meeting and share it to the stage. Everyone who has it open gets a random ' +
                 'pixel avatar at a desk in ATV HQ, typing away with code scrolling on their screen. Lights flick on ' +
-                'when someone joins and off when they leave, and the building grows a floor for every four people. ' +
+                'when someone joins and off when they leave, and the building grows a floor for every eight people. ' +
                 'ATV World is an open pixel-art city built by the All The Vibes crew.',
         },
         icons: { color: 'color.png', outline: 'outline.png' },

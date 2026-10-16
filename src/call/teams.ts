@@ -4,8 +4,9 @@
  * keeps everyone in sync. Teams hosts it, so there's no server to run and no secrets to keep.
  *
  * Each meeting gets its own Live Share session, so a meeting's HQ only ever holds that meeting. To show
- * one meeting on the public website too, type the website mirror key on the setup page: the tab's URL
- * then carries it (?teams&hq=KEY), and one client posts the roster to /api/hq (see ./relay.ts).
+ * one meeting on the public website too, type the website mirror key on the setup page: Save trades it for
+ * a publish token that only works for that meeting, the tab's URL carries the token (?teams#hq=TOKEN), and
+ * one client posts the roster to /api/hq (see ./relay.ts).
  *
  * Only loaded when the URL has ?teams (the Teams app's URLs do), so normal visits never download it.
  * The app package comes from ./teamsApp.ts (the call panel's "Add to Teams" button).
