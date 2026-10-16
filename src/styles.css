@@ -106,3 +106,67 @@ body,
     color: var(--gold);
     border-color: var(--gold);
 }
+
+/* The library's prompt and panel. Scoped so the zoom buttons and call panel keep their own look. */
+:where(.world-actions, .library) :is(button, input, select) {
+    font: inherit;
+}
+
+:where(.world-actions, .library) button, .primary-button {
+    min-height: 44px;
+    padding: 9px 16px;
+    border: 2px solid #81768f;
+    background: var(--night);
+    color: var(--cream);
+    cursor: pointer;
+    text-decoration: none;
+}
+
+:where(.world-actions, .library) button:hover, .primary-button:hover {
+    background: #403653;
+    border-color: var(--gold);
+}
+
+:where(.world-actions, .library) button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}
+
+:where(.world-actions, .library) :focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 4px;
+}
+
+:where(.world-actions, .library) a { color: #f7cd76; text-underline-offset: 3px; }
+
+.primary-button {
+    display: inline-block;
+    background: var(--gold);
+    color: var(--ink);
+    border-color: var(--gold);
+    font-weight: bold;
+}
+
+.primary-button:hover { background: #ffda87; color: var(--ink); }
+
+/* Above the LIVE badge and zoom buttons along the bottom edge. */
+.world-actions {
+    position: fixed;
+    bottom: 72px;
+    left: 50%;
+    transform: translateX(-50%);
+    display: flex;
+    gap: 12px;
+    font-size: 22px;
+    max-width: calc(100vw - 24px);
+}
+
+:where(.world-actions) kbd { margin-left: 12px; border: 1px solid currentColor; padding: 0 5px; }
+
+@media (max-width: 600px) {
+    .banner { top: 12px; padding: 8px; }
+    .banner h1 { font-size: 13px; }
+    .banner p { font-size: 17px; }
+    .world-actions { gap: 6px; font-size: 18px; }
+    .world-actions button { padding: 8px; }
+}

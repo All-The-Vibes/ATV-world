@@ -11,3 +11,5 @@ export * from './characters';
 export * from './nature';
 export * from './props';
 export * from './buildings';
+export * from './library';
+export * from './interior';

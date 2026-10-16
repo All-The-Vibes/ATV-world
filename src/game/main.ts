@@ -1,8 +1,10 @@
 import Phaser from 'phaser';
 import { Preview } from './scenes/Preview';
+import { Library } from './scenes/Library';
+import { LibraryBridge } from '../library/bridge';
 
 /** Create the game inside `parent`. The canvas always fills it. */
-export function createGame(parent: HTMLElement): Phaser.Game {
+export function createGame(parent: HTMLElement, bridge: LibraryBridge): Phaser.Game {
     const game = new Phaser.Game({
         type: Phaser.AUTO,
         parent,
@@ -10,7 +12,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
         pixelArt: true,
         roundPixels: true,
         scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth || 800, height: parent.clientHeight || 600 },
-        scene: [Preview],
+        scene: [new Preview(bridge), new Library(bridge)],
     });
 
     // An error thrown mid-frame would stop the game loop for good, so log it and keep going.

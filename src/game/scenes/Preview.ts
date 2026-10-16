@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
+import { LibraryBridge } from '../../library/bridge';
 import {
-    PixelCanvas, PROPS, addPixels, buildingArt, characterSheet, fbm, lookKey, paintProp, randomLook,
+    PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { isTyping, on, setInsideHQ } from '../commands';
@@ -26,8 +27,10 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
+    /** The library's front door. Standing by it offers "Enter library" (E or the prompt button). */
+    private entrance?: Phaser.Math.Vector2;
 
-    constructor() {
+    constructor(private bridge: LibraryBridge) {
         super('Preview');
     }
 
@@ -35,9 +38,9 @@ export class Preview extends Phaser.Scene {
         this.grass();
         const buildings = [
             { x: -305, y: -76, spec: { w: 6, h: 5, style: 'house', roof: 'red', wall: 'cream', seed: 2 } },
-            { x: 285, y: 225, spec: { w: 5, h: 6, style: 'tower', wall: 'stone', seed: 9 } },
         ] satisfies { x: number; y: number; spec: BuildingSpec }[];
         buildings.forEach(({ x, y, spec }) => this.building(x, y, spec));
+        this.library(285, 225);
         // Set well back from the plaza, seven tiles behind where the old ATV shop stood.
         this.hq = new HQ(this, 0, -114);
         this.hq.onResize = () => {
@@ -60,12 +63,14 @@ export class Preview extends Phaser.Scene {
         for (let i = 0; i < 6; i++) this.walker(i);
         this.createPlayer();
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
+        this.events.on('wake', () => this.input.keyboard?.resetKeys());
 
         // Go into HQ by walking in the door, clicking the building, or pressing H. Inside, the call panel
         // shows who's there; a fresh press of down or sideways (or the panel's Step out) walks you back out.
         // A window listener, so quick taps count and the key you walked in on (now auto-repeating) doesn't.
+        // It sits out while this scene sleeps under the library.
         const onKey = (e: KeyboardEvent) => {
-            if (e.ctrlKey || e.metaKey || e.altKey || isTyping()) return;
+            if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
             if (e.key === 'h' || e.key === 'H') this.enterHQ();
             else if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
         };
@@ -136,6 +141,16 @@ export class Preview extends Phaser.Scene {
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
         }
         this.movePlayer(dt);
+        if (this.player && this.entrance) {
+            const near = !this.insideHQ
+                && Phaser.Math.Distance.Between(this.player.sprite.x, this.player.sprite.y, this.entrance.x, this.entrance.y) < 34;
+            this.bridge.setPrompt(near ? 'Enter library' : '', near ? () => {
+                this.player!.sprite.setPosition(this.entrance!.x, this.entrance!.y + 15).stop();
+                this.bridge.setPrompt('');
+                this.scene.launch('Library');
+                this.scene.sleep();
+            } : undefined);
+        }
     }
 
     private grass() {
@@ -154,6 +169,43 @@ export class Preview extends Phaser.Scene {
         addPixels(this, key, canvas);
         const image = this.add.image(x, y, key).setOrigin(0.5, 1).setDepth(y);
         this.includeInWorld(image);
+    }
+
+    /** The enterable library, with its door as the entrance and softly breathing porch lanterns. */
+    private library(x: number, y: number) {
+        const { canvas, info } = libraryArt();
+        addPixels(this, 'preview-library', canvas);
+        const image = this.add.image(x, y, 'preview-library').setOrigin(0.5, 1).setDepth(y);
+        this.includeInWorld(image);
+        const left = x - canvas.width / 2;
+        const top = y - canvas.height;
+        if (info.door) this.entrance = new Phaser.Math.Vector2(left + info.door.x + info.door.w / 2, y + 3);
+
+        const glow = new PixelCanvas(15, 15);
+        for (let j = 0; j < 15; j++) {
+            for (let i = 0; i < 15; i++) {
+                const d = Math.hypot(i - 7, j - 7) / 7.5;
+                if (d < 1 && (1 - d) ** 1.5 > bayer(i, j)) glow.set(i, j, d < 0.35 ? 'yellow' : 'gold');
+            }
+        }
+        addPixels(this, 'preview-library-glow', glow);
+        const still = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false;
+        for (const lx of [54, 74]) {
+            const light = this.add.image(left + lx + 0.5, top + 125.5, 'preview-library-glow')
+                .setBlendMode(Phaser.BlendModes.ADD)
+                .setAlpha(0.35)
+                .setDepth(y + 0.5);
+            if (!still) {
+                this.tweens.add({
+                    targets: light,
+                    alpha: { from: 0.22, to: 0.42 },
+                    duration: 900 + lx * 4,
+                    ease: 'Sine.easeInOut',
+                    yoyo: true,
+                    repeat: -1,
+                });
+            }
+        }
     }
 
     private tree(x: number, y: number, kind: string, seed: number) {

@@ -12,7 +12,8 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "typecheck": "tsc --noEmit -p ."
+    "typecheck": "tsc --noEmit -p .",
+    "test:library": "node --experimental-strip-types --test tests/library.test.ts && node tests/library-browser.mjs"
   },
   "dependencies": {
     "@fluidframework/azure-client": "^1.2.0",

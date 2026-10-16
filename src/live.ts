@@ -97,7 +97,8 @@ function start() {
 
     const tick = () => {
         if (!pending || stuck || !autoReload) return;
-        if (isTyping()) return render();
+        // Hold off while someone is typing or has a book open in the library.
+        if (isTyping() || document.querySelector('dialog.library[open]')) return render();
         countdown--;
         if (countdown <= 0) reload();
         else render();
