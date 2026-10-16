@@ -272,10 +272,9 @@ export class Preview extends Phaser.Scene {
         this.walker(6, 'Abdallah', undefined, undefined, 'aifateen');
         this.walker(7, 'Daenerys', -240, daenerysSheet(), 'stephschofield');
         this.walker(8, 'Ahmed', -180, undefined, 'Bakar404');
-        this.bikeGang = new BikeGang(this, () => {
-            const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
-            const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
-            return new Phaser.Geom.Rectangle(left, this.worldBounds.top, Math.max(260, right - left), this.worldBounds.height);
+        this.bikeGang = new BikeGang(this, {
+            townLeft: this.town?.left ?? 451,
+            campusRight: this.campus?.bounds().right ?? -475,
         });
         this.createHell();
         this.createSteph();

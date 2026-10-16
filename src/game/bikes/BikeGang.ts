@@ -181,26 +181,142 @@ interface Biker {
     laneOffset: number;
 }
 
+interface Waypoint {
+    x: number;
+    y: number;
+}
+
+interface RouteSegment {
+    x0: number;
+    y0: number;
+    x1: number;
+    y1: number;
+    len: number;
+    cum: number;
+    dx: number;
+}
+
+/**
+ * Build the closed loop route:
+ * 1. Far-right house pavement road (east Town bottom pavement) -> west along pavement past the middle house & library
+ * 2. Full circle around the central plaza circle (0, 90)
+ * 3. West along the pavement lane past the middle-west house (-305, -76) to the Microsoft Redmond campus pavement road
+ * 4. Back east along the pavement road through the central circle to the far-right house pavement road.
+ */
+function buildBikeRoute(townLeft: number, campusRight: number): { segments: RouteSegment[]; totalLength: number } {
+    const farRightHouseX = townLeft + 338;
+    const midRightHouseX = townLeft + 92;
+    const townEntryX = townLeft + 8;
+
+    const campusWestX = campusRight - 420;
+    const campusMidX = campusRight - 220;
+    const campusEastX = campusRight - 30;
+
+    // Central circle (PLAZA at x=0, y=90, cobble ring radius ~92 in x, ~46 in y)
+    const cx = 0, cy = 90, rx = 92, ry = 46;
+    const circleWaypoints = (startDeg: number, endDeg: number, steps: number): Waypoint[] => {
+        const pts: Waypoint[] = [];
+        for (let i = 0; i <= steps; i++) {
+            const a = Phaser.Math.DegToRad(startDeg + ((endDeg - startDeg) * i) / steps);
+            pts.push({
+                x: Math.round(cx + Math.cos(a) * rx),
+                y: Math.round(cy + Math.sin(a) * ry),
+            });
+        }
+        return pts;
+    };
+
+    const waypoints: Waypoint[] = [
+        // 1. Far-right house pavement road -> middle house pavement -> library forecourt pavement -> central plaza
+        { x: farRightHouseX, y: 224 },
+        { x: midRightHouseX, y: 224 },
+        { x: townEntryX, y: 224 },
+        { x: 420, y: 244 },
+        { x: 322, y: 240 },
+        { x: 262, y: 238 },
+        { x: 196, y: 206 },
+        { x: 140, y: 155 },
+
+        // 2. Full 360-degree lap around the central plaza circle (clockwise from east -> south -> west -> north -> east -> west)
+        ...circleWaypoints(20, 380 + 160, 22),
+
+        // 3. West along the pavement lane past the middle house (-305, -76) to Microsoft Redmond Office pavement road
+        { x: -170, y: 72 },
+        { x: -232, y: 48 },
+        { x: -284, y: 10 },
+        { x: -305, y: -56 }, // right in front of the middle-west house door
+        { x: -360, y: 30 },
+        { x: -430, y: 22 },
+        { x: campusEastX, y: 40 },
+        { x: campusMidX, y: 40 },
+        { x: campusWestX, y: 40 }, // Microsoft Redmond Office Building 99 & 92 front pavement
+        { x: campusWestX, y: 226 }, // down to Redmond Campus main avenue sidewalk
+        { x: campusMidX, y: 226 },
+        { x: campusEastX, y: 226 },
+
+        // 4. Return east along the pavement road back through the central circle to the far-right house
+        { x: -430, y: 22 },
+        { x: -360, y: 30 },
+        { x: -284, y: 10 },
+        { x: -232, y: 48 },
+        { x: -170, y: 72 },
+        ...circleWaypoints(180, 360, 10),
+        { x: 140, y: 155 },
+        { x: 196, y: 206 },
+        { x: 262, y: 238 },
+        { x: 322, y: 240 },
+        { x: 420, y: 244 },
+        { x: townEntryX, y: 224 },
+        { x: midRightHouseX, y: 224 },
+        { x: farRightHouseX, y: 224 },
+    ];
+
+    const segments: RouteSegment[] = [];
+    let totalLength = 0;
+    for (let i = 0; i < waypoints.length - 1; i++) {
+        const a = waypoints[i];
+        const b = waypoints[i + 1];
+        const len = Math.hypot(b.x - a.x, b.y - a.y);
+        if (len < 1) continue;
+        segments.push({
+            x0: a.x,
+            y0: a.y,
+            x1: b.x,
+            y1: b.y,
+            len,
+            cum: totalLength,
+            dx: b.x - a.x,
+        });
+        totalLength += len;
+    }
+    return { segments, totalLength: Math.max(1, totalLength) };
+}
+
 /**
  * Shahab and 3 friends riding bicycles in single-file ("serial") formation across town,
- * Stranger Things style—complete with BMX bikes, headlight beams, backpack antennas, and radio quips.
+ * from the far-right house pavement road to the middle house, around the central circle,
+ * out west along the pavement road to the Microsoft Redmond office, and back!
  */
 export class BikeGang {
     private readonly bikers: Biker[] = [];
     private readonly bubble: Phaser.GameObjects.Image;
     private readonly quipKeys: string[] = [];
-    private leadX = -180;
-    private readonly baseY = 142;
-    private dir = 1;
-    private readonly speed = 58;
-    private readonly spacing = 36;
+    private readonly segments: RouteSegment[];
+    private readonly totalLength: number;
+    private distance = 0;
+    private readonly speed = 72;
+    private readonly spacing = 34;
     private clock = 0;
     private rest = 0;
 
     constructor(
         private readonly scene: Phaser.Scene,
-        private readonly bounds: () => Phaser.Geom.Rectangle,
+        opts: { townLeft?: number; campusRight?: number } = {},
     ) {
+        const route = buildBikeRoute(opts.townLeft ?? 451, opts.campusRight ?? -475);
+        this.segments = route.segments;
+        this.totalLength = route.totalLength;
+
         // Headlight cone texture
         const beamCanvas = new PixelCanvas(26, 12);
         for (let y = 0; y < 12; y++) {
@@ -236,8 +352,9 @@ export class BikeGang {
             }
 
             const laneOffset = (idx % 2 === 0 ? -1 : 1) * 2;
-            const y = this.baseY + laneOffset;
-            const x = this.leadX - idx * this.spacing;
+            const pt = this.sampleRoute(-idx * this.spacing);
+            const x = pt.x;
+            const y = pt.y + laneOffset;
 
             const shadow = scene.add.image(x, y, shadowTexture(scene, 20)).setAlpha(0.28).setDepth(-1e8);
             const beam = scene.add.image(x + 12, y - 9, 'bikegang-beam')
@@ -271,13 +388,31 @@ export class BikeGang {
             });
         });
 
-        this.bubble = scene.add.image(this.leadX, this.baseY - 40, this.quipKeys[0])
+        this.bubble = scene.add.image(0, 0, this.quipKeys[0])
             .setOrigin(0.5, 1)
             .setDepth(1e5)
             .setVisible(false);
 
         this.update(0);
         scene.events.once('shutdown', () => this.destroy());
+    }
+
+    /** Sample (x, y, dir) at distance `d` along the closed pavement loop. */
+    private sampleRoute(d: number): { x: number; y: number; dir: 1 | -1 } {
+        const wrapped = ((d % this.totalLength) + this.totalLength) % this.totalLength;
+        let seg = this.segments[0];
+        for (let i = 0; i < this.segments.length; i++) {
+            const candidate = this.segments[i];
+            if (wrapped >= candidate.cum && wrapped <= candidate.cum + candidate.len) {
+                seg = candidate;
+                break;
+            }
+        }
+        const t = seg.len > 0 ? (wrapped - seg.cum) / seg.len : 0;
+        const x = seg.x0 + (seg.x1 - seg.x0) * t;
+        const y = seg.y0 + (seg.y1 - seg.y0) * t;
+        const dir: 1 | -1 = seg.dx < 0 ? -1 : 1;
+        return { x, y, dir };
     }
 
     /** Let the dragon toast the bike riders too. */
@@ -300,41 +435,30 @@ export class BikeGang {
         const step = Math.min(dt, 0.1);
         this.clock += step;
 
-        const b = this.bounds();
-        const tailSpan = (this.bikers.length - 1) * this.spacing;
-        const leftLimit = b.left + 20 + tailSpan;
-        const rightLimit = Math.max(leftLimit + 40, b.right - 20 - tailSpan);
-
         if (this.rest > 0) {
             this.rest -= step;
             for (const rider of this.bikers) {
                 if (rider.sprite.anims.isPlaying) rider.sprite.stop();
             }
         } else {
-            this.leadX += this.dir * this.speed * step;
-            if (this.dir > 0 && this.leadX >= rightLimit) {
-                this.leadX = rightLimit;
-                this.dir = -1;
-            } else if (this.dir < 0 && this.leadX <= leftLimit) {
-                this.leadX = leftLimit;
-                this.dir = 1;
-            }
+            this.distance = (this.distance + this.speed * step) % this.totalLength;
             for (const rider of this.bikers) {
                 if (!rider.sprite.anims.isPlaying) rider.sprite.play(rider.anim);
             }
         }
 
-        const flip = this.dir < 0;
         this.bikers.forEach((rider, idx) => {
-            // Serial formation: Shahab leads in front, the 3 friends trail right behind in single file
-            const x = Math.round(this.leadX - this.dir * idx * this.spacing);
-            const wave = Math.round(Math.sin(this.clock * 4.2 - idx * 0.9) * 2.5);
-            const y = this.baseY + rider.laneOffset + wave;
+            // Serial formation: Shahab leads in front, the 3 friends trail right behind along the exact path
+            const pt = this.sampleRoute(this.distance - idx * this.spacing);
+            const flip = pt.dir < 0;
+            const wave = Math.round(Math.sin(this.clock * 4.2 - idx * 0.9) * 1.5);
+            const x = Math.round(pt.x);
+            const y = Math.round(pt.y + rider.laneOffset + wave);
 
             rider.sprite.setPosition(x, y).setDepth(y).setFlipX(flip);
             rider.shadow.setPosition(x, y);
             rider.beam
-                .setPosition(x + this.dir * 11, y - 10)
+                .setPosition(x + pt.dir * 11, y - 10)
                 .setFlipX(flip)
                 .setOrigin(flip ? 1 : 0, 0.5)
                 .setDepth(y - 0.5)
