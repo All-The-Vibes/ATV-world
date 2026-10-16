@@ -13,6 +13,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "typecheck": "tsc --noEmit -p .",
+    "test:hq": "node --test tests/hq.test.cjs",
     "test:library": "node --experimental-strip-types --test tests/library.test.ts && node tests/library-browser.mjs"
   },
   "dependencies": {

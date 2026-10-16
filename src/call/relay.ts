@@ -60,7 +60,7 @@ export function followMirror(): () => void {
     let timer: ReturnType<typeof setTimeout> | undefined;
     let newest = -1;
     let misses = 0;
-    let confirmed = 0;
+    let confirmed = Date.now();
     const stop = () => {
         stopped = true;
         clearTimeout(timer);

@@ -43,7 +43,9 @@ function tokenFor(key, meeting, now) {
 }
 
 function tokenOk(key, meeting, token, now) {
-    const [exp, sig] = String(token).split('.');
+    const parts = String(token).split('.');
+    if (parts.length !== 2) return false;
+    const [exp, sig] = parts;
     const expires = Number(exp);
     return Number.isFinite(expires) && expires > now && !!sig && same(sig, sign(key, meeting, expires));
 }
@@ -73,8 +75,13 @@ module.exports = async function (context, req) {
     const key = process.env.HQ_PUBLISH_KEY || '';
     const now = Date.now();
     const action = (req.params && req.params.action) || '';
+    const method = (req.method || 'GET').toUpperCase();
 
-    if ((req.method || 'GET').toUpperCase() === 'GET') {
+    if (method === 'GET') {
+        if (action) {
+            context.res = reply(404, { error: 'No such thing.' });
+            return;
+        }
         const live = !!state && now - state.updated < STALE_MS;
         context.res = reply(200, {
             configured: !!key,
@@ -85,15 +92,23 @@ module.exports = async function (context, req) {
         });
         return;
     }
+    if (method !== 'POST') {
+        context.res = reply(405, { error: 'Method not allowed.' });
+        return;
+    }
+    if (action && action !== 'token') {
+        context.res = reply(404, { error: 'No such thing.' });
+        return;
+    }
 
     const body = req.body && typeof req.body === 'object' ? req.body : {};
-    const meeting = String(body.meeting || '').slice(0, 512);
+    const meeting = typeof body.meeting === 'string' ? body.meeting.trim() : '';
     if (!key) {
         context.res = reply(403, { error: 'The website mirror is off.' });
         return;
     }
-    if (!meeting) {
-        context.res = reply(400, { error: 'Missing meeting.' });
+    if (!meeting || meeting.length > 512) {
+        context.res = reply(400, { error: 'Meeting must be a non-empty string no longer than 512 characters.' });
         return;
     }
 
@@ -103,10 +118,6 @@ module.exports = async function (context, req) {
             return;
         }
         context.res = reply(200, tokenFor(key, meeting, now));
-        return;
-    }
-    if (action) {
-        context.res = reply(404, { error: 'No such thing.' });
         return;
     }
 
@@ -120,8 +131,12 @@ module.exports = async function (context, req) {
         context.res = reply(409, { error: 'ATV HQ is following a different meeting.' });
         return;
     }
+    if (!Array.isArray(body.people)) {
+        context.res = reply(400, { error: 'People must be an array.' });
+        return;
+    }
     const seen = new Set();
-    const people = (Array.isArray(body.people) ? body.people : [])
+    const people = body.people
         .slice(0, MAX_PEOPLE)
         .map((p) => ({ id: String((p && p.id) || '').slice(0, 64), name: publicName((p && p.name) || '') }))
         .filter((p) => p.id && p.name && !seen.has(p.id) && seen.add(p.id));

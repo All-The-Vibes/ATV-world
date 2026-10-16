@@ -7,6 +7,8 @@ import { createRequire } from 'node:module';
 import path from 'node:path';
 import type { Plugin } from 'vite';
 
+const MAX_BODY_BYTES = 1_000_000;
+
 interface FunctionResponse {
     status?: number;
     headers?: Record<string, string>;
@@ -28,7 +30,18 @@ export function apiDevPlugin(): Plugin {
                 try {
                     const run = require('./api/hq/index.js') as HttpFunction;
                     let raw = '';
-                    for await (const chunk of req) raw += chunk;
+                    let bytes = 0;
+                    req.setEncoding('utf8');
+                    for await (const chunk of req) {
+                        bytes += Buffer.byteLength(chunk);
+                        if (bytes > MAX_BODY_BYTES) {
+                            res.statusCode = 413;
+                            res.setHeader('content-type', 'application/json');
+                            res.end(JSON.stringify({ error: 'Request body is too large.' }));
+                            return;
+                        }
+                        raw += chunk;
+                    }
                     let body: unknown;
                     try {
                         body = raw ? JSON.parse(raw) : undefined;
