@@ -22,6 +22,7 @@ import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
 import { Lake } from '../lake/Lake';
+import { daenerysSheet } from '../kit/daenerys';
 import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
 import { Ollama } from '../llama/Ollama';
@@ -228,7 +229,7 @@ export class Preview extends Phaser.Scene {
             console.error('[lake]', e);
         }
         this.fitWorld();
-        this.billboard = new Billboard(this, 330, 55);
+        this.billboard = new Billboard(this, 368, 415);
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.billboard.bounds());
         const trafficLight = new TrafficLight(this, 60, 170);
@@ -237,8 +238,9 @@ export class Preview extends Phaser.Scene {
         this.includeInWorld(trafficLight.label);
         this.createIdeaMachine(-85, 170);
         // Introduction commits: 9c37211 (six originals), 3c1fb9c (Abdallah).
-        for (let i = 0; i < 6; i++) this.walker(i, undefined, undefined, 'Bakar404');
-        this.walker(6, 'Abdallah', undefined, 'aifateen');
+        for (let i = 0; i < 6; i++) this.walker(i, undefined, undefined, undefined, 'Bakar404');
+        this.walker(6, 'Abdallah', undefined, undefined, 'aifateen');
+        this.walker(7, 'Daenerys', -240, daenerysSheet());
         this.walker(8, 'Ahmed', -180);
         this.bikeGang = new BikeGang(this, () => {
             const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
@@ -896,10 +898,10 @@ export class Preview extends Phaser.Scene {
         }
     }
 
-    private walker(i: number, name?: string, startAt?: number, githubUsername?: string) {
+    private walker(i: number, name?: string, startAt?: number, art?: ReturnType<typeof characterSheet>, githubUsername?: string) {
         const look = randomLook(name ?? `preview-${i}`, { githubUsername });
-        const key = lookKey(look);
-        const sheet = characterSheet(look);
+        const key = art ? `preview-walker-${name ?? i}` : lookKey(look);
+        const sheet = art ?? characterSheet(look);
         addPixels(this, key, sheet.canvas, sheet.frames);
         const anim = `${key}-walk`;
         if (!this.anims.exists(anim)) {
@@ -917,7 +919,7 @@ export class Preview extends Phaser.Scene {
             canvas.rect(0, 0, canvas.width, 9, 'ink');
             miniText(canvas, 3, 2, name, 'cream');
             addPixels(this, labelKey, canvas);
-            label = this.add.image(sprite.x, y - 26, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
+            label = this.add.image(sprite.x, y - sprite.displayHeight - 4, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
             sprite.setName(name);
         }
         const nametag = addCreatorNametag(sprite, look, { gap: label ? 16 : 2 });
