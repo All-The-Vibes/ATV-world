@@ -52,7 +52,7 @@ export default function App() {
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
                 <p>{state.inside
                     ? (touch ? 'Walk with the stick to a bookcase or the card catalog.' : 'Arrow keys move. Walk up to a bookcase or the card catalog.')
-                    : (touch ? 'Stick walks · ✦ pulses · Pinch zooms' : 'Arrows walk · Space pulses · Collect vibes')}</p>
+                    : (touch ? 'Stick walks · ✦ pulses · Pinch zooms' : 'Arrows walk · S skateboards · Space pulses · Collect vibes')}</p>
             </div>
             <div className="hud-left">
                 <Backpack open={backpackOpen} onOpenChange={setBackpackOpen} />
