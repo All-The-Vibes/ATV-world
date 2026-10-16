@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, useSyncExternalStore, type PointerEvent } from 'react';
 import { PALETTE } from '../game/kit/palette';
 import { isTyping } from '../game/commands';
+import { PHONE, useTouch } from '../touch/device';
 import { areasVersion, onAreasChange, requestView, worldMap, type Area, type Box, type Point } from './world';
 import './map.css';
 
@@ -23,7 +24,7 @@ let open = (() => {
     } catch {
         // No storage: fall through to the default.
     }
-    return !matchMedia('(max-width: 600px)').matches;
+    return !matchMedia(PHONE).matches;
 })();
 
 export function toggleMap() {
@@ -151,6 +152,7 @@ export function MapButton() {
 /** The live world map panel, above the zoom buttons. */
 export function MiniMap() {
     const shown = useSyncExternalStore(onOpenChange, isOpen);
+    const touch = useTouch();
     useSyncExternalStore(onAreasChange, areasVersion);
     const [selected, setSelected] = useState<string | null>(null);
     const [hover, setHover] = useState<string | null>(null);
@@ -241,7 +243,7 @@ export function MiniMap() {
                     onPointerLeave={() => setHover(null)}
                     onPointerUp={onClick}
                 />
-                <p className="minimap-hint">{hovered ? `${hovered.name}, by ${hovered.by}` : 'Click a place for info'}</p>
+                <p className="minimap-hint">{hovered ? `${hovered.name}, by ${hovered.by}` : `${touch ? 'Tap' : 'Click'} a place for info`}</p>
                 {/* The same places as buttons, for keyboards and screen readers. */}
                 <ul className="minimap-places">
                     {places.map((p) => (

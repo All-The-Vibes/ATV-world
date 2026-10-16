@@ -1,0 +1,107 @@
+/* Thumb controls (TouchControls.tsx): the same ink panels, night borders, and gold as the rest of the HUD. */
+.touch-controls {
+    --thumb: 128px;
+    position: fixed;
+    inset: auto 0 0;
+    pointer-events: none;
+    z-index: 6;
+    -webkit-user-select: none;
+    user-select: none;
+    -webkit-touch-callout: none;
+}
+
+.touch-stick,
+.touch-pulse {
+    position: absolute;
+    bottom: calc(14px + var(--safe-b));
+    pointer-events: auto;
+    touch-action: none;
+    -webkit-tap-highlight-color: transparent;
+}
+
+.touch-stick {
+    left: calc(14px + var(--safe-l));
+    width: var(--thumb);
+    height: var(--thumb);
+    border-radius: 50%;
+    background:
+        radial-gradient(circle, rgb(42 36 69 / 55%) 0 38%, transparent 39%),
+        rgb(20 16 30 / 62%);
+    border: 3px solid var(--night);
+    box-shadow: 0 0 0 3px rgb(20 16 30 / 70%), 4px 4px 0 rgb(20 16 30 / 35%);
+}
+
+.touch-stick[data-on] {
+    border-color: var(--gold);
+}
+
+.touch-stick-knob {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: 54px;
+    height: 54px;
+    margin: -27px 0 0 -27px;
+    background: var(--gold);
+    border: 3px solid var(--ink);
+    border-radius: 50%;
+    box-shadow: inset -4px -5px 0 #c9925a, inset 4px 4px 0 #fbe46f, 3px 4px 0 rgb(20 16 30 / 45%);
+    transition: transform 140ms cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.touch-stick[data-on] .touch-stick-knob {
+    transition: none;
+}
+
+/* Pixel chevrons at the four points, so the stick reads as "walk" at a glance. */
+.touch-stick-arrow {
+    position: absolute;
+    width: 0;
+    height: 0;
+    border: 6px solid transparent;
+    opacity: 0.75;
+}
+
+.touch-stick-arrow[data-dir='up'] { left: calc(50% - 6px); top: 8px; border-bottom-color: var(--cream); border-top-width: 0; }
+.touch-stick-arrow[data-dir='down'] { left: calc(50% - 6px); bottom: 8px; border-top-color: var(--cream); border-bottom-width: 0; }
+.touch-stick-arrow[data-dir='left'] { top: calc(50% - 6px); left: 8px; border-right-color: var(--cream); border-left-width: 0; }
+.touch-stick-arrow[data-dir='right'] { top: calc(50% - 6px); right: 8px; border-left-color: var(--cream); border-right-width: 0; }
+
+.touch-pulse {
+    right: calc(14px + var(--safe-r));
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    width: 84px;
+    height: 84px;
+    padding: 0;
+    font: 9px 'Press Start 2P', monospace;
+    color: var(--ink);
+    background: var(--gold);
+    border: 3px solid var(--ink);
+    box-shadow: inset -5px -6px 0 #c9925a, inset 5px 5px 0 #fbe46f, 0 0 0 3px var(--night), 5px 6px 0 rgb(20 16 30 / 45%);
+    cursor: pointer;
+}
+
+.touch-pulse-gem {
+    font-size: 30px;
+    line-height: 1;
+}
+
+.touch-pulse:active {
+    transform: translate(2px, 3px);
+    box-shadow: inset -3px -3px 0 #c9925a, inset 3px 3px 0 #fbe46f, 0 0 0 3px var(--night), 2px 2px 0 rgb(20 16 30 / 45%);
+}
+
+.touch-pulse:focus-visible {
+    outline: 3px solid var(--cream);
+    outline-offset: 4px;
+}
+
+/* Short landscape screens: a little smaller so the world shows between them. */
+@media (max-height: 500px) {
+    .touch-controls { --thumb: 116px; }
+    .touch-pulse { width: 74px; height: 74px; }
+}

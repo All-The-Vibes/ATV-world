@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { walkInput } from '../commands';
 import { PLAYER_LOOK, addCreatorNametag, addPixels, shadowTexture, speechArt, type Facing } from '../kit';
 import { marsTextures } from '../mars/art';
 import { Martians } from '../mars/Martians';
@@ -92,8 +93,7 @@ export class Mars extends Phaser.Scene {
         this.martians.update(s, this.player);
         if (this.flying) return;
 
-        const dx = Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
-        const dy = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
+        const { dx, dy } = walkInput(this.cursors);
         if (dx || dy) {
             const step = (s * 92) / Math.hypot(dx, dy);
             this.player.x = Phaser.Math.Clamp(this.player.x + dx * step, AREA.left + 12, AREA.right - 12);

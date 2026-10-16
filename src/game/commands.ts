@@ -1,5 +1,5 @@
 /** Tiny bus between the React UI and the game (e.g. the zoom buttons). */
-export type Command = 'zoomIn' | 'zoomOut' | 'fit' | 'leaveHQ' | 'toggleNight' | 'toggleStranger';
+export type Command = 'zoomIn' | 'zoomOut' | 'fit' | 'leaveHQ' | 'toggleNight' | 'toggleStranger' | 'pulse' | 'follow';
 
 /** Screen px that UI panels cover along each edge (the panels keep it current), so the camera can frame things beside them. */
 export const insets = { top: 0, right: 0, bottom: 0, left: 0 };
@@ -102,6 +102,42 @@ export function removeToken(): boolean {
 export function onTokens(fn: () => void): () => void {
     bus.addEventListener('tokens', fn);
     return () => bus.removeEventListener('tokens', fn);
+}
+
+/** The on-screen joystick (src/touch/TouchControls.tsx): -1, 0 or 1 on each axis, like a held arrow key. */
+const stick = { x: 0, y: 0 };
+
+export function setStick(x: number, y: number) {
+    stick.x = Math.sign(x);
+    stick.y = Math.sign(y);
+}
+
+type HeldKeys = { left: { isDown: boolean }; right: { isDown: boolean }; up: { isDown: boolean }; down: { isDown: boolean } };
+
+/** Which way the player wants to walk: the arrow keys and the touch stick together, -1, 0 or 1 on each axis. */
+export function walkInput(keys?: HeldKeys): { dx: number; dy: number } {
+    const held = (k?: { isDown: boolean }) => Number(!!k?.isDown);
+    const axis = (v: number) => Math.max(-1, Math.min(1, v));
+    return {
+        dx: axis(held(keys?.right) - held(keys?.left) + stick.x),
+        dy: axis(held(keys?.down) - held(keys?.up) + stick.y),
+    };
+}
+
+/** The scene on top right now ('Preview', 'Library', 'Mars', ...), so the touch controls know what they drive. */
+let scene = '';
+
+export const activeScene = () => scene;
+
+export function setActiveScene(key: string) {
+    if (key === scene) return;
+    scene = key;
+    bus.dispatchEvent(new Event('scene'));
+}
+
+export function onActiveScene(fn: () => void): () => void {
+    bus.addEventListener('scene', fn);
+    return () => bus.removeEventListener('scene', fn);
 }
 
 /** True while a text field has focus, so game keys don't steal typing. */

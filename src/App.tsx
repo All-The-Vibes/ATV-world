@@ -4,12 +4,17 @@ import { Backpack } from './backpack/Backpack';
 import { CallPanel } from './call/CallPanel';
 import { CharacterSearch } from './characters/CharacterSearch';
 import { FactoryPanel } from './factory/FactoryPanel';
-import { getViewModes, githubLabelsVisible, isInsideHQ, onGithubLabels, onInsideHQ, onViewModes, send, toggleGithubLabels, type Command } from './game/commands';
+import { activeScene, getViewModes, githubLabelsVisible, isInsideHQ, onActiveScene, onGithubLabels, onInsideHQ, onViewModes, send, toggleGithubLabels, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
 import { MapButton, MiniMap } from './map/MiniMap';
 import { SoundButton } from './music/SoundButton';
+import { useTouch } from './touch/device';
+import { TouchControls } from './touch/TouchControls';
+
+/** Scenes with a player to walk around. */
+const WALKABLE = new Set(['Preview', 'Library', 'Mars', 'Wonderland']);
 
 const buttons: [label: string, command: Command, title: string][] = [
     ['-', 'zoomOut', 'Zoom out (-)'],
@@ -25,17 +30,28 @@ export default function App() {
     const [backpackOpen, setBackpackOpen] = useState(false);
     const [searching, setSearching] = useState(false);
     const insideHQ = useSyncExternalStore(onInsideHQ, isInsideHQ);
+    const scene = useSyncExternalStore(onActiveScene, activeScene);
+    const touch = useTouch();
     // The world map sits out indoors, where the call panel and the library take the screen.
     const outdoors = !state.inside && !insideHQ;
+    // The thumb stick shows wherever there's someone to walk and nothing on top; Pulse is the town's Space.
+    const canWalk = WALKABLE.has(scene) && !insideHQ && !state.open && !backpackOpen;
+    const canPulse = scene === 'Preview' && !insideHQ && !state.open && !backpackOpen;
     return (
         <>
             <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching} />
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
-                <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Space pulses · Collect vibes'}</p>
+                <p>{state.inside
+                    ? (touch ? 'Walk with the stick to a bookcase or the card catalog.' : 'Arrow keys move. Walk up to a bookcase or the card catalog.')
+                    : (touch ? 'Stick walks · ✦ pulses · Pinch zooms' : 'Arrows walk · Space pulses · Collect vibes')}</p>
             </div>
-            <Backpack open={backpackOpen} onOpenChange={setBackpackOpen} />
-            <CharacterSearch hidden={state.inside} onFocusChange={setSearching} />
+            <div className="hud-left">
+                <Backpack open={backpackOpen} onOpenChange={setBackpackOpen} />
+                <VibeMeter insideLibrary={state.inside} />
+                <CharacterSearch hidden={state.inside} onFocusChange={setSearching} />
+            </div>
+            <div className="hud-right">
             {!state.inside && (
                 <div className="view-switches" role="group" aria-label="World view switches">
                     <button
@@ -48,7 +64,7 @@ export default function App() {
                         onClick={() => send('toggleNight')}
                     >
                         <span className="view-switch-dot" aria-hidden="true">🌙</span>
-                        <span>NIGHT: {modes.night ? 'ON' : 'OFF'}</span>
+                        <span className="view-switch-label">NIGHT: {modes.night ? 'ON' : 'OFF'}</span>
                     </button>
                     <button
                         type="button"
@@ -60,18 +76,14 @@ export default function App() {
                         onClick={() => send('toggleStranger')}
                     >
                         <span className="view-switch-dot" aria-hidden="true">🚲</span>
-                        <span>STRANGER THINGS: {modes.stranger ? 'ON' : 'OFF'}</span>
+                        <span className="view-switch-label">STRANGER THINGS: {modes.stranger ? 'ON' : 'OFF'}</span>
                     </button>
                 </div>
             )}
-            <CallPanel />
-            <FactoryPanel hidden={state.inside} />
-            <VibeMeter insideLibrary={state.inside} />
-            {outdoors && <MiniMap />}
             <div className="zoom">
                 {!state.inside && buttons.map(([label, command, title]) => (
                     // preventDefault on mousedown keeps keyboard focus on the game.
-                    <button key={command} type="button" title={title} onMouseDown={(e) => e.preventDefault()} onClick={() => send(command)}>
+                    <button key={command} type="button" data-cmd={command} title={title} aria-label={title} onMouseDown={(e) => e.preventDefault()} onClick={() => send(command)}>
                         {label}
                     </button>
                 ))}
@@ -85,6 +97,11 @@ export default function App() {
                 {outdoors && <MapButton />}
                 <SoundButton />
             </div>
+            </div>
+            <CallPanel />
+            <FactoryPanel hidden={state.inside} />
+            {outdoors && <MiniMap />}
+            <TouchControls walk={canWalk} pulse={canPulse} />
             {!state.open && state.inside && <div className="world-actions">
                 <button onClick={() => bridge.leave?.()}>Leave library</button>
             </div>}

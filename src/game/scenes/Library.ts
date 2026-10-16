@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { tokenCount } from '../commands';
+import { tokenCount, walkInput } from '../commands';
 import { addTokenCounter } from '../tokens/counter';
 import { booksOn, shelves, type ShelfId } from '../../library/books';
 import { LibraryBridge } from '../../library/bridge';
@@ -78,8 +78,7 @@ export class Library extends Phaser.Scene {
             this.idle();
             return;
         }
-        const dx = Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
-        const dy = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
+        const { dx, dy } = walkInput(this.cursors);
         if (dx || dy) {
             const step = (Math.min(dt, 50) / 1000) * 92 / Math.hypot(dx, dy);
             const { walk } = READING_ROOM;

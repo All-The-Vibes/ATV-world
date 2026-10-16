@@ -7,7 +7,7 @@ import {
     HEX, PALETTE, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, setViewModes, tokenCount } from '../commands';
+import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, setViewModes, tokenCount, walkInput } from '../commands';
 import { Directory, spotOf, spriteOf } from '../directory';
 import { BikeGang } from '../bikes/BikeGang';
 import { LockAndKey } from '../keyhouse/LockAndKey';
@@ -498,6 +498,10 @@ export class Preview extends Phaser.Scene {
             if (this.view?.focus(() => directory.locate(id))) directory.ping(id);
         });
         const off = on('leaveHQ', () => this.leaveHQ());
+        // The touch Pulse button: the same as Space.
+        const offPulse = on('pulse', () => {
+            if (this.sys.isActive() && !this.insideHQ && !this.ocean?.active) this.vibePulse();
+        });
         const offNight = on('toggleNight', () => {
             if (!this.atmosphere) return;
             const next = !this.atmosphere.nightMode;
@@ -524,6 +528,7 @@ export class Preview extends Phaser.Scene {
         window.addEventListener('keydown', onKey);
         const stop = () => {
             off();
+            offPulse();
             this.events.off('wake', wake);
             this.events.off('sleep', sleep);
             this.events.off('shutdown', stop);
@@ -1680,8 +1685,7 @@ export class Preview extends Phaser.Scene {
     private movePlayer(dt: number) {
         if (!this.player || !this.cursors) return;
         const { sprite, shadow, marker } = this.player;
-        const dx = Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
-        const dy = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
+        const { dx, dy } = walkInput(this.cursors);
         const moving = dx !== 0 || dy !== 0;
 
         if (this.insideHQ || this.rocketing || this.tumbling) return;

@@ -55,6 +55,8 @@ export class WorldView {
     private cy = 0;
     private zoomLevel = 1;
     private drag: { x: number; y: number; moved: boolean } | null = null;
+    /** Two fingers down: how far apart they started, and the zoom then. */
+    private pinch: { d: number; zoom: number } | null = null;
     private lastWheel = 0;
     private lastSave = 0;
     private playerAt = { x: NaN, y: NaN };
@@ -82,6 +84,12 @@ export class WorldView {
         }
 
         const input = scene.input;
+        // Touches down right now (pointer1 and pointer2; the mouse is pointer 0), and how far apart the first two are.
+        const fingers = () => [input.pointer1, input.pointer2].filter((p) => p?.isDown);
+        const spread = () => {
+            const [a, b] = fingers();
+            return a && b ? Math.max(1, Math.hypot(a.x - b.x, a.y - b.y)) : 1;
+        };
         // A plain window listener: Phaser's 'keydown' can repeat an event when several keys land in one frame.
         const onKey = (e: KeyboardEvent) => {
             if (!scene.sys.isActive() || e.repeat || e.ctrlKey || e.metaKey || e.altKey || isTyping()) return;
@@ -97,9 +105,18 @@ export class WorldView {
             this.zoom(dy < 0 ? 1 : -1, pointer.x, pointer.y);
         };
         const onDown = (pointer: Phaser.Input.Pointer) => {
+            if (fingers().length >= 2) {
+                this.pinch = { d: spread(), zoom: this.zoomLevel };
+                this.drag = null;
+                return;
+            }
             this.drag = { x: pointer.x, y: pointer.y, moved: false };
         };
         const onMove = (pointer: Phaser.Input.Pointer) => {
+            if (this.pinch) {
+                if (fingers().length >= 2) this.pinchTo(this.pinch.zoom * spread() / this.pinch.d);
+                return;
+            }
             const d = this.drag;
             if (!d || !pointer.isDown) return;
             const dx = pointer.x - d.x;
@@ -118,12 +135,14 @@ export class WorldView {
         };
         const onUp = () => {
             this.drag = null;
+            if (fingers().length < 2) this.pinch = null;
         };
         const save = () => this.save();
         const off = [
             on('zoomIn', () => this.zoom(1)),
             on('zoomOut', () => this.zoom(-1)),
             on('fit', () => this.fit()),
+            on('follow', () => this.follow()),
         ];
         window.addEventListener('keydown', onKey);
         input.on('wheel', onWheel);
@@ -228,6 +247,43 @@ export class WorldView {
         this.mode = 'free';
         this.shown = false;
         this.trackPlayer();
+    }
+
+    /**
+     * Walk with the camera (the touch stick's first push): from the fit view it zooms in a couple of steps,
+     * and either way it settles back on the player and follows them.
+     */
+    follow() {
+        const p = this.opts.playerPosition?.() ?? this.opts.player;
+        if (!p) return;
+        this.focusOn = undefined;
+        if (this.mode === 'fit') {
+            const fit = this.fitZoom();
+            this.zoomLevel = LADDER.find((l) => l >= Math.max(fit * 3, 1) - 1e-3) ?? LADDER[LADDER.length - 1];
+            this.cx = p.x;
+            this.cy = p.y;
+        }
+        this.mode = 'follow';
+        this.shown = false;
+    }
+
+    /** Zoom smoothly to `next` (a pinch), keeping the point between the two fingers still. */
+    private pinchTo(next: number) {
+        const z = this.zoomLevel;
+        next = clamp(next, this.fitZoom(), 8);
+        if (Math.abs(next - z) < 1e-3) return;
+        const [a, b] = [this.scene.input.pointer1, this.scene.input.pointer2];
+        const cam = this.scene.cameras.main;
+        if (this.mode !== 'follow') {
+            const dx = (a.x + b.x) / 2 - cam.width / 2;
+            const dy = (a.y + b.y) / 2 - cam.height / 2;
+            this.cx += dx / z - dx / next;
+            this.cy += dy / z - dy / next;
+            this.mode = 'free';
+        }
+        this.zoomLevel = next;
+        this.shown = false;
+        this.focusOn = undefined;
     }
 
     /** Step along the zoom ladder, keeping screen point (sx, sy) still (the middle if omitted). */

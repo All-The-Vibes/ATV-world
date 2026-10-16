@@ -167,9 +167,41 @@
     color: var(--gold);
 }
 
-@media (max-width: 600px) {
+/* Touch: rows and the Focus button big enough for a fingertip. The list measures its rows, so it still turns a page at a time. */
+[data-touch] .char-search {
+    --row: 42px;
+}
+
+[data-touch] .char-focus {
+    min-height: 34px;
+    padding: 4px 10px;
+}
+
+[data-touch] .char-toggle {
+    min-height: 44px;
+}
+
+/* Tablets by touch: lifted above the thumb stick. */
+@media (min-width: 601px) and (min-height: 501px) {
+    [data-touch] .char-search { bottom: calc(160px + var(--safe-b)); }
+}
+
+/* Phones: it sits in the left stack (styles.css), a little narrower. */
+@media (max-width: 600px), (max-height: 500px) {
     .char-search {
-        bottom: 176px;
-        left: 12px;
+        width: 232px;
+        max-width: 100%;
     }
+    .char-search .char-list {
+        height: calc(var(--row) * 4 + 4px);
+        max-height: calc(var(--row) * 4 + 4px);
+    }
+}
+
+@media (max-height: 500px) {
+    .char-search .char-list {
+        height: calc(var(--row) * 2 + 4px);
+        max-height: calc(var(--row) * 2 + 4px);
+    }
+    .char-foot { display: none; }
 }

@@ -132,8 +132,25 @@
     cursor: pointer;
 }
 
-/* Phones: above the vibe meter and token count, which move to the bottom edge there. */
-@media (max-width: 600px) {
-    .minimap { bottom: 150px; width: 180px; }
-    .minimap canvas { width: 168px !important; height: 112px !important; }
+[data-touch] .minimap-actions button {
+    min-height: 44px;
+}
+
+/* Tablets by touch: lifted with the zoom buttons, above Pulse. */
+@media (min-width: 601px) and (min-height: 501px) {
+    [data-touch] .minimap { bottom: calc(168px + var(--safe-b)); right: calc(16px + var(--safe-r)); }
+}
+
+/* Phones: bottom-right, just above the Pulse button and clear of the button rail. */
+@media (max-width: 600px), (max-height: 500px) {
+    .minimap { right: calc(12px + var(--safe-r)); bottom: calc(112px + var(--safe-b)); width: 180px; }
+    .minimap canvas { width: 168px !important; height: 105px !important; }
+    .minimap-card { max-height: calc(100dvh - 330px); overflow-y: auto; }
+}
+
+@media (max-height: 500px) {
+    .minimap { bottom: calc(98px + var(--safe-b)); }
+    .minimap canvas { width: 144px !important; height: 90px !important; }
+    .minimap { width: 156px; }
+    .minimap-card { display: none; }
 }

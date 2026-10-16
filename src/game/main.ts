@@ -5,6 +5,7 @@ import { Mars } from './scenes/Mars';
 import { StarShow } from './scenes/StarShow';
 import { Wonderland } from './scenes/Wonderland';
 import { LibraryBridge } from '../library/bridge';
+import { setActiveScene } from './commands';
 
 /** Create the game inside `parent`. The canvas always fills it. */
 export function createGame(parent: HTMLElement, bridge: LibraryBridge): Phaser.Game {
@@ -15,7 +16,14 @@ export function createGame(parent: HTMLElement, bridge: LibraryBridge): Phaser.G
         pixelArt: true,
         roundPixels: true,
         scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth || 800, height: parent.clientHeight || 600 },
+        // Two fingers, so phones can pinch to zoom (view.ts).
+        input: { activePointers: 2 },
         scene: [new Preview(bridge), new Library(bridge), new Mars(), new StarShow(), new Wonderland()],
+    });
+
+    // Tell the UI which scene is on top, so the touch controls only show where there's someone to walk.
+    game.events.on(Phaser.Core.Events.POST_STEP, () => {
+        setActiveScene(game.scene.getScenes(true, true)[0]?.sys.settings.key ?? '');
     });
 
     // An error thrown mid-frame would stop the game loop for good, so log it and keep going.

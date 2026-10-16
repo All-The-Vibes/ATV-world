@@ -1,8 +1,9 @@
 import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 import { focusCharacter, getCharacters, onCharacters } from '../game/commands';
+import { PHONE } from '../touch/device';
 import './characters.css';
 
-/** Rows showing at once, and the height of one row (keep in step with characters.css). */
+/** Rows showing at once, and the height of one row, unless the list can measure them (touch and phones use taller, fewer rows). */
 const PAGE = 5;
 const ROW = 34;
 /** How often the list turns to its next five, how long the turn takes, and how long it stays put after someone scrolls it. */
@@ -15,7 +16,7 @@ type Hold = 'searching' | 'scrolled' | undefined;
 export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; onFocusChange?: (focused: boolean) => void }) {
     const characters = useSyncExternalStore(onCharacters, getCharacters);
     const [query, setQuery] = useState('');
-    const [open, setOpen] = useState(() => window.innerWidth > 600);
+    const [open, setOpen] = useState(() => !matchMedia(PHONE).matches);
     const [hold, setHold] = useState<Hold>();
     const list = useRef<HTMLUListElement>(null);
     const typing = useRef(false);
@@ -67,8 +68,10 @@ export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; o
             setHold(reason);
             if (!el || reason || el.scrollHeight <= el.clientHeight + 1) return;
             const max = el.scrollHeight - el.clientHeight;
-            const page = Math.round(el.scrollTop / ROW) * ROW;
-            turnTo(el, el.scrollTop >= max - 1 ? 0 : Math.min(max, page + PAGE * ROW));
+            const row = el.querySelector<HTMLElement>('.char-row')?.offsetHeight || ROW;
+            const rows = Math.max(1, Math.floor(el.clientHeight / row)) || PAGE;
+            const page = Math.round(el.scrollTop / row) * row;
+            turnTo(el, el.scrollTop >= max - 1 ? 0 : Math.min(max, page + rows * row));
         }, CYCLE_MS);
         return () => {
             window.clearInterval(id);

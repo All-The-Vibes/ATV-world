@@ -3,11 +3,24 @@
     --night: #2a2445;
     --cream: #f6e6b8;
     --gold: #f7b538;
+    /* Notches, rounded corners and home bars (index.html sets viewport-fit=cover). */
+    --safe-t: env(safe-area-inset-top, 0px);
+    --safe-r: env(safe-area-inset-right, 0px);
+    --safe-b: env(safe-area-inset-bottom, 0px);
+    --safe-l: env(safe-area-inset-left, 0px);
     color-scheme: dark;
+    -webkit-text-size-adjust: 100%;
+    text-size-adjust: 100%;
 }
 
 * {
     box-sizing: border-box;
+}
+
+/* No double-tap zoom delay on the HUD, and no rubber-banding the page around the game. */
+button {
+    touch-action: manipulation;
+    -webkit-tap-highlight-color: transparent;
 }
 
 html,
@@ -17,9 +30,16 @@ body,
     width: 100%;
     height: 100%;
     overflow: hidden;
+    overscroll-behavior: none;
     background: var(--ink);
     color: var(--cream);
     font-family: 'VT323', ui-monospace, monospace;
+}
+
+/* The HUD's two stacks. On big screens each piece keeps its own spot; on phones they line up (see the end of this file). */
+.hud-left,
+.hud-right {
+    display: contents;
 }
 
 #game {
@@ -246,17 +266,6 @@ body,
     line-height: 1;
 }
 
-@media (max-width: 600px) {
-    .view-switches {
-        top: 108px;
-        left: 12px;
-    }
-    .view-switch {
-        font-size: 8px;
-        padding: 5px 8px;
-    }
-}
-
 .sr-only {
     position: absolute;
     width: 1px;
@@ -339,10 +348,100 @@ body,
 :where(.world-actions) kbd { margin-left: 12px; border: 1px solid currentColor; padding: 0 5px; }
 
 @media (max-width: 600px) {
-    .banner { top: 12px; padding: 8px; }
-    .banner h1 { font-size: 13px; }
-    .banner p { font-size: 17px; }
-    .vibe-meter { top: auto; bottom: 72px; left: 12px; width: 164px; }
     .world-actions { gap: 6px; font-size: 18px; }
     .world-actions button { padding: 8px; }
+}
+
+/* Touch screens: fingers need 44px targets. */
+[data-touch] .zoom button,
+[data-touch] .view-switch {
+    min-width: 44px;
+    min-height: 44px;
+}
+
+/* Tablets by touch: the desktop layout, lifted clear of the thumb stick (bottom-left) and Pulse (bottom-right). */
+@media (min-width: 601px) and (min-height: 501px) {
+    [data-touch] .zoom { bottom: calc(112px + var(--safe-b)); right: calc(16px + var(--safe-r)); }
+    [data-touch] .world-actions { bottom: calc(160px + var(--safe-b)); }
+    [data-touch] .live { left: 160px; max-width: calc(100vw - 280px); }
+}
+
+/*
+ * Phones (and short landscape screens): the banner shrinks, the backpack, Vibe Run and characters stack down
+ * the left, and the view buttons pack into a two-wide rail on the right, so nothing sits on anything else
+ * and the bottom corners stay free for thumbs.
+ */
+@media (max-width: 600px), (max-height: 500px) {
+    .banner { top: calc(8px + var(--safe-t)); padding: 6px 10px; }
+    .banner h1 { margin-bottom: 4px; font-size: 12px; }
+    .banner p { font-size: 16px; }
+
+    .hud-left,
+    .hud-right {
+        position: fixed;
+        top: calc(70px + var(--safe-t));
+        z-index: 7;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+    }
+    .hud-left {
+        left: calc(12px + var(--safe-l));
+        align-items: flex-start;
+        max-width: calc(100vw - 132px - var(--safe-l) - var(--safe-r));
+    }
+    .hud-right { right: calc(12px + var(--safe-r)); align-items: flex-end; }
+    .hud-left :is(.backpack-toggle, .vibe-meter, .char-search),
+    .hud-right :is(.view-switches, .zoom) {
+        position: static;
+        inset: auto;
+        transform: none;
+    }
+
+    .vibe-meter { width: 168px; padding: 6px 8px 5px; }
+    .vibe-meter-track { margin: 5px 0 4px; }
+
+    .hud-right .zoom,
+    .hud-right .view-switches {
+        display: grid;
+        grid-template-columns: repeat(2, 44px);
+        gap: 6px;
+    }
+    .hud-right .view-switches { order: 1; }
+    .zoom button { min-width: 44px; height: 44px; padding: 0; }
+    .zoom [data-cmd='zoomIn'] { order: -1; }
+    .view-switch { justify-content: center; width: 44px; height: 44px; padding: 0; }
+    .view-switch-dot { font-size: 18px; }
+    .view-switch-label {
+        position: absolute;
+        width: 1px;
+        height: 1px;
+        overflow: hidden;
+        clip-path: inset(50%);
+        white-space: nowrap;
+    }
+
+    .world-actions { bottom: calc(160px + var(--safe-b)); }
+
+    .live {
+        left: 50%;
+        bottom: calc(12px + var(--safe-b));
+        transform: translateX(-50%);
+        max-width: calc(100vw - 300px - var(--safe-l) - var(--safe-r));
+        font-size: 17px;
+    }
+}
+
+/* Landscape phones: no room for the banner (the stick explains itself), and the rail runs along the top. */
+@media (max-height: 500px) {
+    .banner { display: none; }
+    .hud-left,
+    .hud-right { top: calc(10px + var(--safe-t)); }
+    .hud-left { max-width: 240px; }
+    .hud-right { flex-direction: row; }
+    .hud-right .zoom,
+    .hud-right .view-switches {
+        grid-template-columns: none;
+        grid-auto-flow: column;
+    }
 }

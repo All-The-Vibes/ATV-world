@@ -142,3 +142,28 @@
 .factory-clear:focus-visible {
     color: var(--gold);
 }
+
+[data-touch] .factory-close {
+    min-width: 44px;
+    height: 44px;
+}
+
+[data-touch] :is(.factory-chip, .factory-clear) {
+    min-height: 36px;
+}
+
+/* Touch: the picker rises above the thumb stick and Pulse, so you can walk away from the factory with it open. */
+[data-touch] .factory {
+    bottom: calc(156px + var(--safe-b));
+    max-height: calc(100dvh - 240px - var(--safe-b) - var(--safe-t));
+}
+
+/* Landscape phones: between the stick and Pulse instead, the full height. */
+@media (max-height: 500px) {
+    [data-touch] .factory {
+        bottom: calc(10px + var(--safe-b));
+        width: min(560px, calc(100vw - 300px - var(--safe-l) - var(--safe-r)));
+        max-height: calc(100dvh - 20px - var(--safe-b) - var(--safe-t));
+    }
+    .factory-roles { grid-template-columns: repeat(auto-fit, minmax(110px, 1fr)); }
+}

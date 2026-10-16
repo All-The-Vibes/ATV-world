@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import { walkInput } from '../commands';
 import { PLAYER_LOOK, addCreatorNametag, addPixels, shadowTexture, speechArt, type Facing } from '../kit';
 import { PORTAL, wonderlandTextures } from '../wonderland/art';
 import { Chess } from '../wonderland/Chess';
@@ -169,8 +170,7 @@ export class Wonderland extends Phaser.Scene {
         for (const f of this.features) f.update(s, this.player);
         if (this.busy) return;
 
-        const dx = Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
-        const dy = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
+        const { dx, dy } = walkInput(this.cursors);
         if (dx || dy) {
             const speed = SPEED * (this.size < 1 ? 0.75 : this.size > 1 ? 1.3 : 1);
             const step = (s * speed) / Math.hypot(dx, dy);
