@@ -8,6 +8,7 @@ import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '..
 import { Disco } from '../disco/Disco';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Dragon, type Burnable } from '../dragon/Dragon';
+import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
 import { TrafficLight } from '../health/TrafficLight';
@@ -61,6 +62,8 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
     private town?: Town;
+    /** Microsoft's Redmond campus, west of the plaza (see ../campus). */
+    private campus?: Campus;
     /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
@@ -147,6 +150,11 @@ export class Preview extends Phaser.Scene {
             this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
         } catch (e) {
             console.error('[town]', e);
+        }
+        try {
+            this.campus = new Campus(this, Math.min(-457, (this.contentBounds?.left ?? -411) - 64));
+        } catch (e) {
+            console.error('[campus]', e);
         }
         this.fitWorld();
         const trafficLight = new TrafficLight(this, 60, 170);
@@ -276,7 +284,7 @@ export class Preview extends Phaser.Scene {
     update(_t: number, dtMs: number) {
         const dt = dtMs / 1000;
 
-        const walkerLeft = this.worldBounds.left + 24;
+        const walkerLeft = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
         const walkerRight = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
         for (const w of this.walkers) {
             if (w.rest > 0) {
@@ -972,7 +980,7 @@ export class Preview extends Phaser.Scene {
 
     /** The world is everything placed so far plus ATV HQ (which grows and shrinks with the call), with a margin. */
     private fitWorld() {
-        const parts = [this.contentBounds, this.hq?.bounds(), this.town?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
+        const parts = [this.contentBounds, this.hq?.bounds(), this.town?.bounds(), this.campus?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
         if (!parts.length) return;
         const left = Math.min(...parts.map((r) => r.left));
         const top = Math.min(...parts.map((r) => r.top));
