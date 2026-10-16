@@ -12,6 +12,7 @@ import { Disco } from '../disco/Disco';
 import { Catchers } from '../catchers/Catchers';
 import { setFactoryOpen } from '../../factory/bridge';
 import { Factory } from '../factory/Factory';
+import { Billboard } from '../billboard/Billboard';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Roamers } from '../roamers/Roamers';
 import { Dragon, type Burnable } from '../dragon/Dragon';
@@ -94,6 +95,8 @@ export class Preview extends Phaser.Scene {
     private campus?: Campus;
     /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
+    /** The digital AI advertising board: rotates humorous AI ads (see ../billboard). */
+    private billboard?: Billboard;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
     private moles?: Moles;
     /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
@@ -215,6 +218,9 @@ export class Preview extends Phaser.Scene {
             console.error('[lake]', e);
         }
         this.fitWorld();
+        this.billboard = new Billboard(this, 330, 55);
+        this.billboard.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.billboard.bounds());
         const trafficLight = new TrafficLight(this, 60, 170);
         this.solids.push(trafficLight.sprite.getBounds());
         this.includeInWorld(trafficLight.sprite);
@@ -407,6 +413,7 @@ export class Preview extends Phaser.Scene {
         this.ufo?.update(dt);
         this.disco?.update(dt);
         this.lake?.update(dt, this.player && !this.insideHQ && !this.inHell ? this.player : undefined);
+        this.billboard?.update(dt);
         this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
         this.factory?.update(dt, this.insideHQ ? undefined : this.player?.sprite);
         this.tokens?.update(dt, [
