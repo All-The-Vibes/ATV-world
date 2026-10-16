@@ -8,8 +8,9 @@ import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { Disco } from '../disco/Disco';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
-import { TrafficLight } from '../health/TrafficLight';
+import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
+import { TrafficLight } from '../health/TrafficLight';
 import { Ollama } from '../llama/Ollama';
 import { Tokens } from '../tokens/Tokens';
 import { Town } from '../town/Town';
@@ -35,6 +36,7 @@ export class Preview extends Phaser.Scene {
     private dragon?: Dragon;
     private ollama?: Ollama;
     private ufo?: UFO;
+    private incidents?: Incidents;
     private ground?: Phaser.GameObjects.TileSprite;
     private player?: {
         sprite: Phaser.GameObjects.Sprite;
@@ -134,6 +136,10 @@ export class Preview extends Phaser.Scene {
         this.walker(6, 'Abdallah');
         this.createHell();
         this.createPlayer();
+        this.incidents = new Incidents(this, () => this.sys.isActive() && !this.insideHQ);
+        this.incidents.parts.forEach(part => this.includeInWorld(part));
+        this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
+        this.fitWorld();
         this.ollama = new Ollama(this);
         this.ufo = new UFO(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
@@ -171,6 +177,8 @@ export class Preview extends Phaser.Scene {
             if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
             if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
             else if (!e.repeat && e.key.toLowerCase() === 'e') this.rollIdea();
+            else if (!e.repeat && e.key.toLowerCase() === 'c' && this.player
+                && this.incidents?.near(this.player.sprite.x, this.player.sprite.y)) this.incidents.trigger();
             else if (!this.insideHQ && !e.repeat && e.key === ' ') {
                 e.preventDefault();
                 this.vibePulse();
@@ -262,6 +270,7 @@ export class Preview extends Phaser.Scene {
             w.label?.setPosition(w.sprite.x, w.sprite.y - 26);
         }
         this.movePlayer(dt);
+        this.incidents?.update(dt);
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.dragon?.update(dt);
         this.ollama?.update(dt);
