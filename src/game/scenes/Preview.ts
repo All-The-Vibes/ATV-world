@@ -7,6 +7,7 @@ import {
 } from '../kit';
 import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
 import { BikeGang } from '../bikes/BikeGang';
+import { LockAndKey } from '../keyhouse/LockAndKey';
 import { Disco } from '../disco/Disco';
 import { Catchers } from '../catchers/Catchers';
 import { setFactoryOpen } from '../../factory/bridge';
@@ -58,6 +59,8 @@ export class Preview extends Phaser.Scene {
     private roamers?: Roamers;
     /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
     private bikeGang?: BikeGang;
+    /** The "Lock & Key" room (Keyhouse Manor) with lots of magical doors/windows and the 3 Locke siblings. */
+    private lockAndKey?: LockAndKey;
     /** The Agent Factory: walk in to build agents with roles, who then wander town (see ../factory). */
     private factory?: Factory;
     private ollama?: Ollama;
@@ -174,6 +177,9 @@ export class Preview extends Phaser.Scene {
         this.moles = new Moles(this, 150, 335);
         this.moles.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.moles.area);
+        this.lockAndKey = new LockAndKey(this, -195, 345);
+        this.lockAndKey.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.lockAndKey.footprint);
         this.factory = new Factory(this, 290, 20, {
             area: () => new Phaser.Geom.Rectangle(
                 this.worldBounds.left + 24, this.worldBounds.top + 24,
@@ -386,6 +392,7 @@ export class Preview extends Phaser.Scene {
         this.catchers?.update(dt);
         this.roamers?.update(dt);
         this.bikeGang?.update(dt);
+        this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
@@ -399,6 +406,7 @@ export class Preview extends Phaser.Scene {
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
             ...(this.bikeGang?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
+            ...(this.lockAndKey?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
         ]);
         this.kittens?.update(dt);
         this.updateVibes();
@@ -871,6 +879,7 @@ export class Preview extends Phaser.Scene {
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
         if (this.bikeGang) out.push(...this.bikeGang.burnables());
+        if (this.lockAndKey) out.push(...this.lockAndKey.burnables());
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
         if (this.disco) out.push(...this.disco.burnables());
         out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []));
