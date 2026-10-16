@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { PixelCanvas, ensurePixels, miniText, miniTextWidth, stripFrames } from '../kit';
+import { ITEMS, type Loot } from '../../backpack/inventory';
 
 export const CAR_W = 46;
 export const CAR_H = 18;
@@ -103,9 +104,9 @@ export function tokenTexture(scene: Phaser.Scene): string {
 }
 
 /** The little "+1 TOKEN" that pops up over whoever grabs one. */
-export function popTexture(scene: Phaser.Scene): string {
-    return ensurePixels(scene, 'tokens-pop', () => {
-        const text = '+1 TOKEN';
+export function popTexture(scene: Phaser.Scene, kind: Loot = 'token'): string {
+    return ensurePixels(scene, `tokens-pop-${kind}`, () => {
+        const text = `+1 ${kind === 'token' ? 'TOKEN' : ITEMS.find(item => item.id === kind)!.name.toUpperCase()}`;
         const pc = new PixelCanvas(miniTextWidth(text) + 2, 7);
         miniText(pc, 1, 1, text, 'yellow');
         return pc.outline('ink', true);

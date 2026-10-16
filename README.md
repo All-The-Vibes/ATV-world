@@ -45,6 +45,7 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/game/world/layout.ts` is the lot grid the town grows on.
 - `src/game/scenes/Preview.ts` is the world on the live screen. Find all six glowing vibes, chain quick pickups for a combo, and clear a round for a temporary speed rush. Press Space for a short-range Vibe Pulse that grabs nearby shards and makes the locals hop.
 - `src/game/llama/Ollama.ts` runs a fluffy pixel-art llama around the plaza. It says "Hi, I'm Ollama!" followed by "I run local. Mostly in circles." on a repeating speech-bubble loop.
+- `src/game/rubberDuck/` adds a large, glossy yellow Rubber Duck waddling around the plaza on little orange legs and webbed feet. Its first words are "Hi I'm Rubber Duck", followed by very polite offers to review code, ideas, edge cases, and tests. Click the duck to advance its dialogue, or let it chat automatically. These are in-world conversation prompts, not an external code-review service. Run `node tests/rubber-duck-browser.mjs` to check its art, movement, and dialogue.
 - `src/game/talkingMoles/` runs three staggered lawn burrows, separate from the Whack-a-Mole game. Pixel-art moles pop out, share eight rotating jokes about AI agents, vibe coding, and token bills, then disappear underground. Each joke stays up for 5.5 seconds before its mole burrows away; no clicks needed. `node tests/moles-browser.mjs` checks the full cycle in a real browser.
 - `src/game/pool/` is a swimming pool with a high dive next to ATV HQ. Swimmers queue up, climb the ladder, bounce on the board, and dive, flip, cannonball, or belly flop in, saying something silly when they splash down.
 - **📺 Digital AI Billboard:** A giant electronic LED advertising board stands by the road into Town. It auto-rotates through eight humorous parody ads selling absurd AI products (Vibe Insurance, Prompt-O-Matic 9000, Organic Tokens, GPU Space Heater, AGI Soon™, AI Apologizer Pro, Quantum Guesser, and Autonomous Loop Agent) with animated marquee chase lights and CRT scanline transitions. Click the billboard to skip to the next ad and pop up a witty quip.
@@ -70,7 +71,7 @@ Every push to `main` goes live within a few minutes, and the live page reloads i
 
 The **@** button beside **− / FIT / +**, at the bottom right, turns all GitHub
 creator labels on or off for the session. It works in every scene and applies to
-characters spawned later. Character names, role plates and speech stay visible.
+characters spawned later. Character names, role plates, token counts and speech stay visible.
 
 Set `githubUsername` (without `@`, preserving casing) on the character's look:
 
@@ -107,6 +108,7 @@ checked October 16, 2026):
 | Repair crew / factory role templates / saucer pilot | `aifateen` | `e59d0a2` / `861331c` / `155f1b7` |
 | Pool swimmers / tug-of-war pullers | `markbriggs-ms` | `0da492f` / `1030554` |
 | Ollama / giant / talking lawn moles | `markbriggs-ms` | `132c652` / `39ba278` / `ea467d3` |
+| Rubber Duck / Mark B | `markbriggs-ms` | `5c15913` / `3d8e918` |
 | HQ seated coders and arriving/departing avatars (`callerLook`) | **Unresolved; unlabeled** | `3ccda30b460936980682095775fdcd746f1b5f75` |
 
 The HQ commit names Veda Vundela but has no linked GitHub author account. Confirm
@@ -115,8 +117,8 @@ the creator's account before adding `githubUsername` to `callerLook` in
 HQ desk plates still identify call participants, separately from creator tags.
 
 Remaining account mappings are unverified: Veda Vundela (HQ, sorting hat,
-Whack-a-Mole and lake fish) and Christian Presley (20 roamers, catchers and
-gremlins; introduction commits `bbd3095`, `5f9f885`, `d7ad2ab`). Their creation
+Whack-a-Mole and lake fish) and Christian Presley (20 roamers, catchers, gremlins
+and the workout class; introduction commits `bbd3095`, `5f9f885`, `d7ad2ab`, `7bfc035`). Their creation
 commits have no linked GitHub author account. Roamer specs now support tags
 through `look.githubUsername`; leave it absent until the account is confirmed.
 Ambient scenery and effects are not character labels.

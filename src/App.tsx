@@ -1,8 +1,10 @@
 import { PhaserGame } from './PhaserGame';
-import { useMemo, useSyncExternalStore } from 'react';
+import { useMemo, useState, useSyncExternalStore } from 'react';
+import { Backpack } from './backpack/Backpack';
 import { CallPanel } from './call/CallPanel';
+import { CharacterSearch } from './characters/CharacterSearch';
 import { FactoryPanel } from './factory/FactoryPanel';
-import { githubLabelsVisible, onGithubLabels, onTokens, send, toggleGithubLabels, tokenCount, type Command } from './game/commands';
+import { githubLabelsVisible, onGithubLabels, send, toggleGithubLabels, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
@@ -17,23 +19,18 @@ const buttons: [label: string, command: Command, title: string][] = [
 export default function App() {
     const bridge = useMemo(() => new LibraryBridge(), []);
     const state = useSyncExternalStore(bridge.subscribe, bridge.getSnapshot);
-    const tokens = useSyncExternalStore(onTokens, tokenCount);
     const githubLabels = useSyncExternalStore(onGithubLabels, githubLabelsVisible);
+    const [backpackOpen, setBackpackOpen] = useState(false);
+    const [searching, setSearching] = useState(false);
     return (
         <>
-            <PhaserGame bridge={bridge} />
+            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching} />
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
                 <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Space pulses · Collect vibes'}</p>
             </div>
-            {!state.inside && <div className="tokens" title="Free tokens you've picked up. Flying cars drop them: walk over one to grab it.">
-                <svg viewBox="0 0 9 9" width="18" height="18" shapeRendering="crispEdges" aria-hidden="true">
-                    <path fill="#14101e" d="M2 0h5v1h1v1h1v5H8v1H7v1H2V8H1V7H0V2h1V1h1z" />
-                    <path fill="#f7b538" d="M2 1h5v1h1v5H7v1H2V7H1V2h1z" />
-                    <path fill="#c9925a" d="M3 2h3v1H5v4H4V3H3z" />
-                </svg>
-                <span>{tokens}</span>
-            </div>}
+            <Backpack open={backpackOpen} onOpenChange={setBackpackOpen} />
+            <CharacterSearch hidden={state.inside} onFocusChange={setSearching} />
             <CallPanel />
             <FactoryPanel hidden={state.inside} />
             <VibeMeter insideLibrary={state.inside} />

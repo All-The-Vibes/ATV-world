@@ -71,7 +71,7 @@ try {
             ['tug of war', s.tugOfWar.pullers.map(p => p.sprite), 'markbriggs-ms'],
             ['kittens', s.kittens.cats.map(c => c.sprite), 'DeaderestPool'],
             ['talking moles', s.talkingMoles.burrows.map(b => b.mole), 'markbriggs-ms'],
-            ['llama and giant', [s.ollama.sprite, s.giant.sprite], 'markbriggs-ms'],
+            ['llama, giant, Rubber Duck and Mark B', [s.ollama.sprite, s.giant.sprite, s.rubberDuck.sprite, s.markB.sprite], 'markbriggs-ms'],
             ['saucer pilot', [s.ufo.sprite], 'aifateen'],
         ];
         return groups.map(([name, sprites, creator]) => ({
@@ -151,11 +151,21 @@ try {
 
     // Stop random attacks; speech is exercised deliberately below.
     await page.evaluate(() => { window.atv.game.scene.getScene('Preview').dragon.timer = 1e9; });
+    // The LIVE badge is production-only; include its real CSS in the narrow-screen layout check.
+    await page.evaluate(() => {
+        const badge = document.createElement('a');
+        badge.className = 'live';
+        badge.textContent = 'LIVE abc1234';
+        document.body.append(badge);
+    });
     for (const [size, width, height] of [['desktop', 1280, 800], ['mobile', 390, 844]]) {
         await page.setViewportSize({ width, height });
         const toggleBox = await labelToggle.boundingBox();
         assert.ok(toggleBox.x >= 0 && toggleBox.x + toggleBox.width <= width && toggleBox.y + toggleBox.height <= height,
             `${size}: global toggle fits in the bottom-right controls`);
+        const badgeBox = await page.locator('.live').boundingBox();
+        const controlsBox = await page.locator('.zoom').boundingBox();
+        assert.ok(badgeBox.x + badgeBox.width <= controlsBox.x, `${size}: the new control does not cover the LIVE badge`);
         await page.keyboard.press('f');
         await page.clock.runFor(200);
         if (shots) await page.screenshot({ path: join(shots, `nametags-${size}.png`) });
