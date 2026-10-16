@@ -1,3 +1,5 @@
+![ATV World hackathon illustration with people and robots building a shared virtual world](assets/atv-world-hackathon.png)
+
 # 🌍 ATV World
 
 **One world. All the vibes. Absolutely no pull requests.**
