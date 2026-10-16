@@ -282,6 +282,7 @@ export class Preview extends Phaser.Scene {
         this.movePlayer(dt);
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.sortingHat?.update(dt);
+        this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.dragon?.update(dt);
         this.gremlins?.update(dt);
         this.ollama?.update(dt);
