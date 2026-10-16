@@ -1,0 +1,16 @@
+# Labels for pull requests, by the files they touch (used by .github/workflows/label.yml).
+game:
+- changed-files:
+  - any-glob-to-any-file: src/**
+build:
+- changed-files:
+  - any-glob-to-any-file: [scripts/**, vite.config.ts, package.json, package-lock.json]
+ci:
+- changed-files:
+  - any-glob-to-any-file: .github/**
+infra:
+- changed-files:
+  - any-glob-to-any-file: [infra/**, public/staticwebapp.config.json]
+documentation:
+- changed-files:
+  - any-glob-to-any-file: '**/*.md'
