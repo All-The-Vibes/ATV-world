@@ -7,4 +7,5 @@ const modules = import.meta.glob<{ default: RoamerSpec }>('./characters/*.ts', {
 
 export const ROAMERS: RoamerSpec[] = Object.values(modules)
     .map((m) => m.default)
+    .filter((s): s is RoamerSpec => Boolean(s))
     .sort((a, b) => a.id.localeCompare(b.id));
