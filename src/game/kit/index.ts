@@ -13,3 +13,5 @@ export * from './props';
 export * from './buildings';
 export * from './library';
 export * from './interior';
+export * from './dragon';
+export * from './speech';

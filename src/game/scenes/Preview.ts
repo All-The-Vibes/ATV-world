@@ -5,13 +5,24 @@ import {
     shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
+import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
 import { Tokens } from '../tokens/Tokens';
 import { WorldView } from '../view';
 
 /** The world on the live screen: a little street built with the pixel-art kit. */
 export class Preview extends Phaser.Scene {
-    private walkers: { sprite: Phaser.GameObjects.Sprite; shadow: Phaser.GameObjects.Image; dir: number; speed: number }[] = [];
+    /** People strolling the street. `rest` is how long they're stopped (to complain about the dragon). */
+    private walkers: {
+        sprite: Phaser.GameObjects.Sprite;
+        shadow: Phaser.GameObjects.Image;
+        anim: string;
+        dir: number;
+        speed: number;
+        rest: number;
+    }[] = [];
+    /** The dragon that circles town toasting people (see ../dragon). */
+    private dragon?: Dragon;
     private ground?: Phaser.GameObjects.TileSprite;
     private player?: {
         sprite: Phaser.GameObjects.Sprite;
@@ -77,6 +88,7 @@ export class Preview extends Phaser.Scene {
             onCollect: (by) => by.player && addToken(),
         });
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
+        this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
         this.events.on('wake', () => this.input.keyboard?.resetKeys());
 
         // Go into HQ by walking into it or clicking the building. Inside, the call panel shows who's there;
@@ -145,6 +157,14 @@ export class Preview extends Phaser.Scene {
         const walkerLeft = this.worldBounds.left + 24;
         const walkerRight = this.worldBounds.right - 24;
         for (const w of this.walkers) {
+            if (w.rest > 0) {
+                w.rest -= dt;
+                if (w.rest > 0) {
+                    if (w.sprite.anims.isPlaying) w.sprite.stop().setFrame('side-0');
+                    continue;
+                }
+                w.sprite.play(w.anim);
+            }
             w.sprite.x += w.dir * w.speed * dt;
             if (w.sprite.x <= walkerLeft || w.sprite.x >= walkerRight) {
                 w.sprite.x = Phaser.Math.Clamp(w.sprite.x, walkerLeft, walkerRight);
@@ -154,6 +174,7 @@ export class Preview extends Phaser.Scene {
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
         }
         this.movePlayer(dt);
+        this.dragon?.update(dt);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
@@ -263,7 +284,18 @@ export class Preview extends Phaser.Scene {
         const y = [62, 124, 184, 96, 154, 42][i];
         const shadow = this.add.image(0, y, shadowTexture(this, 10)).setAlpha(0.25).setDepth(-1e8);
         const sprite = this.add.sprite(-310 + i * 120, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
-        this.walkers.push({ sprite, shadow, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8 });
+        this.walkers.push({ sprite, shadow, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
+    }
+
+    /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
+    private burnables(): Burnable[] {
+        const out: Burnable[] = this.walkers.map((w) => ({
+            sprite: w.sprite,
+            headroom: 24,
+            hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
+        }));
+        if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
+        return out;
     }
 
     private createPlayer() {
