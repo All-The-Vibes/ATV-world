@@ -27,8 +27,9 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
-    /** The library's front door. Standing by it offers "Enter library" (E or the prompt button). */
+    /** The library's front door, and the base of the building that takes you inside when you walk into it. */
     private entrance?: Phaser.Math.Vector2;
+    private libraryFoot?: Phaser.Geom.Rectangle;
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -65,14 +66,13 @@ export class Preview extends Phaser.Scene {
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.events.on('wake', () => this.input.keyboard?.resetKeys());
 
-        // Go into HQ by walking in the door, clicking the building, or pressing H. Inside, the call panel
-        // shows who's there; a fresh press of down or sideways (or the panel's Step out) walks you back out.
-        // A window listener, so quick taps count and the key you walked in on (now auto-repeating) doesn't.
-        // It sits out while this scene sleeps under the library.
+        // Go into HQ by walking into it or clicking the building. Inside, the call panel shows who's there;
+        // a fresh press of down or sideways (or the panel's Step out) walks you back out. A window listener, so
+        // quick taps count and the key you walked in on (now auto-repeating) doesn't. It sits out while this
+        // scene sleeps under the library.
         const onKey = (e: KeyboardEvent) => {
             if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
-            if (e.key === 'h' || e.key === 'H') this.enterHQ();
-            else if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
+            if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
         };
         const off = on('leaveHQ', () => this.leaveHQ());
         window.addEventListener('keydown', onKey);
@@ -141,15 +141,12 @@ export class Preview extends Phaser.Scene {
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
         }
         this.movePlayer(dt);
-        if (this.player && this.entrance) {
-            const near = !this.insideHQ
-                && Phaser.Math.Distance.Between(this.player.sprite.x, this.player.sprite.y, this.entrance.x, this.entrance.y) < 34;
-            this.bridge.setPrompt(near ? 'Enter library' : '', near ? () => {
-                this.player!.sprite.setPosition(this.entrance!.x, this.entrance!.y + 15).stop();
-                this.bridge.setPrompt('');
-                this.scene.launch('Library');
-                this.scene.sleep();
-            } : undefined);
+        // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
+        const p = this.player?.sprite;
+        if (p && this.libraryFoot && !this.insideHQ && this.libraryFoot.contains(p.x, p.y)) {
+            p.setPosition(this.entrance!.x, this.libraryFoot.bottom + 18).stop();
+            this.scene.launch('Library');
+            this.scene.sleep();
         }
     }
 
@@ -180,6 +177,8 @@ export class Preview extends Phaser.Scene {
         const left = x - canvas.width / 2;
         const top = y - canvas.height;
         if (info.door) this.entrance = new Phaser.Math.Vector2(left + info.door.x + info.door.w / 2, y + 3);
+        // The building's base: the player is drawn standing at its feet, so this is "walking into" it.
+        this.libraryFoot = new Phaser.Geom.Rectangle(left + 6, y - 24, canvas.width - 12, 27);
 
         const glow = new PixelCanvas(15, 15);
         for (let j = 0; j < 15; j++) {

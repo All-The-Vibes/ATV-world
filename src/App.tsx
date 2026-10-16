@@ -19,8 +19,7 @@ export default function App() {
             <PhaserGame bridge={bridge} />
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
-                <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Wheel or +/- zooms · Drag to look around · F fits · H visits HQ'}</p>
-                {!state.inside && <p>The stone tower is a library. Come on in.</p>}
+                <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Wheel or +/- zooms · Drag to look around'}</p>
             </div>
             <CallPanel />
             {!state.inside && <div className="zoom">
@@ -31,17 +30,13 @@ export default function App() {
                     </button>
                 ))}
             </div>}
-            {!state.open && <div className="world-actions">
-                {state.prompt && <button id="world-interact" className="primary-button" onClick={bridge.interact}>{state.prompt} <kbd>E</kbd></button>}
-                {state.inside && <button onClick={() => bridge.leave?.()}>Leave library</button>}
+            {!state.open && state.inside && <div className="world-actions">
+                <button onClick={() => bridge.leave?.()}>Leave library</button>
             </div>}
             {state.open && <LibraryPanel
                 view={state.view}
                 onView={view => bridge.update({ view })}
-                onClose={() => {
-                    bridge.update({ open: false });
-                    requestAnimationFrame(() => document.getElementById('world-interact')?.focus());
-                }}
+                onClose={() => bridge.update({ open: false })}
             />}
         </>
     );

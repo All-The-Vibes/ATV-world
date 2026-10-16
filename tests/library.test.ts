@@ -231,19 +231,14 @@ test('bindings are stable and their lettering is legible', () => {
 test('the library bridge only notifies on real changes', () => {
     const bridge = new LibraryBridge();
     let updates = 0;
-    let actions = 0;
     const unsubscribe = bridge.subscribe(() => updates++);
     bridge.update({ inside: true });
     bridge.update({ inside: true });
     assert.equal(updates, 1);
-    bridge.setPrompt('Browse Classics', () => actions++);
+    bridge.update({ open: true, view: { kind: 'catalog' } });
     assert.equal(updates, 2);
-    bridge.interact();
-    assert.equal(actions, 1);
-    bridge.update({ open: true });
-    bridge.interact();
-    assert.equal(actions, 1, 'nothing happens behind an open book');
     unsubscribe();
     bridge.update({ open: false });
-    assert.equal(updates, 3);
+    assert.equal(updates, 2);
+    assert.equal(bridge.getSnapshot().open, false);
 });

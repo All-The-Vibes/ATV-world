@@ -95,7 +95,7 @@ const shot = async name => {
     if (SHOTS) await page.screenshot({ path: join(SHOTS, `library-${name}.png`) });
 };
 const heading = () => page.locator('.banner h1').innerText();
-const promptText = () => page.evaluate(() => document.getElementById('world-interact')?.textContent?.replace(/\s*E$/, '').trim() ?? '');
+const libraryOpen = async () => (await page.locator('dialog.library').count()) > 0;
 const activeId = () => page.evaluate(() => document.activeElement?.id ?? '');
 const focused = (id, what) => until(async () => (await activeId()) === id, what);
 const spoken = () => page.evaluate(() => document.querySelector('input[aria-label="Turn to page"]')?.getAttribute('aria-valuetext') ?? null);
@@ -112,24 +112,20 @@ async function hold(key, ms) {
     await page.keyboard.up(key);
     await page.clock.runFor(100);
 }
-async function walkUntil(key, want, max = 2500) {
+// Everything is walk-in: walk until `arrived` says the player got where they were going.
+async function walkUntil(key, arrived, what, max = 3000) {
     await page.keyboard.down(key);
     let reached = false;
     for (let t = 0; t <= max && !reached; t += 50) {
-        reached = (await promptText()) === want;
+        reached = await arrived();
         if (!reached) await page.clock.runFor(50);
     }
     await page.keyboard.up(key);
     await page.clock.runFor(100);
-    assert.ok(reached, `walking ${key} reaches "${want}" (prompt: "${await promptText()}")`);
+    assert.ok(reached, `walking ${key} reaches ${what}`);
 }
-// Held for a few frames like a real key press; the game reads E once per frame.
-async function pressE() {
-    await page.keyboard.down('e');
-    await page.clock.runFor(100);
-    await page.keyboard.up('e');
-    await page.clock.runFor(400);
-}
+const inside = async () => (await heading()) === 'TOWER LIBRARY';
+const outside = async () => (await heading()) === 'ATV WORLD';
 
 async function turn(action, what, expected) {
     await until(async () => !(await turning()), 'the last page to settle');
@@ -158,9 +154,8 @@ try {
     // Outside: walk to the tower door.
     await pause();
     await hold('ArrowRight', 3080);
-    await walkUntil('ArrowDown', 'Enter library');
     await shot('exterior');
-    await pressE();
+    await walkUntil('ArrowDown', inside, 'the library door');
     await page.clock.resume();
     await until(async () => (await heading()) === 'TOWER LIBRARY', 'the reading room');
     await sleep(400);
@@ -170,8 +165,7 @@ try {
     await pause();
     await hold('ArrowLeft', 2200);
     await hold('ArrowUp', 1600);
-    await walkUntil('ArrowRight', 'Browse Classics');
-    await pressE();
+    await walkUntil('ArrowRight', libraryOpen, 'the Classics bookcase');
     await page.clock.resume();
     await page.locator('dialog.library').waitFor();
     await focused('spine-1342', 'Pride and Prejudice to be first on the shelf');
@@ -219,13 +213,15 @@ try {
     await focused('spine-1342', 'the book to go back on its shelf');
     await page.keyboard.press('Escape');
     await until(async () => (await page.locator('dialog.library').count()) === 0, 'the bookcase to close');
-    await focused('world-interact', 'focus to return to the world');
 
     // The card catalog: real search over Open Library, with honest stamps.
+    // Out by the on-screen button, back in on foot, then over to the catalog.
+    await page.getByRole('button', { name: 'Leave library' }).click();
+    await until(outside, 'the world outside the door');
     await pause();
-    await hold('ArrowRight', 3400);
-    await walkUntil('ArrowDown', 'Search the card catalog');
-    await pressE();
+    await walkUntil('ArrowUp', inside, 'the library door again');
+    await hold('ArrowRight', 2200);
+    await walkUntil('ArrowUp', libraryOpen, 'the card catalog');
     await page.clock.resume();
     await focused('book-query', 'the search box');
 
@@ -270,19 +266,12 @@ try {
     await page.keyboard.press('Escape');
     await until(async () => (await page.locator('dialog.library').count()) === 0, 'the catalog to close');
 
-    // Leaving: by the on-screen button, then on foot through the door.
-    await page.getByRole('button', { name: 'Leave library' }).click();
-    await until(async () => (await heading()) === 'ATV WORLD' && (await promptText()) === 'Enter library', 'the world outside the door');
-    await page.locator('#world-interact').click();
-    await until(async () => (await heading()) === 'TOWER LIBRARY', 'the reading room again');
+    // Leaving on foot through the door, and staying out while walking away.
     await pause();
-    await walkUntil('ArrowDown', 'Leave library');
-    await pressE();
-    await page.clock.resume();
-    await until(async () => (await heading()) === 'ATV WORLD', 'the world after walking out');
-    await pause();
+    await hold('ArrowDown', 900);
+    await walkUntil('ArrowLeft', outside, 'the door out');
     await hold('ArrowLeft', 700);
-    assert.equal(await promptText(), '', 'walking away from the door clears the prompt');
+    assert.ok(await outside(), 'walking away from the door stays outside');
     await page.clock.resume();
 
     assert.deepEqual(errors, [], 'no page errors');

@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { booksOn, shelves } from '../../library/books';
+import { booksOn, shelves, type ShelfId } from '../../library/books';
 import { LibraryBridge } from '../../library/bridge';
 import {
     PixelCanvas, READING_ROOM, addPixels, bayer, hash, readingRoomArt, shadowTexture, shaftPoint,
@@ -21,12 +21,15 @@ export class Library extends Phaser.Scene {
     private cursors!: Phaser.Types.Input.Keyboard.CursorKeys;
     private facing: Facing = 'up';
     private blocks: Phaser.Geom.Rectangle[] = [];
+    /** The bookcase, catalog, or door the player is standing at (it acts on arrival, not again until they step away). */
+    private at: string | null = null;
 
     constructor(private bridge: LibraryBridge) {
         super('Library');
     }
 
     create() {
+        this.at = null;
         this.bridge.update({ inside: true });
         const { room, pieces, lamps } = roomArt();
         addPixels(this, 'library-room', room);
@@ -56,7 +59,6 @@ export class Library extends Phaser.Scene {
         if (!reducedMotion()) this.cameras.main.fadeIn(280, 20, 16, 30);
         this.scale.on('resize', fit);
         this.bridge.leave = () => {
-            this.bridge.setPrompt('');
             this.bridge.update({ inside: false, open: false });
             this.scene.wake('Preview');
             this.scene.stop();
@@ -94,7 +96,7 @@ export class Library extends Phaser.Scene {
             this.idle();
         }
         this.place();
-        this.prompt();
+        this.arrive();
     }
 
     private idle() {
@@ -112,27 +114,26 @@ export class Library extends Phaser.Scene {
         return !this.blocks.some((r) => x + 6 > r.left && x - 6 < r.right && y > r.top && y - 5 < r.bottom);
     }
 
-    /** What the E key (or the on-screen button) does from where the player is standing. */
-    private prompt() {
+    /** Walking up to a bookcase or the card catalog opens it, and walking out the door leaves. Each spot acts once per visit. */
+    private arrive() {
+        const spot = this.spot();
+        if (spot === this.at) return;
+        this.at = spot;
+        if (spot === 'door') this.bridge.leave?.();
+        else if (spot === 'catalog') this.bridge.update({ open: true, view: { kind: 'catalog' } });
+        else if (spot) this.bridge.update({ open: true, view: { kind: 'shelf', shelf: spot } });
+    }
+
+    private spot(): 'door' | 'catalog' | ShelfId | null {
         const { x, y } = this.player;
         const { door, catalog, cases } = READING_ROOM;
-        if (y > 244 && Math.abs(x - door.x) < 24) {
-            this.bridge.setPrompt('Leave library', () => this.bridge.leave?.());
-            return;
-        }
-        if (x >= catalog.left && x <= catalog.right && y >= catalog.top && y <= catalog.bottom) {
-            this.bridge.setPrompt('Search the card catalog', () => this.bridge.update({ open: true, view: { kind: 'catalog' } }));
-            return;
-        }
+        if (y > 244 && Math.abs(x - door.x) < 24) return 'door';
+        if (x >= catalog.left && x <= catalog.right && y >= catalog.top && y <= catalog.bottom) return 'catalog';
         if (y < 128) {
             const i = cases.findIndex((c) => x >= c.x + 2 && x <= c.x + c.w - 2);
-            const shelf = shelves[i];
-            if (shelf) {
-                this.bridge.setPrompt(`Browse ${shelf.name}`, () => this.bridge.update({ open: true, view: { kind: 'shelf', shelf: shelf.id } }));
-                return;
-            }
+            if (shelves[i]) return shelves[i].id;
         }
-        this.bridge.setPrompt('');
+        return null;
     }
 
     /** Soft pools of lamplight that breathe slowly (held still for reduced motion). */

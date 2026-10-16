@@ -6,14 +6,12 @@ export type LibraryView = { kind: 'shelf'; shelf: ShelfId } | { kind: 'catalog' 
 export type LibraryState = {
     inside: boolean;
     open: boolean;
-    prompt: string;
     view: LibraryView;
 };
 
 export class LibraryBridge {
-    private state: LibraryState = { inside: false, open: false, prompt: '', view: { kind: 'shelf', shelf: 'classics' } };
+    private state: LibraryState = { inside: false, open: false, view: { kind: 'shelf', shelf: 'classics' } };
     private listeners = new Set<() => void>();
-    private action?: () => void;
     leave?: () => void;
 
     getSnapshot = () => this.state;
@@ -26,11 +24,4 @@ export class LibraryBridge {
         this.state = { ...this.state, ...patch };
         this.listeners.forEach(listener => listener());
     }
-    setPrompt(prompt: string, action?: () => void) {
-        this.action = action;
-        this.update({ prompt });
-    }
-    interact = () => {
-        if (!this.state.open) this.action?.();
-    };
 }
