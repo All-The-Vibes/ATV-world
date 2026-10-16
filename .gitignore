@@ -16,6 +16,8 @@ playwright-report/
 
 # Local Azure state (azd / deployment notes)
 .azure/
+# Compiled Bicep (az bicep build)
+infra/main.json
 
 # Editors & OS
 .vscode/*
