@@ -239,6 +239,9 @@ export class Preview extends Phaser.Scene {
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
+        this.prop('popcornVolcano', -290, 219);
+        this.prop('banner', -290, 246, { text: 'FREE POPCORN', color: 'red' });
+        this.prop('bench', -228, 245);
         this.sortingHat = new SortingHat(this, -110, 30, () => this.player, () => !this.insideHQ);
         this.includeInWorld(this.sortingHat.stool);
         this.includeInWorld(this.sortingHat.hat);

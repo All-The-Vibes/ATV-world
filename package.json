@@ -20,7 +20,8 @@
     "test:steph": "node tests/steph-browser.mjs",
     "test:factory": "node tests/factory-browser.mjs",
     "test:backpack": "node --experimental-strip-types --test tests/backpack.test.ts && node tests/backpack-browser.mjs",
-    "test:library": "node --experimental-strip-types --test tests/library.test.ts && node tests/library-browser.mjs"
+    "test:library": "node --experimental-strip-types --test tests/library.test.ts && node tests/library-browser.mjs",
+    "test:snacks": "node tests/snacks-browser.mjs"
   },
   "dependencies": {
     "@fluidframework/azure-client": "^1.2.0",

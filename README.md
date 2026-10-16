@@ -141,3 +141,11 @@ The giant traffic light in the town square watches the latest `main` runs of Dep
 The separate CI Health workflow runs strict typecheck and build without blocking the existing resilient deployment. The light refreshes every minute through `/api/health`, which caches GitHub results for a minute per server instance. Public repository reads need no setup; optionally set the server-only `GITHUB_HEALTH_TOKEN` app setting (Actions read permission) for a higher GitHub rate limit.
 
 Check the status rules with `node --test tests/health.test.cjs` and the game integration with `node tests/health-browser.mjs` (Edge).
+
+## Mount Popcorn
+
+West of the fountain, a smiling volcano erupts fresh popcorn over a river of butter.
+Look for the FREE POPCORN sign and grab the nearby bench. No lava, no damage, no snack budget.
+
+Run `npm run test:snacks` to check its pixel art, animation, placement, and the surrounding world in a browser.
+Set `SNACK_SCREENSHOT` to a PNG path to save a view of the snack corner.

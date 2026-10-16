@@ -485,11 +485,48 @@ const flowers: PropDef = {
     },
 };
 
+const popcornVolcano: PropDef = {
+    w: 72, h: 72, frames: 8, fps: 8, solid: [62, 18], shadow: 64,
+    draw(pc, f, x, y) {
+        pc.ellipse(x + 36, y + 66, 35, 5, 'sand');
+        for (let row = 25; row < 68; row++) {
+            const half = 9 + Math.floor((row - 25) * 0.53);
+            for (let dx = -half; dx <= half; dx++) {
+                const ridge = Math.abs(dx + Math.floor((row - 25) / 3)) < 2;
+                pc.set(x + 36 + dx, y + row, ridge ? 'mist' : dx < -half / 3 ? 'steel' : dx > half / 3 ? 'night' : 'slate');
+            }
+        }
+        // Butter, not lava. The town's insurance policy is very specific.
+        for (let row = 28; row < 62; row++) {
+            const bend = Math.round(Math.sin(row * 0.25) * 3);
+            pc.rect(x + 33 + bend, y + row, 5, 1, (row + f) % 5 < 2 ? 'yellow' : 'gold');
+            pc.set(x + 33 + bend, y + row, 'cream');
+        }
+        pc.ellipse(x + 36, y + 26, 12, 4, 'steel');
+        pc.ellipse(x + 36, y + 25, 9, 2.5, 'bark');
+        pc.ellipse(x + 36, y + 25, 7, 1.5, f % 2 ? 'yellow' : 'gold');
+
+        const kernel = (kx: number, ky: number) => {
+            pc.rect(kx - 2, ky - 1, 5, 3, 'cream');
+            pc.rect(kx - 1, ky - 3, 3, 6, 'cream');
+            pc.set(kx - 1, ky - 2, 'white').set(kx - 2, ky, 'white').set(kx + 1, ky + 1, 'gold');
+        };
+        for (let i = 0; i < 6; i++) {
+            const t = (f + i * 3) % 8;
+            const side = i % 2 ? 1 : -1;
+            kernel(x + 36 + side * (3 + t * 4), y + 24 - Math.round(Math.sin(t / 8 * Math.PI) * 19));
+        }
+        for (const [dx, dy] of [[9, 65], [20, 68], [52, 67], [63, 64]]) kernel(x + dx, y + dy);
+        pc.rect(x + 21, y + 49, 2, 3, 'ink').rect(x + 47, y + 49, 2, 3, 'ink');
+        pc.line(x + 29, y + 55, x + 32, y + 58, 'ink').line(x + 32, y + 58, x + 39, y + 58, 'ink').line(x + 39, y + 58, x + 42, y + 55, 'ink');
+    },
+};
+
 /** Every built-in prop. This is a starting set, not a limit: add or replace entries freely. */
 export const PROPS: Record<string, PropDef> = {
     lamp, bench, sign, saleSign, banner, grassSign, mailbox, barrel, crate, bush, rock, flowerpot, fence, fenceV,
     campfire, flag, well, fountain, stall, statue, chest, table, log, mushroom, cactus, pumpkin, trash,
-    terminal, portal, flowers,
+    terminal, portal, flowers, popcornVolcano,
 };
 
 /** Register (or replace) a prop everyone can use by name. */
