@@ -11,7 +11,23 @@ const crypto = require('node:crypto');
 
 const HUB = 'atv';
 const GROUP = 'world';
-const TTL_S = 60 * 60;
+const TTL_S = 15 * 60;
+const LIMIT = 30;
+const WINDOW_MS = 60_000;
+const hits = new Map();
+
+// A per-instance cap on tokens per caller, so one client can't mint endless connections.
+function limited(ip) {
+    const now = Date.now();
+    if (hits.size > 5000) hits.clear();
+    const entry = hits.get(ip);
+    if (!entry || now - entry.at > WINDOW_MS) {
+        hits.set(ip, { at: now, n: 1 });
+        return false;
+    }
+    entry.n += 1;
+    return entry.n > LIMIT;
+}
 
 const reply = (status, body) => ({
     status,
@@ -26,6 +42,11 @@ module.exports = async function (context, req) {
     const key = process.env.WPS_ACCESS_KEY;
     if (!host || !key) {
         context.res = reply(200, { url: null });
+        return;
+    }
+    const ip = String((req.headers && (req.headers['x-forwarded-for'] || req.headers['x-azure-clientip'])) || 'unknown').split(',')[0].trim();
+    if (limited(ip)) {
+        context.res = reply(429, { error: 'slow down' });
         return;
     }
     const id = String((req.query && req.query.id) || '').replace(/[^a-zA-Z0-9_-]/g, '').slice(0, 40);

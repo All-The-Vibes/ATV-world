@@ -5,7 +5,10 @@
   "globalHeaders": {
     "Cache-Control": "no-cache",
     "X-Content-Type-Options": "nosniff",
-    "Referrer-Policy": "strict-origin-when-cross-origin"
+    "Referrer-Policy": "strict-origin-when-cross-origin",
+    "Strict-Transport-Security": "max-age=31536000",
+    "Permissions-Policy": "camera=(), microphone=(), geolocation=(), payment=(), usb=()",
+    "Content-Security-Policy": "object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'self' https://*.teams.microsoft.com https://teams.microsoft.com https://*.office.com https://*.microsoft.com https://*.cloud.microsoft"
   },
   "routes": [
     {
