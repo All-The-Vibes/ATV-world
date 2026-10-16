@@ -186,7 +186,7 @@ interface Waypoint {
     y: number;
 }
 
-interface RouteSegment {
+export interface RouteSegment {
     x0: number;
     y0: number;
     x1: number;
@@ -203,7 +203,7 @@ interface RouteSegment {
  * 3. West along the pavement lane past the middle-west house (-305, -76) to the Microsoft Redmond campus pavement road
  * 4. Back east along the pavement road through the central circle to the far-right house pavement road.
  */
-function buildBikeRoute(townLeft: number, campusRight: number): { segments: RouteSegment[]; totalLength: number } {
+export function buildBikeRoute(townLeft: number, campusRight: number): { segments: RouteSegment[]; totalLength: number } {
     const farRightHouseX = townLeft + 338;
     const midRightHouseX = townLeft + 92;
     const townEntryX = townLeft + 8;
