@@ -9,6 +9,7 @@ import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
 import { Ollama } from '../llama/Ollama';
 import { Tokens } from '../tokens/Tokens';
+import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
@@ -45,6 +46,8 @@ export class Preview extends Phaser.Scene {
     private view?: WorldView;
     /** ATV HQ: everyone on the call, coding (see ../hq). It grows a floor at a time. */
     private hq?: HQ;
+    /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
+    private town?: Town;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -100,6 +103,12 @@ export class Preview extends Phaser.Scene {
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
+        try {
+            this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
+        } catch (e) {
+            console.error('[town]', e);
+        }
+        this.fitWorld();
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
         this.createHell();
@@ -201,7 +210,7 @@ export class Preview extends Phaser.Scene {
         const dt = dtMs / 1000;
 
         const walkerLeft = this.worldBounds.left + 24;
-        const walkerRight = this.worldBounds.right - 24;
+        const walkerRight = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
         for (const w of this.walkers) {
             if (w.rest > 0) {
                 w.rest -= dt;
@@ -832,7 +841,7 @@ export class Preview extends Phaser.Scene {
 
     /** The world is everything placed so far plus ATV HQ (which grows and shrinks with the call), with a margin. */
     private fitWorld() {
-        const parts = [this.contentBounds, this.hq?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
+        const parts = [this.contentBounds, this.hq?.bounds(), this.town?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
         if (!parts.length) return;
         const left = Math.min(...parts.map((r) => r.left));
         const top = Math.min(...parts.map((r) => r.top));
