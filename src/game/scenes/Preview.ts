@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import stephWalkUrl from '../../../assets/steph-walk.png';
 import { LibraryBridge } from '../../library/bridge';
+import { collectItem, ITEMS } from '../../backpack/inventory';
 import {
     HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
@@ -276,7 +277,19 @@ export class Preview extends Phaser.Scene {
                 const hq = this.hq?.bounds();
                 return !(hq && Phaser.Geom.Rectangle.Contains(hq, x, y - 10)) && !this.solids.some((r) => r.contains(x, y));
             },
-            onCollect: (by) => by.player && addToken(),
+            onCollect: (by, kind) => {
+                if (by.player) {
+                    if (kind === 'token') addToken();
+                    else collectItem(kind);
+                }
+            },
+        });
+        ITEMS.forEach((item, i) => {
+            const x = [-70, 65, 80, -65][i], y = [125, 100, 200, 240][i];
+            // A new landmark may occupy a starter spot; try farther along the plaza.
+            for (let shift = 0; shift <= 192; shift += 64) {
+                if (this.tokens!.drop(x - shift, y - 40, y, item.id)) break;
+            }
         });
         this.createVibes();
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
@@ -359,6 +372,7 @@ export class Preview extends Phaser.Scene {
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
             this.syncVibes(false);
+            this.tokens?.destroy();
         };
         this.events.once('shutdown', stop);
         this.events.once('destroy', stop);
