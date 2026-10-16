@@ -17,7 +17,7 @@ interface RiderSpec {
 
 const CREW: RiderSpec[] = [
     {
-        name: 'Shahab',
+        name: 'Shahab Gemini 4 Argon',
         frameColor: 'red',
         look: { skin: 'peach', hair: 'ink', hairStyle: 'cap', hat: 'red', shirt: 'blue', pants: 'navy', shoes: 'white' },
     },
