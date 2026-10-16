@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { isTyping, on } from './commands';
+import { insets, isTyping, on } from './commands';
 
 /** Zoom steps for +/-, the wheel and the buttons. Zooming out stops at "fit". */
 const LADDER = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4, 6, 8];
@@ -25,6 +25,8 @@ export interface ViewOptions {
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
+
+const insetsKey = () => `${insets.top},${insets.right},${insets.bottom},${insets.left}`;
 
 /** Keep a view `span` wide inside [lo, hi]. A world smaller than the view sits in the middle. */
 const keepOn = (c: number, lo: number, hi: number, span: number) =>
@@ -54,6 +56,10 @@ export class WorldView {
     private lastWheel = 0;
     private lastSave = 0;
     private playerAt = { x: NaN, y: NaN };
+    /** True while the view is still where show() put it (nobody has zoomed, dragged, or walked since). */
+    private shown = false;
+    private shownArea = { x: 0, y: 0, width: 1, height: 1 };
+    private shownInsets = '';
 
     constructor(private readonly scene: Phaser.Scene, private readonly opts: ViewOptions) {
         const saved = load();
@@ -102,6 +108,7 @@ export class WorldView {
             this.cx -= dx / this.zoomLevel;
             this.cy -= dy / this.zoomLevel;
             this.mode = 'free';
+            this.shown = false;
         };
         const onUp = () => {
             this.drag = null;
@@ -144,6 +151,41 @@ export class WorldView {
     /** Show the whole world. It stays fitted as the world grows or the window resizes. */
     fit() {
         this.mode = 'fit';
+        this.shown = false;
+    }
+
+    /** Whether the view is still on whatever show() last framed. */
+    get showing(): boolean {
+        return this.shown && this.mode === 'free';
+    }
+
+    /** The player was just moved by code (into a building, say): don't take it as walking off. */
+    trackPlayer() {
+        const p = this.opts.player;
+        if (p) this.playerAt = { x: p.x, y: p.y };
+    }
+
+    /**
+     * Zoom in on one part of the world (a building, say) as close as fits beside the UI. It stays framed
+     * while UI panels come and go, until someone zooms, drags, or walks.
+     */
+    show(area: { x: number; y: number; width: number; height: number }) {
+        const cam = this.scene.cameras.main;
+        const left = MARGIN.side + insets.left, right = MARGIN.side + insets.right;
+        const top = MARGIN.top + insets.top, bottom = MARGIN.bottom + insets.bottom;
+        const w = Math.max(1, cam.width - left - right) / Math.max(1, area.width);
+        const h = Math.max(1, cam.height - top - bottom) / Math.max(1, area.height);
+        const zoom = clamp(Math.min(w, h) * 0.92, 0.1, 8);
+        // The biggest zoom step that fits keeps pixels crisp (or as crisp as it gets).
+        const step = [...LADDER].reverse().find((l) => l <= zoom + 1e-3) ?? zoom;
+        this.zoomLevel = Math.max(step, this.fitZoom());
+        this.cx = area.x + area.width / 2 - (left - right) / 2 / this.zoomLevel;
+        this.cy = area.y + area.height / 2 - (top - bottom) / 2 / this.zoomLevel;
+        this.mode = 'free';
+        this.shown = true;
+        this.shownArea = { ...area };
+        this.shownInsets = insetsKey();
+        this.trackPlayer();
     }
 
     /** Step along the zoom ladder, keeping screen point (sx, sy) still (the middle if omitted). */
@@ -163,13 +205,14 @@ export class WorldView {
         }
         this.zoomLevel = next;
         if (this.mode === 'fit') this.mode = 'free';
+        this.shown = false;
     }
 
     private fitZoom() {
         const b = this.opts.bounds();
         const { width, height } = this.scene.cameras.main;
-        const w = Math.max(1, width - MARGIN.side * 2) / Math.max(1, b.width);
-        const h = Math.max(1, height - MARGIN.top - MARGIN.bottom) / Math.max(1, b.height);
+        const w = Math.max(1, width - MARGIN.side * 2 - insets.left - insets.right) / Math.max(1, b.width);
+        const h = Math.max(1, height - MARGIN.top - MARGIN.bottom - insets.top - insets.bottom) / Math.max(1, b.height);
         return clamp(Math.min(w, h), 0.1, 8);
     }
 
@@ -177,6 +220,8 @@ export class WorldView {
     private apply(_time: number, delta: number) {
         const cam = this.scene.cameras.main;
         const b = this.opts.bounds();
+        // A panel opened, closed, or grew while something was framed: frame it again beside the panel.
+        if (this.showing && insetsKey() !== this.shownInsets) this.show(this.shownArea);
         const fit = this.fitZoom();
         const p = this.opts.player;
         if (p) {
@@ -188,8 +233,8 @@ export class WorldView {
 
         if (this.mode === 'fit') {
             this.zoomLevel = fit;
-            this.cx = b.centerX;
-            this.cy = b.centerY - (MARGIN.top - MARGIN.bottom) / 2 / fit;
+            this.cx = b.centerX - (insets.left - insets.right) / 2 / fit;
+            this.cy = b.centerY - (MARGIN.top + insets.top - MARGIN.bottom - insets.bottom) / 2 / fit;
         } else {
             if (this.mode === 'follow' && p) {
                 const k = delta > 0 ? 1 - Math.exp(-delta / 120) : 1;

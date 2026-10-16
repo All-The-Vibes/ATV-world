@@ -28,6 +28,7 @@ export function createGame(parent: HTMLElement): Phaser.Game {
     };
 
     // Handy from the browser console: atv.game.scene.getScene('Preview'), ...
-    (window as unknown as { atv: unknown }).atv = { game };
+    const w = window as unknown as { atv?: Record<string, unknown> };
+    w.atv = { ...w.atv, game };
     return game;
 }

@@ -1,4 +1,5 @@
 import { PhaserGame } from './PhaserGame';
+import { CallPanel } from './call/CallPanel';
 import { send, type Command } from './game/commands';
 
 const buttons: [label: string, command: Command, title: string][] = [
@@ -13,8 +14,9 @@ export default function App() {
             <PhaserGame />
             <div className="banner">
                 <h1>ATV WORLD</h1>
-                <p>Arrows walk · Wheel or +/- zooms · Drag to look around · F fits</p>
+                <p>Arrows walk · Wheel or +/- zooms · Drag to look around · F fits · H visits HQ</p>
             </div>
+            <CallPanel />
             <div className="zoom">
                 {buttons.map(([label, command, title]) => (
                     // preventDefault on mousedown keeps keyboard focus on the game.

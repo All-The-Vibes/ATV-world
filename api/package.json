@@ -1,0 +1,6 @@
+{
+  "name": "atv-world-api",
+  "private": true,
+  "description": "The Static Web App's API: /api/hq mirrors one Teams meeting into ATV HQ. No dependencies, no build step.",
+  "type": "commonjs"
+}

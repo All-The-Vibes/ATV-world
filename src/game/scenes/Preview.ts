@@ -3,6 +3,8 @@ import {
     PixelCanvas, PROPS, addPixels, buildingArt, characterSheet, fbm, lookKey, paintProp, randomLook,
     shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
+import { isTyping, on, setInsideHQ } from '../commands';
+import { HQ } from '../hq/HQ';
 import { WorldView } from '../view';
 
 /** The world on the live screen: a little street built with the pixel-art kit. */
@@ -20,6 +22,10 @@ export class Preview extends Phaser.Scene {
     private readonly worldBounds = new Phaser.Geom.Rectangle(-390, -220, 780, 540);
     /** The camera: F fits the world, +/-/wheel zoom, drag looks around (see ../view.ts). */
     private view?: WorldView;
+    /** ATV HQ: everyone on the call, coding (see ../hq). It grows a floor at a time. */
+    private hq?: HQ;
+    /** The player is inside HQ (hidden indoors, with the call panel open). */
+    private insideHQ = false;
 
     constructor() {
         super('Preview');
@@ -29,14 +35,21 @@ export class Preview extends Phaser.Scene {
         this.grass();
         const buildings = [
             { x: -305, y: -76, spec: { w: 6, h: 5, style: 'house', roof: 'red', wall: 'cream', seed: 2 } },
-            { x: 0, y: -2, spec: { w: 7, h: 5, style: 'shop', roof: 'blue', sign: 'ATV', seed: 5 } },
             { x: 285, y: 225, spec: { w: 5, h: 6, style: 'tower', wall: 'stone', seed: 9 } },
         ] satisfies { x: number; y: number; spec: BuildingSpec }[];
         buildings.forEach(({ x, y, spec }) => this.building(x, y, spec));
+        // Set well back from the plaza, seven tiles behind where the old ATV shop stood.
+        this.hq = new HQ(this, 0, -114);
+        this.hq.onResize = () => {
+            this.fitWorld();
+            if (this.view?.showing) this.visitHQ();
+        };
+        this.hq.onClick = () => this.enterHQ();
+        this.fitWorld();
         [
             { x: -375, y: 24, kind: 'oak' },
-            { x: -160, y: -106, kind: 'cherry' },
-            { x: 150, y: -70, kind: 'autumn' },
+            { x: -190, y: -106, kind: 'cherry' },
+            { x: 190, y: -70, kind: 'autumn' },
             { x: 370, y: 112, kind: 'pine' },
         ].forEach(({ x, y, kind }, i) => this.tree(x, y, kind, i + 1));
         this.prop('fountain', -150, 205);
@@ -47,6 +60,65 @@ export class Preview extends Phaser.Scene {
         for (let i = 0; i < 6; i++) this.walker(i);
         this.createPlayer();
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
+
+        // Go into HQ by walking in the door, clicking the building, or pressing H. Inside, the call panel
+        // shows who's there; a fresh press of down or sideways (or the panel's Step out) walks you back out.
+        // A window listener, so quick taps count and the key you walked in on (now auto-repeating) doesn't.
+        const onKey = (e: KeyboardEvent) => {
+            if (e.ctrlKey || e.metaKey || e.altKey || isTyping()) return;
+            if (e.key === 'h' || e.key === 'H') this.enterHQ();
+            else if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
+        };
+        const off = on('leaveHQ', () => this.leaveHQ());
+        window.addEventListener('keydown', onKey);
+        const stop = () => {
+            off();
+            window.removeEventListener('keydown', onKey);
+            setInsideHQ(false);
+        };
+        this.events.once('shutdown', stop);
+        this.events.once('destroy', stop);
+        // Teams (and ?hq) open inside, and so does a reload while you were inside.
+        const q = new URLSearchParams(location.search);
+        const p = this.player?.sprite;
+        if (q.has('teams') || q.has('hq') || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
+    }
+
+    /** Frame ATV HQ and the sidewalk out front, where people walk in. */
+    private visitHQ() {
+        if (!this.hq || !this.view) return;
+        const b = this.hq.bounds();
+        this.view.show({ x: b.x, y: b.y, width: b.width, height: b.height + 22 });
+    }
+
+    /** Go inside HQ: the player steps through the door, the camera frames the building, the call panel opens. */
+    private enterHQ() {
+        if (!this.hq || !this.player) return;
+        if (!this.insideHQ) {
+            this.insideHQ = true;
+            const { sprite, shadow, marker } = this.player;
+            const at = this.hq.doorway.inside;
+            sprite.stop().setPosition(at.x, at.y).setFlipX(false).setFrame('up-0');
+            this.playerFacing = 'up';
+            [sprite, shadow, marker].forEach((o) => o.setVisible(false));
+            setInsideHQ(true);
+        }
+        this.visitHQ();
+    }
+
+    /** Walk back out the front door onto the sidewalk. */
+    private leaveHQ() {
+        if (!this.hq || !this.player || !this.insideHQ) return;
+        this.insideHQ = false;
+        const { sprite, shadow, marker } = this.player;
+        const at = this.hq.doorway.outside;
+        sprite.setPosition(at.x, at.y).setFlipX(false).setFrame('down-0').setDepth(at.y);
+        shadow.setPosition(at.x, at.y).setDepth(at.y - 1);
+        marker.setPosition(at.x, at.y - 34).setDepth(at.y + 1);
+        this.playerFacing = 'down';
+        [sprite, shadow, marker].forEach((o) => o.setVisible(true));
+        this.view?.trackPlayer();
+        setInsideHQ(false);
     }
 
     update(_t: number, dtMs: number) {
@@ -187,18 +259,34 @@ export class Preview extends Phaser.Scene {
             const bottom = Math.max(this.contentBounds.bottom, bounds.bottom);
             this.contentBounds.setTo(left, top, right - left, bottom - top);
         }
+        this.fitWorld();
+    }
 
-        const content = this.contentBounds;
+    /** The world is everything placed so far plus ATV HQ (which grows and shrinks with the call), with a margin. */
+    private fitWorld() {
+        const parts = [this.contentBounds, this.hq?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
+        if (!parts.length) return;
+        const left = Math.min(...parts.map((r) => r.left));
+        const top = Math.min(...parts.map((r) => r.top));
+        const right = Math.max(...parts.map((r) => r.right));
+        const bottom = Math.max(...parts.map((r) => r.bottom));
         const padding = 64;
-        this.worldBounds.setTo(
-            content.left - padding,
-            content.top - padding,
-            content.width + padding * 2,
-            content.height + padding * 2,
-        );
+        this.worldBounds.setTo(left - padding, top - padding, right - left + padding * 2, bottom - top + padding * 2);
         this.ground
             ?.setPosition(this.worldBounds.centerX, this.worldBounds.centerY)
             .setSize(Math.max(2048, this.worldBounds.width + 512), Math.max(2048, this.worldBounds.height + 512));
+        // HQ lost floors: bring back a player who was standing in the sky it left behind.
+        const p = this.player;
+        if (p && !this.insideHQ) {
+            const x = Phaser.Math.Clamp(p.sprite.x, this.worldBounds.left + 12, this.worldBounds.right - 12);
+            const y = Phaser.Math.Clamp(p.sprite.y, this.worldBounds.top + 12, this.worldBounds.bottom - 12);
+            if (x !== p.sprite.x || y !== p.sprite.y) {
+                p.sprite.setPosition(x, y).setDepth(y);
+                p.shadow.setPosition(x, y).setDepth(y - 1);
+                p.marker.setPosition(x, y - 34).setDepth(y + 1);
+                this.view?.trackPlayer();
+            }
+        }
     }
 
     private movePlayer(dt: number) {
@@ -207,6 +295,8 @@ export class Preview extends Phaser.Scene {
         const dx = Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
         const dy = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
         const moving = dx !== 0 || dy !== 0;
+
+        if (this.insideHQ) return;
 
         if (moving) {
             const length = Math.hypot(dx, dy);
@@ -233,5 +323,7 @@ export class Preview extends Phaser.Scene {
         const markerBob = Math.round(Math.sin(this.time.now / 150) * 2);
         marker.setPosition(sprite.x, sprite.y - 34 + markerBob).setDepth(sprite.y + 1);
         sprite.setDepth(sprite.y);
+        // Walked into HQ (through the door, or any wall, since nothing here is solid): go in.
+        if (moving && this.hq?.contains(sprite.x, sprite.y)) this.enterHQ();
     }
 }

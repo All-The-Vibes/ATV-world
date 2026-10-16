@@ -46,5 +46,31 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/game/scenes/Preview.ts` is the world on the live screen.
 - `src/game/view.ts` is the camera: F fits the whole world, +/- or the mouse wheel zooms, dragging looks around, and the view survives reloads.
 - `src/live.ts` is the LIVE badge in the bottom left. It shows the commit that's live and reloads the page when a newer push deploys.
+- `src/game/hq/` is ATV HQ: everyone on the Teams call gets a random avatar, coding at a desk. Desks fill eight to a floor, and the building grows a floor at a time as the call does.
+- `src/call/` is the call itself: who's on it (from Teams, the website mirror, the demo, or the URL) and the panel you see inside ATV HQ.
+- `api/` is the Static Web App's API: `/api/hq` mirrors one Teams meeting onto the website.
 
 Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.
+
+## ATV HQ: your Teams call, hard at work
+
+Everyone on the call walks in the front door, sits down at a desk, and starts coding. Their avatar is random, but the same on every screen, every time. Lights flick on when someone joins and off when they leave. Desks fill eight to a floor, so a 50-person call is a six-storey HQ.
+
+Walk into HQ (or click it, or press H) to see who's there: the call panel only shows up inside. Press down or **Step out** to leave.
+
+1. Walk into HQ and click **Add to Teams**. It downloads `atv-world-teams.zip`.
+2. In Teams, go to **Apps › Manage your apps › Upload an app** and pick that file.
+3. In a meeting, add **ATV World** from **+ Apps**, hit **Save**, then **Share to stage**. Everyone gets a desk.
+
+Teams counts the people who have ATV World open (in the side panel or on the stage), so sharing it to the stage brings in the whole call. It syncs with Live Share, which Teams hosts. Every meeting gets its own session, so a meeting's HQ only ever holds that meeting.
+
+### Show one meeting on the website
+
+Out of the box, the public site's HQ stays empty: the call lives inside Teams. To let everyone on the website watch one meeting, turn on the mirror:
+
+1. Pick a secret and give it to the site: `az staticwebapp appsettings set -n swa-atv-world -g rg-atv-world --setting-names HQ_PUBLISH_KEY=<secret>`
+2. When adding ATV World to that meeting, type the secret into **website mirror key** on the setup page, then Save and share to stage.
+
+Save trades the secret for a publish token that only works for that meeting and lasts two weeks, so the secret itself never goes into a URL. ATV World in that meeting then posts who's there to `/api/hq` every few seconds, and the website shows them. A meeting keeps HQ until it's been quiet for two minutes; to allow only one meeting ever, also set `HQ_MEETING_ID` (ATV World logs the meeting's ID to the browser console). Changing `HQ_PUBLISH_KEY` revokes every token. The website only ever shows first names and an initial, nothing is stored, and HQ empties on its own when the meeting ends.
+
+No meeting handy? Add `?call=demo` to the URL to watch the agents of questionable judgment dial in, `?call=crowd` for a 48-person call, or `?call=Ana,Ben` to seat whoever you like. From the browser console: `atv.call.join('Ana')`, `atv.call.leave('Ana')`, `atv.call.demo('crowd')`.
