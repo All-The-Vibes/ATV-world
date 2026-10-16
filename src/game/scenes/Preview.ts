@@ -58,6 +58,7 @@ export class Preview extends Phaser.Scene {
     private rushUntil = 0;
     private lastRushTrail = -Infinity;
     private rushTrailColor = 0;
+    private lastVibePulse = -Infinity;
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -115,6 +116,10 @@ export class Preview extends Phaser.Scene {
         const onKey = (e: KeyboardEvent) => {
             if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
             if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
+            else if (!this.insideHQ && !e.repeat && e.key === ' ') {
+                e.preventDefault();
+                this.vibePulse();
+            }
         };
         const off = on('leaveHQ', () => this.leaveHQ());
         window.addEventListener('keydown', onKey);
@@ -396,6 +401,18 @@ export class Preview extends Phaser.Scene {
             }
         }
         addPixels(this, 'preview-vibe-glow', glowArt);
+        const pulseArt = new PixelCanvas(45, 25);
+        for (let y = 0; y < pulseArt.height; y++) {
+            for (let x = 0; x < pulseArt.width; x++) {
+                const dx = (x - 22) / 21;
+                const dy = (y - 12) / 11;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance > 0.72 && distance < 1 && 1 - distance > bayer(x, y) * 0.18) {
+                    pulseArt.set(x, y, distance > 0.88 ? 'yellow' : 'gold');
+                }
+            }
+        }
+        addPixels(this, 'preview-vibe-pulse', pulseArt);
 
         const points = [
             [-330, 164], [-224, 34], [-104, 236], [92, 92], [180, 210], [350, 72],
@@ -410,6 +427,60 @@ export class Preview extends Phaser.Scene {
             return { sprite, glow, homeY: y, found: false };
         });
         this.syncVibes(true, 'Find all six. Fast pickups build a combo.');
+    }
+
+    private vibePulse() {
+        const player = this.player?.sprite;
+        const now = this.time.now;
+        if (!player || now - this.lastVibePulse < 2_500) return;
+        this.lastVibePulse = now;
+
+        const ring = this.add.image(player.x, player.y - 7, 'preview-vibe-pulse')
+            .setBlendMode(Phaser.BlendModes.ADD)
+            .setScale(0.35)
+            .setAlpha(0.9)
+            .setDepth(player.y + 3);
+        this.tweens.add({
+            targets: ring,
+            scaleX: 3.8,
+            scaleY: 3.2,
+            alpha: 0,
+            duration: 520,
+            ease: 'Quad.easeOut',
+            onComplete: () => ring.destroy(),
+        });
+        for (let i = 0; i < 12; i++) {
+            const angle = Math.PI * 2 * i / 12;
+            const spark = this.add.image(player.x, player.y - 9, 'preview-vibe')
+                .setBlendMode(Phaser.BlendModes.ADD)
+                .setScale(0.2)
+                .setDepth(player.y + 4);
+            this.tweens.add({
+                targets: spark,
+                x: player.x + Math.cos(angle) * 56,
+                y: player.y - 9 + Math.sin(angle) * 30,
+                alpha: 0,
+                duration: 420,
+                ease: 'Cubic.easeOut',
+                onComplete: () => spark.destroy(),
+            });
+        }
+
+        for (const walker of this.walkers) {
+            if (Phaser.Math.Distance.Squared(player.x, player.y, walker.sprite.x, walker.sprite.y) > 110 * 110) continue;
+            this.tweens.add({
+                targets: walker.sprite,
+                y: walker.sprite.y - 10,
+                duration: 110,
+                yoyo: true,
+                ease: 'Quad.easeOut',
+            });
+        }
+        for (const vibe of this.vibes) {
+            if (!vibe.found && Phaser.Math.Distance.Squared(player.x, player.y - 8, vibe.sprite.x, vibe.sprite.y) <= 92 * 92) {
+                this.collectVibe(vibe);
+            }
+        }
     }
 
     private syncVibes(active: boolean, message = '') {

@@ -164,6 +164,14 @@ try {
     assert.match(await page.locator('.vibe-meter-score').innerText(), /100/);
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
+        scene.player.sprite.setPosition(-154, 42);
+    });
+    await page.keyboard.press('Space');
+    await page.clock.runFor(100);
+    await shot('vibe-pulse');
+    assert.equal(await page.locator('.vibe-meter-track span[data-lit]').count(), 2, 'a Vibe Pulse collects a nearby shard');
+    await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
         scene.player.sprite.setPosition(0, 158);
         scene.view.trackPlayer();
     });
