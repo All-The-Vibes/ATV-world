@@ -296,7 +296,14 @@ export class Preview extends Phaser.Scene {
         this.fitWorld();
         this.ollama = new Ollama(this);
         this.rubberDuck = new RubberDuck(this, {
-            bounds: () => this.worldBounds,
+            // The plaza between the campus and the town, from the pool and disco rows down to the south lawn.
+            area: () => {
+                const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity);
+                const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity);
+                const top = Math.max(this.worldBounds.top, -250);
+                const bottom = Math.min(this.worldBounds.bottom, 420);
+                return new Phaser.Geom.Rectangle(left, top, right - left, bottom - top);
+            },
             open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
         });
         this.talkingMoles = new TalkingMoles(this);

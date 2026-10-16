@@ -75,7 +75,7 @@ try {
     const walking = await state();
     assert.ok(Math.abs(walking.x - first.x) > 15, 'the duck wanders without input');
     assert.ok(frames.size > 1, 'the duck waddles through different poses');
-    assert.equal(walking.depth, walking.y);
+    assert.ok(walking.depth >= 5e4 && walking.depth < 1e5, 'the duck is drawn above the crowd, under its speech bubble');
     assert.equal(walking.bubbleX, walking.x);
     assert.equal(walking.shadowX, walking.x);
     assert.equal(walking.shadowY, walking.y);
@@ -159,9 +159,9 @@ try {
         const to = { x: duck.x, y: duck.y };
         const landed = { bolts: rd.effects.length, alpha: duck.alpha };
         for (let i = 0; i < 5; i++) rd.update(0.1);
-        const b = scene.worldBounds;
+        const b = rd.opts.area();
         return {
-            struck, landed, from, to, left: rd.effects.length, centre: { x: b.centerX, y: b.centerY },
+            struck, landed, from, to, left: rd.effects.length, bounds: { left: b.left, right: b.right, top: b.top, bottom: b.bottom },
             blocked: scene.solids.some(r => r.contains(to.x, to.y)) || !!scene.hq?.contains(to.x, to.y),
         };
     });
@@ -169,9 +169,33 @@ try {
     assert.equal(strike.landed.bolts, 2, 'a second bolt marks where it lands');
     assert.equal(strike.landed.alpha, 1);
     assert.ok(Math.hypot(strike.to.x - strike.from.x, strike.to.y - strike.from.y) >= 90, 'the duck teleports somewhere new');
-    assert.ok(Math.abs(strike.to.x - strike.centre.x) <= 200 && Math.abs(strike.to.y - strike.centre.y) <= 110, 'it lands in the middle of the map');
+    const awayFromEdges = (p, a) => p.x >= a.left + 0.1 * (a.right - a.left) && p.x <= a.right - 0.1 * (a.right - a.left)
+        && p.y >= a.top + 0.1 * (a.bottom - a.top) && p.y <= a.bottom - 0.1 * (a.bottom - a.top);
+    assert.ok(awayFromEdges(strike.to, strike.bounds), 'it lands in the main part of the map, not near the edges');
     assert.equal(strike.blocked, false, 'it never lands inside a building');
     assert.equal(strike.left, 0, 'the bolts fade away');
+
+    const tour = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const rd = scene.rubberDuck;
+        const duck = scene.children.getByName('Rubber Duck');
+        const stops = [];
+        for (let i = 0; i < 10; i++) {
+            rd.strikeClock = 7.97;
+            rd.update(0.05);
+            let updates = 0;
+            while (rd.zap && updates++ < 20) rd.update(0.05);
+            stops.push({ x: duck.x, y: duck.y, depth: duck.depth });
+        }
+        const b = rd.opts.area();
+        return { stops, bounds: { left: b.left, right: b.right, top: b.top, bottom: b.bottom } };
+    });
+    const xs = tour.stops.map(stop => stop.x);
+    assert.ok(new Set(tour.stops.map(stop => `${stop.x},${stop.y}`)).size >= 6, 'the duck keeps moving to different places');
+    assert.ok(Math.max(...xs) - Math.min(...xs) >= 150, 'its stops are spread across the map, not one crowded corner');
+    assert.ok(tour.stops.every(stop => awayFromEdges(stop, tour.bounds)), 'every stop is away from the edges');
+    tour.stops.slice(1).forEach((stop, i) => assert.ok(Math.hypot(stop.x - tour.stops[i].x, stop.y - tour.stops[i].y) >= 90, 'each teleport goes somewhere new'));
+    assert.ok(tour.stops.every(stop => stop.depth >= 5e4 && stop.depth < 1e5), 'the duck is always drawn on top of the crowd');
 
     const crowded = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');

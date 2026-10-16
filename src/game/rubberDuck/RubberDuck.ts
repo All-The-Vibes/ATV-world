@@ -41,11 +41,18 @@ const SIZZLE = 0.22;
 const ORBIT = { x: 70, y: 16 };
 const ROOM = { halfWidth: 80, above: 80, below: 20 };
 const SPEED = 0.5;
+/** Drawn above people, props and buildings (but under speech bubbles) so nothing hides the duck. */
+const ON_TOP = 9e4;
+/** Keep landings this fraction of the main area away from every edge. */
+const EDGE_INSET = 0.22;
+/** Remember the last few homes so the duck keeps visiting new places. */
+const RECENT = 4;
 
 interface Box { x: number; y: number; width: number; height: number }
 
 export interface RubberDuckOptions {
-    bounds: () => Phaser.Geom.Rectangle;
+    /** The main part of the world the duck may visit; it stays well away from this area's edges. */
+    area: () => Phaser.Geom.Rectangle;
     /** False where the duck can't stand (buildings, water, HQ). */
     open: (x: number, y: number) => boolean;
 }
@@ -62,6 +69,7 @@ export class RubberDuck {
     private strikeClock = 0;
     /** The centre of the oval the duck patrols; a strike moves it. */
     private home = { x: 0, y: 106 };
+    private recent = [{ x: 0, y: 106 }];
     /** Set while the duck is hit by lightning and about to teleport to `to`. */
     private zap: { age: number; to?: { x: number; y: number } } | null = null;
 
@@ -107,7 +115,7 @@ export class RubberDuck {
         }
 
         const { x, y, facing } = this.stance();
-        this.sprite.setPosition(x, y).setDepth(y).setFlipX(facing);
+        this.sprite.setPosition(x, y).setDepth(ON_TOP).setFlipX(facing);
         this.shadow.setPosition(x, y);
         this.bubble.setPosition(x, y - DUCK_HEIGHT - 3).setVisible(this.lineTime < 6.5);
         this.fadeEffects(step);
@@ -134,6 +142,7 @@ export class RubberDuck {
         this.sprite.setAlpha(1);
         if (!to) return;
         this.home = to;
+        this.recent = [...this.recent, to].slice(-RECENT);
         const { x, y } = this.stance();
         this.bolt(x, y, 150);
     }
@@ -189,31 +198,31 @@ export class RubberDuck {
         return boxes.filter((b) => b.x < right && b.x + b.width > left && b.y < bottom && b.y + b.height > top).length;
     }
 
-    /** The quietest open patch near the middle of the map, away from where the duck is now. */
+    /** An open, uncrowded patch somewhere in the main part of the map, new to the duck and well away from the edges. */
     private quietSpot() {
-        const bounds = this.opts.bounds();
+        const bounds = this.opts.area();
         const boxes = this.crowd();
         const { open } = this.opts;
-        let best: { x: number; y: number } | null = null;
-        let bestCost = Infinity;
-        for (let row = -4; row <= 4; row++) {
-            for (let col = -5; col <= 5; col++) {
-                const home = { x: Math.round(bounds.centerX + col * 26), y: Math.round(bounds.centerY + row * 22) };
-                if (home.x < bounds.left + 100 || home.x > bounds.right - 100
-                    || home.y < bounds.top + 80 || home.y > bounds.bottom - 40) continue;
+        const insetX = bounds.width * EDGE_INSET, insetY = bounds.height * EDGE_INSET;
+        const candidates: { home: { x: number; y: number }; cost: number }[] = [];
+        for (let y = bounds.top + insetY; y <= bounds.bottom - insetY; y += 24) {
+            for (let x = bounds.left + insetX; x <= bounds.right - insetX; x += 30) {
+                const home = { x: Math.round(x), y: Math.round(y) };
                 const land = this.stance(home);
                 if (!open(land.x, land.y) || Math.hypot(land.x - this.sprite.x, land.y - this.sprite.y) < 90) continue;
                 const blocked = [[-ORBIT.x, 0], [ORBIT.x, 0], [0, -ORBIT.y], [0, ORBIT.y]]
                     .filter(([dx, dy]) => !open(home.x + dx, home.y + dy)).length;
-                const cost = this.busyAt(home.x, home.y, boxes) * 2 + blocked * 8
-                    + Math.hypot(home.x - bounds.centerX, home.y - bounds.centerY) * 0.04 + Math.random() * 0.5;
-                if (cost < bestCost) {
-                    bestCost = cost;
-                    best = home;
-                }
+                const revisits = this.recent.filter((r) => Math.hypot(r.x - home.x, r.y - home.y) < 140).length;
+                candidates.push({
+                    home,
+                    cost: this.busyAt(home.x, home.y, boxes) * 3 + blocked * 8 + revisits * 12
+                        + Math.hypot(home.x - bounds.centerX, home.y - bounds.centerY) * 0.01,
+                });
             }
         }
-        return best;
+        // Any of the few best patches will do, so the duck doesn't always pick the very same one.
+        const best = candidates.sort((a, b) => a.cost - b.cost).slice(0, 3);
+        return best.length ? best[Math.floor(Math.random() * best.length)].home : null;
     }
 
     private nextLine() {
