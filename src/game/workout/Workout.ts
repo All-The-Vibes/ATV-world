@@ -41,8 +41,16 @@ const REGIME: { name: string; beats: number; move: Move }[] = [
     { name: 'STRETCH IT OUT!', beats: 12, move: 'stretch' },
 ];
 const TOTAL_BEATS = REGIME.reduce((n, s) => n + s.beats, 0);
-const CHEERS = ['You are doing GREAT!', 'Feel the sparkle!', 'Bring that energy!', 'Smile while you sweat!', 'Everybody move!'];
-const CALLS = ['Come on, everybody!', 'Class is starting!', 'Follow me, friends!', 'Let us get moving!'];
+const CHEERS = [
+    'You are doing GREAT!', 'Sparkle with every step!', 'Look at you go, superstars!', 'Smile! Smiling burns extra!',
+    'Hips, knees, joy!', 'Every wiggle counts, my loves!', 'Dance like you are in the kitchen!', 'Stronger than yesterday!',
+    'Shake it out, sunshine!', 'Nobody is watching. Everybody is cheering!', 'Breathe in the good vibes!', 'You are a golden star!',
+    'Feel that happy burn!', 'Tokens are earned with sparkle!', 'Even the dragon is impressed!', 'No gremlin can catch this energy!',
+    'Five more! Okay, ten more!', 'Elbows up, spirits higher!', 'Give me your biggest smile!', 'I believe in every one of you!',
+    'You showed up. That is the hard part!', 'Do not stop now, glitter legs!', 'Go, go, you gorgeous goofballs!', 'Sweat is just sparkle leaving!',
+    'Move it like the music loves you!', 'Look how far you have come!', 'Fabulous! Absolutely fabulous!', 'Hug your inner superstar!',
+];
+const CALLS = ['Come on, everybody!', 'Class is starting!', 'Follow me, friends!', 'Let us get moving!', 'Hurry, hurry, my loves!', 'Grab a spot, superstars!', 'Everyone is welcome here!'];
 const SKY = 1e6;
 const SLOT_GAP = 24;
 const ROW_GAP = 26;
@@ -72,6 +80,7 @@ export class Workout {
     private mat?: Phaser.GameObjects.Image;
     private box?: Phaser.GameObjects.Sprite;
     private playerCheered = false;
+    private lastCheer = '';
 
     constructor(private scene: Phaser.Scene, private opts: WorkoutOptions) {
         const sheet = christianSheet();
@@ -191,6 +200,10 @@ export class Workout {
     private gather(dt: number) {
         const s = this.sprite!;
         s.setFrame(this.phaseTime % 0.8 < 0.4 ? 'cheer-0' : 'cheer-1');
+        if (this.sayCd <= 0 && this.phaseTime > 2.5) {
+            this.say(Phaser.Utils.Array.GetRandom(CALLS));
+            this.sayCd = 3.5;
+        }
         let all = true;
         for (const m of this.members) {
             if (!m.arrived) m.arrived = this.walk(m, m.slot.x, m.slot.y, m.speed, dt);
@@ -233,7 +246,7 @@ export class Workout {
             this.lastBeat = bi;
             this.box?.setFrame(bi % 2);
             this.mat?.setTint(bi % 2 ? 0xffffff : 0xffd9ec);
-            if (bi - start === 8) this.say(Phaser.Utils.Array.GetRandom(CHEERS));
+            if (bi - start >= 4 && (bi - start) % 5 === 4) this.cheer();
             if (bi % 3 === 0 && this.members.length) {
                 const m = Phaser.Utils.Array.GetRandom(this.members);
                 this.pixel(m.p.sprite.x + Phaser.Math.Between(-4, 4), m.p.sprite.y - 20, 'cyan', m.p.sprite.x + Phaser.Math.Between(-9, 9), m.p.sprite.y - 6, 600);
@@ -352,7 +365,8 @@ export class Workout {
         const dy = ty - s.y;
         const d = Math.hypot(dx, dy);
         if (d < 2) {
-            s.setPosition(tx, ty).setFrame('down-0');
+            s.setPosition(tx, ty);
+            if (s.texture.has('down-0')) s.setFrame('down-0');
             return true;
         }
         const step = Math.min(d, speed * dt);
@@ -387,6 +401,14 @@ export class Workout {
         s.setDepth(s.y);
         this.label?.setPosition(s.x, s.y - 26).setDepth(s.y + 1);
         this.bubble?.setPosition(Math.round(s.x), Math.round(s.y - 44)).setDepth(SKY + 2);
+    }
+
+    /** Something upbeat, never the same line twice in a row. */
+    private cheer() {
+        let line = Phaser.Utils.Array.GetRandom(CHEERS);
+        while (line === this.lastCheer) line = Phaser.Utils.Array.GetRandom(CHEERS);
+        this.lastCheer = line;
+        this.say(line);
     }
 
     private say(text: string) {
