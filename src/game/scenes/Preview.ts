@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { LibraryBridge } from '../../library/bridge';
 import {
     HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
-    shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
+    miniText, miniTextWidth, shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { Dragon, type Burnable } from '../dragon/Dragon';
@@ -20,6 +20,7 @@ export class Preview extends Phaser.Scene {
     private walkers: {
         sprite: Phaser.GameObjects.Sprite;
         shadow: Phaser.GameObjects.Image;
+        label?: Phaser.GameObjects.Image;
         anim: string;
         dir: number;
         speed: number;
@@ -98,6 +99,7 @@ export class Preview extends Phaser.Scene {
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
         for (let i = 0; i < 6; i++) this.walker(i);
+        this.walker(6, 'Abdallah');
         this.createHell();
         this.createPlayer();
         this.ollama = new Ollama(this);
@@ -213,6 +215,7 @@ export class Preview extends Phaser.Scene {
             }
             w.sprite.setFlipX(w.dir < 0);
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
+            w.label?.setPosition(w.sprite.x, w.sprite.y - 26);
         }
         this.movePlayer(dt);
         this.dragon?.update(dt);
@@ -517,8 +520,8 @@ export class Preview extends Phaser.Scene {
         }
     }
 
-    private walker(i: number) {
-        const look = randomLook(`preview-${i}`);
+    private walker(i: number, name?: string) {
+        const look = randomLook(name ?? `preview-${i}`);
         const key = lookKey(look);
         const sheet = characterSheet(look);
         addPixels(this, key, sheet.canvas, sheet.frames);
@@ -526,17 +529,27 @@ export class Preview extends Phaser.Scene {
         if (!this.anims.exists(anim)) {
             this.anims.create({ key: anim, frames: ['side-1', 'side-0', 'side-2', 'side-0'].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1 });
         }
-        const y = [62, 124, 184, 96, 154, 42][i];
+        const y = [62, 124, 184, 96, 154, 42, 214][i];
         const shadow = this.add.image(0, y, shadowTexture(this, 10)).setAlpha(0.25).setDepth(-1e8);
         const sprite = this.add.sprite(-310 + i * 120, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
-        this.walkers.push({ sprite, shadow, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
+        let label: Phaser.GameObjects.Image | undefined;
+        if (name) {
+            const labelKey = `preview-walker-label-${name}`;
+            const canvas = new PixelCanvas(miniTextWidth(name) + 6, 9);
+            canvas.rect(0, 0, canvas.width, 9, 'ink');
+            miniText(canvas, 3, 2, name, 'cream');
+            addPixels(this, labelKey, canvas);
+            label = this.add.image(sprite.x, y - 26, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
+            sprite.setName(name);
+        }
+        this.walkers.push({ sprite, shadow, label, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
     }
 
     /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
     private burnables(): Burnable[] {
         const out: Burnable[] = this.walkers.map((w) => ({
             sprite: w.sprite,
-            headroom: 24,
+            headroom: w.label ? 38 : 24,
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
