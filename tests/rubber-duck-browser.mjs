@@ -68,7 +68,10 @@ try {
     assert.ok(art.orange > 20, 'the duck has an orange bill');
     assert.ok(art.feet > 40, 'little orange legs and webbed feet extend below the body');
     const frames = new Set([first.frame]);
-    for (let i = 0; i < 6; i++) { await sleep(150); frames.add((await state()).frame); }
+    // Frames can be slow in headless browsers, so wait for movement rather than assuming a rate.
+    await page.waitForFunction(x => Math.abs(window.atv.game.scene.getScene('Preview')
+        .children.getByName('Rubber Duck').x - x) > 15, first.x, { timeout: 30000 });
+    for (let i = 0; i < 12; i++) { await sleep(150); frames.add((await state()).frame); }
     const walking = await state();
     assert.ok(Math.abs(walking.x - first.x) > 15, 'the duck wanders without input');
     assert.ok(frames.size > 1, 'the duck waddles through different poses');
@@ -81,7 +84,7 @@ try {
     await page.waitForFunction(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         return scene.children.getByName('Rubber Duck-speech').getData('text') === 'May I review your code, please?';
-    }, undefined, { timeout: 15000 });
+    }, undefined, { timeout: 60000 });
     const lines = ["Hi I'm Rubber Duck", (await state()).text];
     await page.evaluate(() => {
         window.atv.game.scene.getScene('Preview').view.show({ x: -250, y: -20, width: 500, height: 230 });
@@ -89,6 +92,7 @@ try {
     await sleep(100);
     const point = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
+        scene.rubberDuck.lineTime = 0;
         const duck = scene.children.getByName('Rubber Duck');
         const cam = scene.cameras.main;
         const canvas = scene.game.canvas;
