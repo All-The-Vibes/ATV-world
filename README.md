@@ -64,6 +64,7 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - **🏭 Agent Factory:** Walk into the brick factory with the robot on its roof (east of the plaza, below the pool), or click it, to pick a role: Developer, SRE, Security Agent, or Tester (click a card or press 1-4). A new agent rolls out on the conveyor belt and wanders town with a name tag, muttering lines and handing work to the other roles it bumps into. Up to twelve at a time; the oldest goes home first. Press **Esc** to close the picker. Roles live in `src/factory/roles.ts`.
 - `src/live.ts` is the LIVE badge in the bottom left. It shows the commit that's live and reloads the page when a newer push deploys.
 - `src/music/` is the background music: an 80s arcade loop made with Gemini. The speaker button or M turns it off and on.
+- `src/map/` is the live world map in the bottom right. It shows everything people built, you, and the townsfolk. Click a place to see who made it, or click open ground to look there. The map button or N shows and hides it. Built something? Add it to `mapAreas` in `Preview.ts` so people can find it.
 
 Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.
 

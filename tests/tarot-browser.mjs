@@ -164,6 +164,7 @@ try {
             advance(1.4);
             const departing = t.state;
             const x = t.feet.x;
+            const initialAltitude = t.feet.y - t.visitor.y;
             const gait = [];
             for (let i = 0; i < 10; i++) {
                 t.update(0.1);
@@ -175,13 +176,21 @@ try {
             const original = originalTexture.getSourceImage();
             const changed = t.visitor.texture.getSourceImage();
             const getPixel = (image, x, y) => Array.from(image.getContext('2d').getImageData(x, y, 1, 1).data);
+            const bodyX = outcome === 'angel' ? 28 : 12;
+            const bodyY = outcome === 'angel' ? 24 : 16;
             const shirtPreserved = JSON.stringify(getPixel(original, originalTexture.get('side-0').cutX + 7, 13))
-                === JSON.stringify(getPixel(changed, 12 + 7, 16 + 13));
-            const halo = getPixel(changed, 20, 4)[3] > 0;
-            const wings = getPixel(changed, 3, 14)[3] > 0 && getPixel(changed, 37, 14)[3] > 0;
+                === JSON.stringify(getPixel(changed, bodyX + 7, bodyY + 13));
+            const halo = getPixel(changed, 36, 12)[3] > 0;
+            const wings = getPixel(changed, 3, 14)[3] > 0 && getPixel(changed, 69, 14)[3] > 0;
             const skinChanged = JSON.stringify(getPixel(original, originalTexture.get('side-0').cutX + 10, 7))
                 !== JSON.stringify(getPixel(changed, 12 + 10, 16 + 7));
-            return { started, busy, originalKey, effectStarted, transformed, sparks, departing, distance, gait, shirtPreserved, halo, wings, skinChanged };
+            const animation = t.visitor.anims.currentAnim.key;
+            const shadowScale = t.shadow.scaleX;
+            const shadowAlpha = t.shadow.alpha;
+            const finalAltitude = t.feet.y - t.visitor.y;
+            const wingFramesDiffer = JSON.stringify(getPixel(changed, 3, 14)) !== JSON.stringify(getPixel(changed, 72 + 3, 14));
+            return { started, busy, originalKey, effectStarted, transformed, sparks, departing, distance, gait, shirtPreserved,
+                halo, wings, skinChanged, animation, initialAltitude, finalAltitude, shadowScale, shadowAlpha, wingFramesDiffer };
         }, outcome);
         assert.ok(result.started);
         assert.equal(result.busy, false);
@@ -192,8 +201,11 @@ try {
         assert.ok(result.shirtPreserved, 'Transformation preserves the visitor clothing');
         if (outcome === 'angel') {
             assert.ok(result.halo && result.wings, 'Angel texture has a halo and wings extending on both sides');
-            assert.ok(result.distance > 35, 'Angel leaves lightly and faster');
-            assert.ok(result.gait.some(sample => sample.bob > 2), 'Angel bobs above its ground shadow');
+            assert.ok(result.distance > 20, 'Angel flies forward');
+            assert.ok(result.finalAltitude - result.initialAltitude >= 33, 'Angel ascends at least 33px in one second, rather than walking or bobbing');
+            assert.ok(result.animation.endsWith('-fly'), 'Angel uses wing-flap flight animation, not a walk cycle');
+            assert.ok(result.wingFramesDiffer, 'Large wings change pose between animation frames');
+            assert.ok(result.shadowScale < 0.8 && result.shadowAlpha < 0.25, 'Ground shadow shrinks and fades as angel gains height');
         } else {
             assert.ok(result.skinChanged, 'Zombie has decayed green skin, not only a new animation');
             assert.ok(result.distance < 25, 'Zombie shambles slowly');

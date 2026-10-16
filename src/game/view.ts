@@ -217,6 +217,19 @@ export class WorldView {
         this.trackPlayer();
     }
 
+    /** Look at a spot (the world map's clicks). From the fit view it zooms in a couple of steps first. */
+    lookAt(x: number, y: number) {
+        if (this.mode === 'fit') {
+            const fit = this.fitZoom();
+            this.zoomLevel = LADDER.find((l) => l >= fit * 2 - 1e-3) ?? LADDER[LADDER.length - 1];
+        }
+        this.cx = x;
+        this.cy = y;
+        this.mode = 'free';
+        this.shown = false;
+        this.trackPlayer();
+    }
+
     /** Step along the zoom ladder, keeping screen point (sx, sy) still (the middle if omitted). */
     zoom(dir: 1 | -1, sx?: number, sy?: number) {
         this.focusOn = undefined;

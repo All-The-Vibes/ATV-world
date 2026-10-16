@@ -2,8 +2,9 @@ import Phaser from 'phaser';
 import stephWalkUrl from '../../../assets/steph-walk.png';
 import { LibraryBridge } from '../../library/bridge';
 import { collectItem, ITEMS } from '../../backpack/inventory';
+import { addArea, addFeature, onMapRequest, resetMap, worldMap, type AreaInfo, type FeatureKind } from '../../map/world';
 import {
-    HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
+    HEX, PALETTE, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, setViewModes, tokenCount } from '../commands';
@@ -48,6 +49,7 @@ import { MarkB } from '../markb/MarkB';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
 
+type Placed = { getBounds: () => Phaser.Geom.Rectangle };
 type Vibe = { sprite: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; homeY: number; found: boolean };
 
 /** The world on the live screen: a little street built with the pixel-art kit. */
@@ -200,6 +202,7 @@ export class Preview extends Phaser.Scene {
     }
 
     create() {
+        resetMap();
         const wasInsideHQ = this.insideHQ;
         const first = !this.opened;
         this.opened = true;
@@ -210,8 +213,8 @@ export class Preview extends Phaser.Scene {
         const buildings = [
             { x: -305, y: -76, spec: { w: 6, h: 5, style: 'house', roof: 'red', wall: 'cream', seed: 2 } },
         ] satisfies { x: number; y: number; spec: BuildingSpec }[];
-        buildings.forEach(({ x, y, spec }) => this.building(x, y, spec));
-        this.library(285, 225);
+        const [cottage] = buildings.map(({ x, y, spec }) => this.building(x, y, spec));
+        const library = this.library(285, 225);
         // Set well back from the plaza, seven tiles behind where the old ATV shop stood.
         this.hq = new HQ(this, 0, -114);
         this.hq.onResize = () => {
@@ -300,10 +303,9 @@ export class Preview extends Phaser.Scene {
         this.walker(6, 'Abdallah', undefined, undefined, 'aifateen');
         this.walker(7, 'Daenerys', -240, daenerysSheet(), 'stephschofield');
         this.walker(8, 'Ahmed', -180, undefined, 'Bakar404');
-        this.bikeGang = new BikeGang(this, () => {
-            const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
-            const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
-            return new Phaser.Geom.Rectangle(left, this.worldBounds.top, Math.max(260, right - left), this.worldBounds.height);
+        this.bikeGang = new BikeGang(this, {
+            townLeft: this.town?.left ?? 451,
+            campusRight: this.campus?.bounds().right ?? -475,
         });
         this.createHell();
         this.createSteph();
@@ -397,6 +399,7 @@ export class Preview extends Phaser.Scene {
                 ...(this.roamers?.people() ?? []),
             ],
         });
+        this.mapAreas(cottage, library, trafficLight);
         let surfAt = 0;
         this.ocean = new Ocean(this, {
             bounds: () => this.worldBounds,
@@ -460,6 +463,18 @@ export class Preview extends Phaser.Scene {
             this.cameras.main.flash(220, this.inHell ? 200 : 255, this.inHell ? 30 : 220, this.inHell ? 50 : 150);
             this.cameras.main.shake(180, 0.004);
         });
+        // The world map: "Go look" frames an area (with some of the street around it), clicking elsewhere looks there.
+        const offMap = onMapRequest((req) => {
+            if (!this.view || this.insideHQ) return;
+            if ('area' in req) {
+                const b = worldMap.areas.get(req.area)?.bounds();
+                if (!b) return;
+                const width = Math.max(b.width + 48, 280), height = Math.max(b.height + 48, 180);
+                this.view.show({ x: b.x + b.width / 2 - width / 2, y: b.y + b.height / 2 - height / 2, width, height });
+            } else {
+                this.view.lookAt(req.x, req.y);
+            }
+        });
         window.addEventListener('keydown', onKey);
         const stop = () => {
             off();
@@ -470,6 +485,8 @@ export class Preview extends Phaser.Scene {
             offFocus();
             offNight();
             offStranger();
+            offMap();
+            resetMap();
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
             setViewModes({ night: false, stranger: false });
@@ -1003,7 +1020,8 @@ export class Preview extends Phaser.Scene {
         addPixels(this, key, canvas);
         const image = this.add.image(x, y, key).setOrigin(0.5, 1).setDepth(y);
         this.solids.push(image.getBounds());
-        this.includeInWorld(image);
+        this.includeInWorld(image, 'building');
+        return image;
     }
 
     /** The enterable library, with its door as the entrance and softly breathing porch lanterns. */
@@ -1013,7 +1031,7 @@ export class Preview extends Phaser.Scene {
         const image = this.add.image(x, y, 'preview-library').setOrigin(0.5, 1).setDepth(y);
         // A little past the steps too, so a token never lands where grabbing it would walk you inside.
         this.solids.push(new Phaser.Geom.Rectangle(image.x - canvas.width / 2, y - canvas.height, canvas.width, canvas.height + 12));
-        this.includeInWorld(image);
+        this.includeInWorld(image, 'building');
         const left = x - canvas.width / 2;
         const top = y - canvas.height;
         if (info.door) this.entrance = new Phaser.Math.Vector2(left + info.door.x + info.door.w / 2, y + 3);
@@ -1045,6 +1063,7 @@ export class Preview extends Phaser.Scene {
                 });
             }
         }
+        return image;
     }
 
     private tree(x: number, y: number, kind: string, seed: number) {
@@ -1053,7 +1072,7 @@ export class Preview extends Phaser.Scene {
         addPixels(this, key, canvas);
         this.add.image(x, y, shadowTexture(this, 18)).setAlpha(0.25).setDepth(-1e8);
         const image = this.add.image(x, y + 2, key).setOrigin(0.5, 1).setDepth(y);
-        this.includeInWorld(image);
+        this.includeInWorld(image, 'tree');
     }
 
     private prop(name: string, x: number, y: number, opts: PropOptions = {}) {
@@ -1391,8 +1410,87 @@ export class Preview extends Phaser.Scene {
         this.time.delayedCall(6_000, () => this.syncVibes(true, 'Vibe Rush ended.'));
     }
 
-    private includeInWorld(object: { getBounds: () => Phaser.Geom.Rectangle }) {
+    /**
+     * The world map's named places (see src/map): what each one is and who made it. Built something? Add it here,
+     * with whatever it covers on the ground, so people can find it and know who to thank (or blame).
+     */
+    private mapAreas(cottage: Placed, library: Placed, trafficLight: { sprite: Placed; label: Placed }) {
+        const covering = (...things: (Placed | undefined)[]) => {
+            const parts = things.filter((t): t is Placed => !!t);
+            return () => parts.map((t) => t.getBounds()).reduce((a, b) => Phaser.Geom.Rectangle.Union(a, b));
+        };
+        const place = (info: AreaInfo, bounds?: () => Phaser.Geom.Rectangle) => bounds && addArea(info, bounds);
+        const hq = this.hq;
+        place({ id: 'atv-hq', name: 'ATV HQ', by: 'Veda Vundela', color: PALETTE.sky,
+            about: 'Where everyone on the Teams call codes. It grows a floor as people dial in. Walk in to see who is here.' },
+        hq && (() => hq.bounds()));
+        place({ id: 'tower-library', name: 'Tower Library', by: 'Veda Vundela', color: PALETTE.violet,
+            about: 'A stone tower full of real books. Walk in to browse the shelves or search the card catalog.' }, covering(library));
+        place({ id: 'red-roof-cottage', name: 'Red-Roof Cottage', by: 'Ahmed Abdelsalam', color: PALETTE.red,
+            about: 'The first house in town, from the little street that started ATV World.' }, covering(cottage));
+        place({ id: 'town-square', name: 'Town Square', by: 'Ahmed Abdelsalam, ShahabName', color: PALETTE.cyan,
+            about: 'Fountains, street lamps, flowers, a bench, and the ATV fruit tree, with townsfolk strolling by all day.' },
+        () => new Phaser.Geom.Rectangle(-225, 105, 355, 150));
+        const town = this.town, campus = this.campus;
+        place({ id: 'the-town', name: 'The Town', by: 'Ahmed Abdelsalam', color: PALETTE.orange,
+            about: 'A ring road with two-way traffic, police and fire stations, and houses. When one catches fire (or you click it), the fire truck rolls out.' },
+        town && (() => town.bounds()));
+        place({ id: 'redmond-campus', name: 'Redmond Campus', by: 'Ahmed Abdelsalam', color: PALETTE.mist,
+            about: "Microsoft's campus: Buildings 92 and 99, The Commons and its sports field, a treehouse in the pines, and the Connector shuttle." },
+        campus && (() => campus.bounds()));
+        place({ id: 'disco', name: 'The Disco', by: 'Mark Briggs', color: PALETTE.pink,
+            about: "A light-up dance floor, a glitter ball, spotlights, and people dancing on the music's beat." },
+        this.disco && covering(...this.disco.parts));
+        place({ id: 'pool', name: 'The Pool', by: 'Mark Briggs', color: PALETTE.blue,
+            about: 'A swimming pool with a high dive. Swimmers queue up, dive, flip, or belly flop, and have something to say about it.' },
+        covering(this.pool));
+        place({ id: 'whack-a-mole', name: 'Whack-a-Mole', by: 'Veda Vundela', color: PALETTE.wood,
+            about: 'A fenced patch of nine holes. Walk in to start a 30-second round.' },
+        this.moles && covering(...this.moles.parts));
+        place({ id: 'sorting-hat', name: 'The Sorting Hat', by: 'Veda Vundela', color: PALETTE.gold,
+            about: 'Walk up to the stool and the hat sorts you into one of the four houses of ATV.' },
+        this.sortingHat && covering(this.sortingHat.stool, this.sortingHat.hat));
+        place({ id: 'kitten-corral', name: 'Kitten Corral', by: 'DeaderestPool', color: PALETTE.lime,
+            about: 'Slippery kittens and their toys. They do not stay in the corral, and the townsfolk get distracted.' },
+        this.kittens && (() => this.kittens!.bounds));
+        place({ id: 'traffic-light', name: 'CI/CD Traffic Light', by: 'AI Fateen', color: PALETTE.leaf,
+            about: 'Shows how main is doing in CI: green when it is healthy, red when it is broken.' },
+        covering(trafficLight.sprite, trafficLight.label));
+        place({ id: 'idea-machine', name: 'Idea Machine', by: 'AI Fateen', color: PALETTE.yellow,
+            about: 'Walk up and press E (or click it) for a random build challenge.' }, covering(this.ideaMachine));
+        place({ id: 'repair-crew', name: 'Self-Healing Repair Crew', by: 'AI Fateen', color: PALETTE.steel,
+            about: 'A harmless production drill. Walk up and press C (or click the button) to start an incident and watch the crew fix it.' },
+        this.incidents && covering(this.incidents.station, this.incidents.button));
+        place({ id: 'hell-portal', name: 'Gate to the Upside Down', by: 'Veda Vundela', color: PALETTE.wine,
+            about: 'A fleshy gate to a cold, dead mirror of the world, laced with vines and spores. Walk onto it if you dare.' }, covering(this.surfacePortal));
+        place({ id: 'lake', name: 'The Lake', by: 'Veda Vundela', color: PALETTE.navy,
+            about: 'A huge lake out west with a castle sunk on its bed, fish, and bubbles. You can swim in it.' },
+        this.lake && covering(...this.lake.parts));
+        place({ id: 'mars-rocket', name: 'Rocket to Mars', by: 'Veda Vundela', color: PALETTE.orange,
+            about: 'A launch pad, a tower, and a rocket. Walk into the rocket to climb aboard and fly to Mars.' },
+        this.launchPad && covering(...this.launchPad.parts));
+        place({ id: 'agent-factory', name: 'Agent Factory', by: 'AI Fateen', color: PALETTE.steel,
+            about: 'Walk in (or click it) to pick a role. A new agent rolls out on the conveyor belt and wanders town handing out work.' },
+        this.factory && covering(...this.factory.parts));
+        place({ id: 'keyhouse', name: 'Keyhouse Manor', by: 'ShahabName', color: PALETTE.plum,
+            about: 'The Lock & Key room: a mysterious Victorian house of magical doors and glowing windows, with the Locke kids patrolling outside.' },
+        this.lockAndKey && covering(...this.lockAndKey.parts));
+        place({ id: 'tug-of-war', name: 'Tug of War', by: 'Mark Briggs', color: PALETTE.clay,
+            about: 'Two teams hauling on a rope that never gets anywhere, shouting about it now and then.' }, covering(this.tugOfWar));
+        place({ id: 'billboard', name: 'Giant Billboard', by: 'Mark Briggs', color: PALETTE.peach,
+            about: 'A giant digital board running rotating, humorous AI ads.' },
+        this.billboard && covering(...this.billboard.parts));
+
+        worldMap.world = this.worldBounds;
+        worldMap.view = this.cameras.main.worldView;
+        worldMap.player = this.player?.sprite;
+        worldMap.walkers = this.walkers.map((w) => w.sprite);
+    }
+
+    /** Everything placed grows the world's bounds, and shows on the world map (src/map) as a building, tree, or dot. */
+    private includeInWorld(object: { getBounds: () => Phaser.Geom.Rectangle; visible?: boolean }, kind: FeatureKind = 'prop') {
         const bounds = object.getBounds();
+        if (object.visible !== false) addFeature(kind, bounds);
         if (!this.contentBounds) {
             this.contentBounds = new Phaser.Geom.Rectangle(bounds.x, bounds.y, bounds.width, bounds.height);
         } else {

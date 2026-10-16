@@ -1,0 +1,139 @@
+/* The live world map (MiniMap.tsx): same ink panels, night borders, and pixel fonts as the banner. Sits above the zoom buttons. */
+.minimap {
+    position: fixed;
+    right: 16px;
+    bottom: 72px;
+    display: flex;
+    flex-direction: column;
+    align-items: flex-end;
+    gap: 8px;
+    width: 252px;
+    max-width: calc(100vw - 32px);
+}
+
+.minimap-frame,
+.minimap-card {
+    width: 100%;
+    color: var(--cream);
+    background: rgb(20 16 30 / 92%);
+    border: 3px solid var(--night);
+    box-shadow: 0 0 0 3px var(--ink);
+}
+
+.minimap-frame {
+    padding: 3px;
+}
+
+.minimap-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    padding: 4px 3px 6px;
+    font: 9px 'Press Start 2P', monospace;
+    color: var(--gold);
+}
+
+.minimap-count {
+    color: #94a3b8;
+}
+
+.minimap canvas {
+    display: block;
+    image-rendering: pixelated;
+    touch-action: none;
+}
+
+.minimap-hint {
+    margin: 4px 3px 0;
+    overflow: hidden;
+    font-size: 17px;
+    line-height: 1;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.minimap-card {
+    padding: 10px 12px 12px;
+    font-size: 19px;
+    line-height: 1.1;
+}
+
+.minimap-card h2 {
+    margin: 0 0 6px;
+    padding-left: 8px;
+    font: 11px/1.4 'Press Start 2P', monospace;
+    color: var(--gold);
+    border-left: 4px solid var(--gold);
+}
+
+.minimap-card p {
+    margin: 0 0 6px;
+}
+
+.minimap-by b {
+    color: var(--gold);
+    font-weight: normal;
+}
+
+.minimap-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.minimap-actions button {
+    flex: 1;
+    min-height: 32px;
+    font: 18px 'VT323', monospace;
+    color: var(--cream);
+    background: var(--night);
+    border: 2px solid #81768f;
+    cursor: pointer;
+}
+
+.minimap-actions button:hover {
+    background: #403653;
+    border-color: var(--gold);
+}
+
+.minimap :focus-visible {
+    outline: 3px solid var(--gold);
+    outline-offset: 2px;
+}
+
+/* Only there for keyboards and screen readers: the list shows up while one of its buttons has focus. */
+.minimap-places {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: 0;
+    padding: 0;
+    overflow: hidden;
+    clip-path: inset(50%);
+    list-style: none;
+}
+
+.minimap-places:focus-within {
+    position: static;
+    width: auto;
+    height: auto;
+    margin-top: 4px;
+    clip-path: none;
+}
+
+.minimap-places button {
+    width: 100%;
+    padding: 2px 4px;
+    font: 17px 'VT323', monospace;
+    text-align: left;
+    color: var(--cream);
+    background: none;
+    border: 0;
+    cursor: pointer;
+}
+
+/* Phones: above the vibe meter and token count, which move to the bottom edge there. */
+@media (max-width: 600px) {
+    .minimap { bottom: 150px; width: 180px; }
+    .minimap canvas { width: 168px !important; height: 112px !important; }
+}

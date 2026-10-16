@@ -84,23 +84,34 @@ function tableArt() {
 }
 
 function formArt(form: Outcome, look: FullLook) {
-    const pc = new PixelCanvas(40 * 3, 38);
+    const width = form === 'angel' ? 72 : 40;
+    const height = form === 'angel' ? 46 : 38;
+    const bodyX = width / 2 - 8;
+    const bodyY = height - 22;
+    const pc = new PixelCanvas(width * 3, height);
     const body = characterSheet(form === 'angel' ? look : { ...look, skin: 'grass' });
     for (let frame = 0; frame < 3; frame++) {
-        const ox = frame * 40;
+        const ox = frame * width;
         if (form === 'angel') {
+            const cx = ox + width / 2;
+            const lift = [0, -9, 7][frame];
             for (const side of [-1, 1]) {
-                for (let feather = 0; feather < 4; feather++) {
-                    pc.line(ox + 20 + side * 6, 28 - feather, ox + 20 + side * (17 - feather * 2), 14 + feather * 3, 'cloud');
-                    pc.line(ox + 20 + side * 7, 27 - feather, ox + 20 + side * (16 - feather * 2), 13 + feather * 3, 'white');
+                pc.ellipse(cx + side * 15, 26 + lift / 2, 12, 7, 'cloud');
+                for (let feather = 0; feather < 7; feather++) {
+                    const tipX = cx + side * (33 - feather * 2);
+                    const tipY = 14 + lift + feather * 3;
+                    pc.line(cx + side * 5, 35, tipX, tipY, 'cloud')
+                        .line(cx + side * 6, 33, tipX, tipY - 1, 'white')
+                        .line(cx + side * 7, 31, tipX - side, tipY - 2, 'white');
                 }
             }
-            pc.ellipse(ox + 20, 6, 7, 3, 'gold').ellipse(ox + 20, 6, 4, 1, null);
+            pc.ellipse(cx, 14, 7, 3, 'gold').ellipse(cx, 14, 4, 1, null);
         }
-        const source = body.frames[6 + frame];
+        // Angels hold a still body while their wings flap; zombies retain their walking frames.
+        const source = body.frames[form === 'angel' ? 6 : 6 + frame];
         for (let y = 0; y < source.h; y++) for (let x = 0; x < source.w; x++) {
             const pixel = body.canvas.raw(source.x + x, source.y + y);
-            if (pixel >>> 24) pc.px[(y + 16) * pc.width + ox + 12 + x] = pixel;
+            if (pixel >>> 24) pc.px[(y + bodyY) * pc.width + ox + bodyX + x] = pixel;
         }
         if (form === 'zombie') {
             pc.rect(ox + 23, 28, 10, 3, look.shirt).rect(ox + 32, 28, 4, 2, 'grass')
@@ -123,10 +134,11 @@ export function visitorTextures(scene: Phaser.Scene, index: number, look: FullLo
     addPixels(scene, `tarot-visitor-${index}`, normal.canvas, normal.frames);
     for (const form of ['angel', 'zombie'] as const) {
         const key = `tarot-${form}-${index}`;
-        addPixels(scene, key, formArt(form, look), stripFrames(3, 40, 38));
-        if (!scene.anims.exists(`${key}-walk`)) {
+        const motion = form === 'angel' ? 'fly' : 'walk';
+        addPixels(scene, key, formArt(form, look), stripFrames(3, form === 'angel' ? 72 : 40, form === 'angel' ? 46 : 38));
+        if (!scene.anims.exists(`${key}-${motion}`)) {
             scene.anims.create({
-                key: `${key}-walk`,
+                key: `${key}-${motion}`,
                 frames: [1, 0, 2, 0].map((frame) => ({ key, frame })),
                 frameRate: form === 'angel' ? 8 : 4,
                 repeat: -1,

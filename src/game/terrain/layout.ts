@@ -36,8 +36,8 @@ export const FORECOURT = { x0: 242, x1: 328, y0: 224, y1: 248 } as const;
 /** Scorched circle under the hell portal. */
 export const PORTAL = { x: 258, y: 81, rx: 21, ry: 10 } as const;
 
-/** The pond, out in the open upper-right meadow (walkers stroll at y ≥ 42, so it never blocks them). */
-export const POND = { x: 300, y: -122, rx: 74, ry: 32 } as const;
+/** The pond, out on the north edge of the map, up and right of the swimming pool (which sits at x 160-410, y -231 to -115). */
+export const POND = { x: 480, y: -345, rx: 74, ry: 32 } as const;
 
 export type PathKind = 'dirt' | 'cobble';
 
