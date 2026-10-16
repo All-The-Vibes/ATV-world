@@ -183,6 +183,7 @@ export class Preview extends Phaser.Scene {
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
         this.walker(7, 'Shahab');
+        this.walker(8, 'Ahmed', -180);
         this.createHell();
         this.createSteph();
         this.createPlayer();
@@ -709,7 +710,7 @@ export class Preview extends Phaser.Scene {
         }
     }
 
-    private walker(i: number, name?: string) {
+    private walker(i: number, name?: string, startAt?: number) {
         const look = randomLook(name ?? `preview-${i}`);
         const key = lookKey(look);
         const sheet = characterSheet(look);
@@ -721,7 +722,7 @@ export class Preview extends Phaser.Scene {
         const lanes = [62, 124, 184, 96, 154, 42, 214, 140];
         const y = lanes[i % lanes.length];
         const shadow = this.add.image(0, y, shadowTexture(this, 10)).setAlpha(0.25).setDepth(-1e8);
-        const startX = Phaser.Math.Clamp(-310 + i * 95, this.worldBounds.left + 28, this.worldBounds.right - 28);
+        const startX = startAt ?? Phaser.Math.Clamp(-310 + i * 95, this.worldBounds.left + 28, this.worldBounds.right - 28);
         const sprite = this.add.sprite(startX, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
         let label: Phaser.GameObjects.Image | undefined;
         if (name) {
