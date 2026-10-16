@@ -285,7 +285,10 @@ export class Preview extends Phaser.Scene {
         this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
         this.fitWorld();
         this.ollama = new Ollama(this);
-        this.rubberDuck = new RubberDuck(this);
+        this.rubberDuck = new RubberDuck(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+        });
         this.talkingMoles = new TalkingMoles(this);
         this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
