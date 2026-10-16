@@ -2,6 +2,7 @@ import '@fontsource/press-start-2p/index.css';
 import '@fontsource/vt323/index.css';
 import './styles.css';
 import './live';
+import './music';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 import { startCall } from './call';
