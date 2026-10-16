@@ -19,6 +19,7 @@ import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
+import { Lake } from '../lake/Lake';
 import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
 import { Ollama } from '../llama/Ollama';
@@ -89,6 +90,8 @@ export class Preview extends Phaser.Scene {
     private disco?: Disco;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
     private moles?: Moles;
+    /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
+    private lake?: Lake;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -190,6 +193,14 @@ export class Preview extends Phaser.Scene {
             this.campus = new Campus(this, Math.min(-457, (this.contentBounds?.left ?? -411) - 64));
         } catch (e) {
             console.error('[campus]', e);
+        }
+        try {
+            const westEdge = Math.min(this.campus?.bounds().left ?? Infinity, this.contentBounds?.left ?? -411);
+            this.lake = new Lake(this, westEdge - 260, 70);
+            this.lake.parts.forEach((part) => this.includeInWorld(part));
+            this.solids.push(this.lake.bounds);
+        } catch (e) {
+            console.error('[lake]', e);
         }
         this.fitWorld();
         const trafficLight = new TrafficLight(this, 60, 170);
@@ -381,6 +392,7 @@ export class Preview extends Phaser.Scene {
         this.pool?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
+        this.lake?.update(dt, this.player && !this.insideHQ && !this.inHell ? this.player : undefined);
         this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
         this.factory?.update(dt, this.insideHQ ? undefined : this.player?.sprite);
         this.tokens?.update(dt, [
