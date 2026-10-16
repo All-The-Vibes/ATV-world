@@ -15,3 +15,4 @@ export * from './library';
 export * from './interior';
 export * from './dragon';
 export * from './speech';
+export * from './llama';

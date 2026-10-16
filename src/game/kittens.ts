@@ -9,6 +9,7 @@ type Mood = 'toy' | 'play' | 'escape' | 'wander' | 'coin' | 'dragon' | 'carried'
 interface Person {
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
+    label?: Phaser.GameObjects.Image;
     anim: string;
     hold: (seconds: number) => void;
 }
@@ -423,6 +424,7 @@ export class Kittens {
             } else s.stop().setFrame('side-0');
             s.setDepth(s.y);
             person.shadow.setPosition(s.x, s.y);
+            person.label?.setPosition(s.x, s.y - 26);
             visitor.bubble.setPosition(s.x, s.y - 29).setDepth(s.y + 1000);
         }
     }

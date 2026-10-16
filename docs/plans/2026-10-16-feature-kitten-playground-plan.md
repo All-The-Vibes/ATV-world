@@ -1,6 +1,6 @@
 # Kitten playground
 
-- ID: kitten-playground; owner: this session; status: in-progress; blockers: none.
+- ID: kitten-playground; owner: this session; status: done; blockers: none.
 - owning_component: src/game (existing directory; no component table).
 - test_level: functional; functional_risk: medium; execution_class: serial.
 - model_tier: medium; model_requirements: TypeScript/Phaser integration and browser tools.
@@ -12,7 +12,7 @@
   tests/kittens-browser.mjs, package.json, README.md and focused project memory.
 - conflict domains/shared resources: Preview world and one browser server.
 - proof_check: npm run typecheck && npm run build && npm run test:kittens.
-- HITL: none required for implementation; merge explicitly not authorized.
+- HITL: none required for implementation; user subsequently authorized acceptance/merge.
 
 ## Ordered steps and acceptance
 
@@ -32,4 +32,8 @@
 
 Use bounded timers, clean scene lifecycle, shared palette and depth sorting.
 Do not modify production deployment or merge automation. Draft PR has no review
-requests so automatic merge does not run.
+requests while proof runs. The user subsequently authorized accepting/merging it.
+
+Proof: typecheck, build, real-browser kitten proof and existing library/browser
+regression passed after merging concurrent main changes; HQ API proof reused.
+One broad semantic review found no blockers. No remaining slice work.

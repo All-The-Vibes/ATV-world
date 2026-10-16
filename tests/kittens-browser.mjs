@@ -58,6 +58,7 @@ try {
                 && scene.worldBounds.contains(k.meadow.right, k.meadow.bottom),
             fitted: view.contains(k.bounds.left, k.bounds.top) && view.contains(k.bounds.right, k.bounds.bottom),
             people: k.visitors.length,
+            walkers: scene.walkers.length,
         };
     });
     assert.equal(initial.cats, 8);
@@ -65,7 +66,7 @@ try {
     assert.equal(initial.varieties, 6);
     assert.ok(initial.width >= 300 && initial.height >= 170, 'generously sized corral');
     assert.ok(initial.rendered && initial.includes && initial.fitted, 'real art and fit camera include the playground');
-    assert.equal(initial.people, 6, 'existing townspeople can get distracted');
+    assert.equal(initial.people, initial.walkers, 'all existing townspeople can get distracted');
     if (SHOTS) await page.screenshot({ path: join(SHOTS, 'kittens-world.png') });
     const fitZoom = await page.evaluate(() => window.atv.game.scene.getScene('Preview').cameras.main.zoom);
     await page.getByTitle('Zoom in (+)', { exact: true }).click();
