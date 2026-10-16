@@ -33,10 +33,7 @@ Welcome to the ultimate All the Vibes hackathon: a virtual world built by everyo
 | [Git](https://git-scm.com/) | Any recent version | You'll be pushing to `main` a lot |
 | A browser | WebGL 2 | Chrome, Edge, Firefox, or Safari 15+ |
 
-Optional:
-
-- [GitHub CLI](https://cli.github.com/) to watch CI after you push (`gh run watch`).
-- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) 2.60+ with Bicep, if you touch the Azure setup.
+Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh run watch`).
 
 ## Run it
 
