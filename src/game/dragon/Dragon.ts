@@ -161,7 +161,7 @@ export class Dragon {
                 this.climbTo(CRUISE_ALT + 10, dt);
                 if (this.timer <= 0) {
                     this.mode = 'cruise';
-                    this.timer = Phaser.Math.FloatBetween(6, 11);
+                    this.timer = Phaser.Math.FloatBetween(3, 5);
                 }
                 break;
             }
