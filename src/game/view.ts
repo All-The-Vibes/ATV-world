@@ -79,7 +79,7 @@ export class WorldView {
         const input = scene.input;
         // A plain window listener: Phaser's 'keydown' can repeat an event when several keys land in one frame.
         const onKey = (e: KeyboardEvent) => {
-            if (e.ctrlKey || e.metaKey || e.altKey || isTyping()) return;
+            if (!scene.sys.isActive() || e.repeat || e.ctrlKey || e.metaKey || e.altKey || isTyping()) return;
             if (e.key === '+' || e.key === '=') this.zoom(1);
             else if (e.key === '-' || e.key === '_') this.zoom(-1);
             else if (e.key === 'f' || e.key === 'F') this.fit();

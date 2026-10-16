@@ -10,6 +10,7 @@ import { bookUrl, type FeaturedBook } from './books';
 import { workDetails } from './catalog';
 import { archiveEdition, bindingOf, localEdition, recordEdition, resolveSource, type Edition, type Source } from './edition';
 import { findPage, paginate, type Page, type Paged } from './paginate';
+import { fetchWithTimeout } from './request';
 import { hasGutenbergStart, parseGutenberg } from './text';
 import { FACE_NAMES, OVERHANG, SINGLE, SIZE_NAMES, SPREAD, SPREAD_MIN_WIDTH, fontsReady, loadType, measurer, saveType, typeFor, type Type, type TypeSettings } from './typeset';
 
@@ -40,7 +41,7 @@ const openingOf = (page: number, spreads: boolean) => (spreads ? page - (page % 
 
 async function loadLocal(book: FeaturedBook, signal: AbortSignal): Promise<Edition> {
     try {
-        const response = await fetch(bookUrl(book), { signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]) });
+        const response = await fetchWithTimeout(bookUrl(book), {}, signal, 12000);
         if (!response.ok) throw new Error('This book is missing from the shelf. Try again later.');
         const text = await response.text();
         if (!hasGutenbergStart(text)) throw new Error(DAMAGED);
@@ -68,7 +69,7 @@ async function loadEdition(source: Source, signal: AbortSignal): Promise<Edition
         }
     }
     const details = await workDetails(book.key, signal).catch(() => undefined);
-    signal.throwIfAborted();
+    if (signal.aborted) throw new DOMException('Book closed', 'AbortError');
     return recordEdition(book, details, notice);
 }
 

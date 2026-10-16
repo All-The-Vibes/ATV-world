@@ -1,3 +1,5 @@
+import { fetchWithTimeout } from './request.ts';
+
 export type CatalogBook = {
     key: string;
     title: string;
@@ -81,9 +83,7 @@ export async function searchCatalog(query: string, page: number, signal: AbortSi
         limit: '12',
         fields: 'key,title,author_name,first_publish_year,cover_i,ebook_access,id_project_gutenberg,ia',
     });
-    const response = await fetch(`https://openlibrary.org/search.json?${params}`, {
-        signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]),
-    });
+    const response = await fetchWithTimeout(`https://openlibrary.org/search.json?${params}`, {}, signal, 12000);
     if (!response.ok) throw new Error(response.status === 429
         ? 'Open Library is receiving too many requests. Please wait before trying again.'
         : `Open Library could not complete the search (${response.status}). Try again.`);
@@ -99,7 +99,7 @@ export async function workDetails(key: string, signal: AbortSignal): Promise<Wor
     if (!/^\/works\/OL\d+W$/.test(key)) throw new Error('That catalog record is not a book.');
     const cached = works.get(key);
     if (cached) return cached;
-    const response = await fetch(`https://openlibrary.org${key}.json`, { signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]) });
+    const response = await fetchWithTimeout(`https://openlibrary.org${key}.json`, {}, signal, 12000);
     if (!response.ok) throw new Error(`Open Library could not load this record (${response.status}).`);
     const details = parseWork(await response.json());
     if (works.size >= 40) works.delete(works.keys().next().value!);

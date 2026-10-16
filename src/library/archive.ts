@@ -1,4 +1,5 @@
 import type { CatalogBook } from './catalog.ts';
+import { fetchWithTimeout } from './request.ts';
 import { hasGutenbergStart, parseGutenberg, type ParsedText } from './text.ts';
 
 /** A Project Gutenberg text fetched from the Internet Archive's Gutenberg mirror. */
@@ -69,11 +70,11 @@ export function checkItem(value: unknown, gutenberg = ''): { name: string; size:
 }
 
 async function loadCandidate(candidate: Candidate, signal: AbortSignal): Promise<ArchiveText> {
-    const meta = await fetch(`https://archive.org/metadata/${encodeURIComponent(candidate.id)}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(12000)]) });
+    const meta = await fetchWithTimeout(`https://archive.org/metadata/${encodeURIComponent(candidate.id)}`, {}, signal, 12000);
     if (!meta.ok) throw new Error(`The Internet Archive could not find this item (${meta.status}).`);
     const file = checkItem(await meta.json(), candidate.gutenberg);
     const path = file.name.split('/').map(encodeURIComponent).join('/');
-    const response = await fetch(`https://archive.org/download/${encodeURIComponent(candidate.id)}/${path}`, { signal: AbortSignal.any([signal, AbortSignal.timeout(20000)]) });
+    const response = await fetchWithTimeout(`https://archive.org/download/${encodeURIComponent(candidate.id)}/${path}`, {}, signal, 20000);
     if (!response.ok) throw new Error(`The Internet Archive could not send the text (${response.status}).`);
     if (Number(response.headers.get('content-length') ?? 0) > MAX_BYTES) throw new Error('This text is too large to open here.');
     const buffer = await response.arrayBuffer();
