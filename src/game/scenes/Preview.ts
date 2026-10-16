@@ -61,7 +61,7 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
     private town?: Town;
-    /** The disco down in the south-west corner: light-up floor, glitter ball, dancers (see ../disco). */
+    /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
     private moles?: Moles;
@@ -136,7 +136,7 @@ export class Preview extends Phaser.Scene {
         this.pool = new Pool(this, 160, -215);
         this.solids.push(this.pool.deckBounds());
         this.includeInWorld(this.pool);
-        this.disco = new Disco(this, -250, 334);
+        this.disco = new Disco(this, -290, -250);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
         this.moles = new Moles(this, 150, 335);
         this.moles.parts.forEach((part) => this.includeInWorld(part));
