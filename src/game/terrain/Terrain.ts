@@ -25,12 +25,13 @@ const PROP_DECOR: { name: string; x: number; y: number; opts?: PropOptions; flip
     { name: 'flowers', x: -270, y: -64, opts: { colors: ['red', 'pink', 'yellow'] } },
     { name: 'bush', x: -364, y: -70, opts: { seed: 4 } },
     { name: 'bush', x: -246, y: -70, opts: { seed: 9, berries: 'red' } },
-    // By ATV HQ and the pond.
+    // By ATV HQ.
     { name: 'bush', x: 164, y: -98, opts: { seed: 6 } },
     { name: 'bush', x: 236, y: -66, opts: { seed: 12, berries: 'pink' } },
-    { name: 'rock', x: 214, y: -132, opts: { seed: 3, moss: 'leaf' } },
-    { name: 'rock', x: 386, y: -96, opts: { seed: 8 } },
-    { name: 'mushroom', x: 352, y: -64, opts: { color: 'red' } },
+    // By the pond.
+    { name: 'rock', x: POND.x - 86, y: POND.y - 10, opts: { seed: 3, moss: 'leaf' } },
+    { name: 'rock', x: POND.x + 86, y: POND.y + 26, opts: { seed: 8 } },
+    { name: 'mushroom', x: POND.x + 52, y: POND.y + 58, opts: { color: 'red' } },
     // Under the trees.
     { name: 'mushroom', x: -176, y: -92, opts: { color: 'red' } },
     { name: 'mushroom', x: 384, y: 128, opts: { color: 'orange' } },
@@ -54,7 +55,8 @@ const PROP_DECOR: { name: string; x: number; y: number; opts?: PropOptions; flip
 ];
 
 /** Reeds and cattails around the pond. */
-const REEDS: [number, number][] = [[230, -116], [244, -142], [282, -152], [318, -154], [352, -146], [372, -128], [362, -98]];
+const REEDS = ([[-70, 6], [-56, -20], [-18, -30], [18, -32], [52, -24], [72, -6], [62, 24]] as const)
+    .map(([dx, dy]): [number, number] => [POND.x + dx, POND.y + dy]);
 
 /**
  * The ground of town: one big painted texture (meadow, plaza, lanes, pond) plus a few dozen

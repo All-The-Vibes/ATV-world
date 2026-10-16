@@ -3,7 +3,7 @@ import {
     PixelCanvas, addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
     type ColorName, type Facing,
 } from '../kit';
-import { BOARD, DECK, STEPS_X, TOWER, WATER, boardArt, piranhaArt, poolArt, rippleArt, splashArt, towerArt, wakeArt, wednesdayArt } from './art';
+import { BOARD, DECK, POOL_FRAMES, STEPS_X, TOWER, WATER, boardArt, piranhaArt, poolArt, rippleArt, splashArt, towerArt, wakeArt, wednesdayArt } from './art';
 import { FLOP_QUIPS, QUIPS, WEDNESDAY_QUOTES } from './quips';
 
 type Vec = { x: number; y: number };
@@ -54,12 +54,13 @@ export class Pool {
     private readonly swimmers: Swimmer[] = [];
     private readonly queue: Swimmer[] = [];
     private readonly board: Phaser.GameObjects.Image;
-    private readonly deck: Phaser.GameObjects.Sprite;
+    private readonly deck: Phaser.GameObjects.Image;
     private readonly tower: Phaser.GameObjects.Image;
     private readonly quips: string[];
     private readonly flops: string[];
     private nextQuip = 0;
     private nextFlop = 0;
+    private clock = 0;
     private readonly wednesday: Phaser.GameObjects.Image;
     private readonly wednesdayBubble: Phaser.GameObjects.Image;
     private readonly wednesdayQuoteKeys: string[] = [];
@@ -95,7 +96,8 @@ export class Pool {
         this.quips = Phaser.Utils.Array.Shuffle([...QUIPS]);
         this.flops = Phaser.Utils.Array.Shuffle([...FLOP_QUIPS]);
 
-        this.deck = scene.add.sprite(x, y, 'pool', 0).setOrigin(0, 0).setDepth(-1e7).play('pool');
+        // A plain image (not a sprite), so the terrain treats it like a building and keeps grass and rocks off it.
+        this.deck = scene.add.image(x, y, 'pool', 0).setOrigin(0, 0).setDepth(-1e7);
         this.tower = scene.add.image(x + TOWER_LEFT, y + LADDER.y, 'pool-tower').setOrigin(0, 1).setDepth(y + LADDER.y);
         this.board = scene.add.image(x + HINGE_X, y + PLATFORM_Y + 1.5, 'pool-board')
             .setOrigin(0, 0.5)
@@ -236,6 +238,9 @@ export class Pool {
 
     update(dt: number) {
         dt = Math.min(dt, 0.1);
+        this.clock += dt;
+        const frame = Math.floor(this.clock * 4) % POOL_FRAMES;
+        if (this.deck.frame.name !== String(frame)) this.deck.setFrame(frame);
         for (const s of this.swimmers) {
             s.t += dt;
             const p = s.sprite;
