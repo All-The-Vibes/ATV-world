@@ -319,7 +319,7 @@ export class Preview extends Phaser.Scene {
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.billboard.bounds());
         const rightEdge = Math.max(this.town?.bounds().right ?? 420, 420);
-        this.usaBillboard = new UsaBillboard(this, rightEdge - 75, -165);
+        this.usaBillboard = new UsaBillboard(this, rightEdge - 275, -165);
         this.usaBillboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.usaBillboard.footprint);
         const trafficLight = new TrafficLight(this, 60, 170);
