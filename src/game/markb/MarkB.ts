@@ -13,29 +13,11 @@ const LOOK = randomLook('mark-b', {
 
 const QUOTES = [
     'I HAVE BEEN FLYING FOR DAYS.',
-    'I ASKED MY AI IF I AM LOST. IT SAID YES.',
     'IS THAT A DUCK?',
     'I AM HUNGRY.',
-    'DOES AI GET HUNGRY TOO?',
-    'ARE WE THERE YET?',
-    'I NEED A NAP.',
-    'I TOLD MY AI I AM HUNGRY. IT SENT ME A RECIPE.',
-    'MY ARMS ARE TIRED.',
-    'WHERE DID I PARK?',
-    'I FORGOT WHAT I CAME HERE FOR.',
     'WHAT IF THE AI IS FLYING ME?',
-    'IS THAT MY HOUSE?',
-    'I THINK I AM LOST.',
-    'MY AI SAYS I SHOULD LAND. I SAID NO THANK YOU.',
     'I SHOULD HAVE BROUGHT A SANDWICH.',
-    'IS THAT A DUCK OR AN AI DUCK?',
     'HELLO DOWN THERE!',
-    'I WONDER IF THE AI CAN SEE ME FROM THE CLOUD.',
-    'WHO LEFT THE SUN ON?',
-    'I HOPE MY AI REMEMBERED TO CHARGE ITSELF.',
-    'IS IT LUNCH YET?',
-    'I THINK THE JETPACK IS MAKING A FUNNY NOISE.',
-    'I ASKED THE AI HOW TO GET DOWN. IT WROTE A VERY LONG ANSWER.',
 ];
 
 /** Where the action is: the plaza, ATV HQ and the shops around it (world pixels). */
@@ -53,10 +35,7 @@ const SCARED = [
     'HOW DO I GET DOWN?',
     'DO NOT LOOK DOWN. DO NOT LOOK DOWN.',
     'WHY DID I PUT ON A JETPACK?',
-    'THIS WAS A BAD IDEA.',
-    'I AM NOT LOOKING. I AM NOT LOOKING.',
     'THIS IS HIGHER THAN I THOUGHT.',
-    'HELLO? CAN SOMEONE PUT ME DOWN?',
 ];
 
 /** Every fourth stop he remembers how high up he is. */
