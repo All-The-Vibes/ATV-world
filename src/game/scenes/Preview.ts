@@ -40,6 +40,7 @@ import { Tokens } from '../tokens/Tokens';
 import { TugOfWar } from '../tugOfWar/TugOfWar';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
+import { MarkB } from '../markb/MarkB';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
 
@@ -88,6 +89,8 @@ export class Preview extends Phaser.Scene {
     /** A tug of war that never ends, with people shouting about it (see ../tugOfWar). */
     private tugOfWar?: TugOfWar;
     private ufo?: UFO;
+    /** Mark B, jetpacking round the whole map and saying nerdy AI things (see ../markb). */
+    private markB?: MarkB;
     private incidents?: Incidents;
     private ambience?: Ambience;
     private ground?: Phaser.GameObjects.TileSprite;
@@ -274,6 +277,7 @@ export class Preview extends Phaser.Scene {
         this.talkingMoles = new TalkingMoles(this);
         this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
+        this.markB = new MarkB(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
             open: (x, y) => {
@@ -517,6 +521,7 @@ export class Preview extends Phaser.Scene {
         this.pool?.update(dt);
         this.tugOfWar?.update(dt);
         this.ufo?.update(dt);
+        this.markB?.update(dt);
         this.disco?.update(dt);
         this.lake?.update(dt, this.player && !this.insideHQ && !this.inHell ? this.player : undefined);
         this.billboard?.update(dt);
