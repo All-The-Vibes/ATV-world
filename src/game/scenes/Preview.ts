@@ -226,7 +226,7 @@ export class Preview extends Phaser.Scene {
             console.error('[lake]', e);
         }
         this.fitWorld();
-        this.billboard = new Billboard(this, 330, 55);
+        this.billboard = new Billboard(this, 368, 415);
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.billboard.bounds());
         const trafficLight = new TrafficLight(this, 60, 170);
