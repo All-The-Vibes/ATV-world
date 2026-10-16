@@ -29,6 +29,7 @@ body,
 
 #game canvas {
     image-rendering: pixelated;
+    touch-action: none;
 }
 
 .banner {
@@ -55,4 +56,53 @@ body,
 .banner p {
     margin: 0;
     font-size: 20px;
+}
+
+.zoom {
+    position: fixed;
+    right: 16px;
+    bottom: 16px;
+    display: flex;
+    gap: 6px;
+}
+
+.zoom button {
+    min-width: 40px;
+    height: 40px;
+    padding: 0 10px;
+    font: 12px 'Press Start 2P', monospace;
+    color: var(--cream);
+    background: var(--ink);
+    border: 3px solid var(--night);
+    cursor: pointer;
+}
+
+.zoom button:hover {
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.live {
+    position: fixed;
+    left: 16px;
+    bottom: 16px;
+    max-width: calc(100vw - 200px);
+    padding: 6px 12px;
+    overflow: hidden;
+    font-size: 20px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    color: var(--cream);
+    text-decoration: none;
+    background: rgb(20 16 30 / 85%);
+    border: 3px solid var(--night);
+}
+
+.live .dot {
+    color: #c4314b;
+}
+
+.live.updating {
+    color: var(--gold);
+    border-color: var(--gold);
 }

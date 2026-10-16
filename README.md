@@ -43,6 +43,8 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 
 - `src/game/kit/` draws all the pixel art in code: characters, buildings, trees, props, and a tiny font. Every color slot takes any color, and every catalog is open, so add your own.
 - `src/game/world/layout.ts` is the lot grid the town grows on.
-- `src/game/scenes/Preview.ts` is a placeholder street until the real world lands.
+- `src/game/scenes/Preview.ts` is the world on the live screen.
+- `src/game/view.ts` is the camera: F fits the whole world, +/- or the mouse wheel zooms, dragging looks around, and the view survives reloads.
+- `src/live.ts` is the LIVE badge in the bottom left. It shows the commit that's live and reloads the page when a newer push deploys.
 
-Every push to `main` runs CI (typecheck and build) and CodeQL.
+Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.

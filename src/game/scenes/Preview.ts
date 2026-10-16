@@ -3,8 +3,9 @@ import {
     PixelCanvas, PROPS, addPixels, buildingArt, characterSheet, fbm, lookKey, paintProp, randomLook,
     shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
+import { WorldView } from '../view';
 
-/** Placeholder scene: a little street showing off the pixel-art kit until the real world lands. */
+/** The world on the live screen: a little street built with the pixel-art kit. */
 export class Preview extends Phaser.Scene {
     private walkers: { sprite: Phaser.GameObjects.Sprite; shadow: Phaser.GameObjects.Image; dir: number; speed: number }[] = [];
     private ground?: Phaser.GameObjects.TileSprite;
@@ -14,15 +15,11 @@ export class Preview extends Phaser.Scene {
         marker: Phaser.GameObjects.Image;
     };
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
-    private zoomInKey?: Phaser.Input.Keyboard.Key;
-    private zoomOutKey?: Phaser.Input.Keyboard.Key;
     private playerFacing: Facing = 'down';
     private contentBounds?: Phaser.Geom.Rectangle;
     private readonly worldBounds = new Phaser.Geom.Rectangle(-390, -220, 780, 540);
-    private readonly zoomLevels = [1, 2, 3, 4] as const;
-    private overviewZoom = 1;
-    private userAdjustedZoom = false;
-    private cameraReady = false;
+    /** The camera: F fits the world, +/-/wheel zoom, drag looks around (see ../view.ts). */
+    private view?: WorldView;
 
     constructor() {
         super('Preview');
@@ -49,13 +46,11 @@ export class Preview extends Phaser.Scene {
         this.prop('bench', 74, 230);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.createPlayer();
-        this.setupCamera();
+        this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
     }
 
     update(_t: number, dtMs: number) {
         const dt = dtMs / 1000;
-        if (this.zoomInKey && Phaser.Input.Keyboard.JustDown(this.zoomInKey)) this.adjustZoom(1);
-        if (this.zoomOutKey && Phaser.Input.Keyboard.JustDown(this.zoomOutKey)) this.adjustZoom(-1);
 
         const walkerLeft = this.worldBounds.left + 24;
         const walkerRight = this.worldBounds.right - 24;
@@ -178,59 +173,7 @@ export class Preview extends Phaser.Scene {
             Phaser.Input.Keyboard.KeyCodes.DOWN,
             Phaser.Input.Keyboard.KeyCodes.LEFT,
             Phaser.Input.Keyboard.KeyCodes.RIGHT,
-            Phaser.Input.Keyboard.KeyCodes.PLUS,
-            Phaser.Input.Keyboard.KeyCodes.MINUS,
         ]);
-    }
-
-    private setupCamera() {
-        this.cameraReady = true;
-        this.zoomInKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.PLUS);
-        this.zoomOutKey = this.input.keyboard?.addKey(Phaser.Input.Keyboard.KeyCodes.MINUS);
-        this.input.on('wheel', (
-            _pointer: Phaser.Input.Pointer,
-            _gameObjects: Phaser.GameObjects.GameObject[],
-            _deltaX: number,
-            deltaY: number,
-        ) => this.adjustZoom(deltaY < 0 ? 1 : -1));
-
-        const fit = () => this.fitCamera();
-        fit();
-        this.scale.on('resize', fit);
-    }
-
-    private fitCamera() {
-        const cam = this.cameras.main;
-        this.overviewZoom = 1;
-        cam.setRoundPixels(true);
-        if (!this.userAdjustedZoom) cam.setZoom(this.overviewZoom);
-        this.updateCameraMode();
-    }
-
-    private adjustZoom(direction: -1 | 1) {
-        const cam = this.cameras.main;
-        const currentIndex = this.zoomLevels.reduce(
-            (best, level, i) => Math.abs(level - cam.zoom) < Math.abs(this.zoomLevels[best] - cam.zoom) ? i : best,
-            0,
-        );
-        const nextIndex = Phaser.Math.Clamp(currentIndex + direction, 0, this.zoomLevels.length - 1);
-        const zoom = this.zoomLevels[nextIndex];
-        if (zoom === cam.zoom) return;
-        this.userAdjustedZoom = true;
-        cam.setZoom(zoom);
-        this.updateCameraMode();
-    }
-
-    private updateCameraMode() {
-        const cam = this.cameras.main;
-        const worldFits = this.worldBounds.width * cam.zoom <= this.scale.width
-            && this.worldBounds.height * cam.zoom <= this.scale.height;
-        if (this.player && (cam.zoom > this.overviewZoom || !worldFits)) {
-            cam.startFollow(this.player.sprite, true, 1, 1);
-        } else {
-            cam.stopFollow();
-            cam.centerOn(this.worldBounds.centerX, this.worldBounds.centerY);
-        }
     }
 
     private includeInWorld(object: { getBounds: () => Phaser.Geom.Rectangle }) {
@@ -256,7 +199,6 @@ export class Preview extends Phaser.Scene {
         this.ground
             ?.setPosition(this.worldBounds.centerX, this.worldBounds.centerY)
             .setSize(Math.max(2048, this.worldBounds.width + 512), Math.max(2048, this.worldBounds.height + 512));
-        if (this.cameraReady) this.fitCamera();
     }
 
     private movePlayer(dt: number) {

@@ -3,7 +3,7 @@ import { Preview } from './scenes/Preview';
 
 /** Create the game inside `parent`. The canvas always fills it. */
 export function createGame(parent: HTMLElement): Phaser.Game {
-    return new Phaser.Game({
+    const game = new Phaser.Game({
         type: Phaser.AUTO,
         parent,
         backgroundColor: '#14101e',
@@ -12,4 +12,22 @@ export function createGame(parent: HTMLElement): Phaser.Game {
         scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth || 800, height: parent.clientHeight || 600 },
         scene: [Preview],
     });
+
+    // An error thrown mid-frame would stop the game loop for good, so log it and keep going.
+    const step = game.step.bind(game);
+    let lastLog = -Infinity;
+    game.step = (time: number, delta: number) => {
+        try {
+            step(time, delta);
+        } catch (e) {
+            if (time - lastLog > 5000) {
+                lastLog = time;
+                console.error('[ATV] A frame failed (the world keeps running):', e);
+            }
+        }
+    };
+
+    // Handy from the browser console: atv.game.scene.getScene('Preview'), ...
+    (window as unknown as { atv: unknown }).atv = { game };
+    return game;
 }
