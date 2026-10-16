@@ -105,6 +105,7 @@ checked October 16, 2026):
 | Steph / Daenerys | `stephschofield` | `2c3ea0c` / `2736f55` |
 | Ahmed / campus walkers | `Bakar404` | `2f93583` / `0431fbe` |
 | Bike gang / Locke siblings | `ShahabName` | `e205f51` / `fba5687` |
+| Wednesday | `ShahabName` | `3226433` |
 | Repair crew / factory role templates / saucer pilot | `aifateen` | `e59d0a2` / `861331c` / `155f1b7` |
 | Pool swimmers / tug-of-war pullers | `markbriggs-ms` | `0da492f` / `1030554` |
 | Ollama / giant / talking lawn moles | `markbriggs-ms` | `132c652` / `39ba278` / `ea467d3` |

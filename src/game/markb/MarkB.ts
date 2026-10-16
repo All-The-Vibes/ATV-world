@@ -41,10 +41,10 @@ const STOPS: Stop[] = NEAR.map(([x, y], i): Stop[] =>
     i % 2 === 1 ? [{ x, y, far: false }, { x: FAR[(i - 1) / 2][0], y: FAR[(i - 1) / 2][1], far: true }] : [{ x, y, far: false }],
 ).flat();
 
-const ALTITUDE = 40;
+const ALTITUDE = 50;
 const SPEED = 70;
 /** Mark is drawn at character size, then blown up so he reads from the fit view. */
-const SIZE = 2.5;
+const SIZE = 4;
 const TALK = 3.6;
 const EMOJI = 3;
 const FADE = 0.6;
@@ -175,7 +175,7 @@ export class MarkB {
         if (hovering) {
             const emoji = this.mode === 'emoji';
             const alpha = emoji ? Phaser.Math.Clamp((EMOJI - this.timer) / FADE, 0, 1) : 1;
-            const scale = emoji ? 2 + Math.max(0, 0.3 - this.timer) : 1;
+            const scale = emoji ? 3 + Math.max(0, 0.3 - this.timer) : 1.5;
             this.bubble.setVisible(true).setAlpha(alpha).setScale(scale).setPosition(gx, top - this.sprite.displayHeight - 12);
         }
     }

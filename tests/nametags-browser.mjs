@@ -68,6 +68,7 @@ try {
             ['bikers', s.bikeGang.bikers.map(b => b.sprite), 'ShahabName'],
             ['Locke siblings', s.lockAndKey.npcs.map(n => n.sprite), 'ShahabName'],
             ['swimmers', s.pool.swimmers.map(w => w.sprite), 'markbriggs-ms'],
+            ['Wednesday', [s.pool.wednesday], 'ShahabName'],
             ['tug of war', s.tugOfWar.pullers.map(p => p.sprite), 'markbriggs-ms'],
             ['kittens', s.kittens.cats.map(c => c.sprite), 'DeaderestPool'],
             ['talking moles', s.talkingMoles.burrows.map(b => b.mole), 'markbriggs-ms'],
@@ -369,7 +370,7 @@ try {
     await page.clock.runFor(400);
     assert.equal(await page.evaluate(() => !window.testHqLabel.scene), true, 'HQ departure destroys the label');
     assert.deepEqual(errors, [], 'no browser or game-loop errors');
-    console.log('Creator nametag browser checks passed: attribution, movement, turning, zoom, visibility, speech, HQ, scene transitions, cleanup, desktop and mobile.');
+    console.log('Creator nametag browser checks passed: global toggle, verified coverage, keyboard, movement, visibility, speech, scene transitions, cleanup, desktop and mobile.');
 } finally {
     await browser?.close();
     await server.close();

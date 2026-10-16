@@ -1,7 +1,10 @@
 import Phaser from 'phaser';
-import { addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, type ColorName, type Facing } from '../kit';
-import { BOARD, DECK, STEPS_X, TOWER, WATER, boardArt, poolArt, rippleArt, splashArt, towerArt, wakeArt } from './art';
-import { FLOP_QUIPS, QUIPS } from './quips';
+import {
+    PixelCanvas, addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
+    type ColorName, type Facing,
+} from '../kit';
+import { BOARD, DECK, STEPS_X, TOWER, WATER, boardArt, piranhaArt, poolArt, rippleArt, splashArt, towerArt, wakeArt, wednesdayArt } from './art';
+import { FLOP_QUIPS, QUIPS, WEDNESDAY_QUOTES } from './quips';
 
 type Vec = { x: number; y: number };
 type Mode = 'queue' | 'climb' | 'board' | 'bounce' | 'air' | 'swim';
@@ -57,6 +60,23 @@ export class Pool {
     private readonly flops: string[];
     private nextQuip = 0;
     private nextFlop = 0;
+    private readonly wednesday: Phaser.GameObjects.Image;
+    private readonly wednesdayBubble: Phaser.GameObjects.Image;
+    private readonly wednesdayQuoteKeys: string[] = [];
+    private wednesdayQuoteTimer = 1.5;
+    private wednesdayTalkRemaining = 0;
+    private lastWednesdayQuote = -1;
+    private readonly piranhas: {
+        sprite: Phaser.GameObjects.Sprite;
+        wake: Phaser.GameObjects.Image;
+        cx: number;
+        cy: number;
+        rx: number;
+        ry: number;
+        speed: number;
+        phase: number;
+    }[] = [];
+    private piranhaClock = 0;
 
     constructor(private readonly scene: Phaser.Scene, private readonly x: number, private readonly y: number) {
         ensurePixels(scene, 'pool', poolArt);
@@ -65,9 +85,11 @@ export class Pool {
         ensurePixels(scene, 'pool-splash', splashArt);
         ensurePixels(scene, 'pool-ripple', rippleArt);
         ensurePixels(scene, 'pool-wake', wakeArt);
-        for (const [key, frames, frameRate] of [['pool', 3, 4], ['pool-splash', 5, 14]] as const) {
+        ensurePixels(scene, 'pool-wednesday', wednesdayArt);
+        ensurePixels(scene, 'pool-piranha', piranhaArt);
+        for (const [key, frames, frameRate] of [['pool', 3, 4], ['pool-splash', 5, 14], ['pool-piranha', 2, 7]] as const) {
             if (!scene.anims.exists(key)) {
-                scene.anims.create({ key, frames: Array.from({ length: frames }, (_, frame) => ({ key, frame })), frameRate, repeat: key === 'pool' ? -1 : 0 });
+                scene.anims.create({ key, frames: Array.from({ length: frames }, (_, frame) => ({ key, frame })), frameRate, repeat: key === 'pool-splash' ? 0 : -1 });
             }
         }
         this.quips = Phaser.Utils.Array.Shuffle([...QUIPS]);
@@ -79,6 +101,48 @@ export class Pool {
             .setOrigin(0, 0.5)
             .setDepth(y + LADDER.y + 0.5);
         for (let i = 0; i < SWIMMERS; i++) this.addSwimmer(i);
+
+        // Wednesday Addams standing on the pool edge overlooking the piranha-filled water.
+        const wx = x + WATER.x + WATER.w - 22;
+        const wy = y + WATER.y + 2;
+        scene.add.image(wx, wy, shadowTexture(scene, 10)).setAlpha(0.3).setDepth(-1e7 + 1);
+        this.wednesday = scene.add.image(wx, wy, 'pool-wednesday').setOrigin(0.5, 1).setDepth(wy + 2);
+        this.wednesday.setName('Wednesday');
+
+        const labelKey = 'pool-wednesday-label';
+        const labelCanvas = new PixelCanvas(miniTextWidth('WEDNESDAY') + 6, 9);
+        labelCanvas.rect(0, 0, labelCanvas.width, 9, 'ink').rect(0, 0, labelCanvas.width, 1, 'plum');
+        miniText(labelCanvas, 3, 2, 'WEDNESDAY', 'white');
+        addPixels(scene, labelKey, labelCanvas);
+        scene.add.image(wx, wy - 25, labelKey).setOrigin(0.5, 1).setDepth(wy + 3);
+
+        WEDNESDAY_QUOTES.forEach((quote, idx) => {
+            const k = `pool-wednesday-quote-${idx}`;
+            ensurePixels(scene, k, () => speechArt(quote, 26));
+            this.wednesdayQuoteKeys.push(k);
+        });
+        this.wednesdayBubble = scene.add.image(wx, wy - 36, this.wednesdayQuoteKeys[0])
+            .setOrigin(0.5, 1)
+            .setDepth(1e5 + 2)
+            .setVisible(false);
+        addCreatorNametag(this.wednesday, { githubUsername: 'ShahabName' }, { gap: 16, speech: () => this.wednesdayBubble });
+
+        // School of snapping piranhas swimming in the pool water around Wednesday.
+        const piranhaSpots = [
+            { cx: x + WATER.x + 34, cy: y + WATER.y + 20, rx: 18, ry: 7, speed: 1.7, phase: 0 },
+            { cx: x + WATER.x + 68, cy: y + WATER.y + 34, rx: 22, ry: 8, speed: 2.1, phase: 1.4 },
+            { cx: x + WATER.x + 98, cy: y + WATER.y + 22, rx: 19, ry: 6, speed: 1.9, phase: 2.8 },
+            { cx: x + WATER.x + 84, cy: y + WATER.y + 46, rx: 20, ry: 7, speed: 2.3, phase: 4.1 },
+            { cx: x + WATER.x + 112, cy: y + WATER.y + 38, rx: 14, ry: 6, speed: 2.5, phase: 5.2 },
+        ];
+        for (const spot of piranhaSpots) {
+            const wake = scene.add.image(spot.cx, spot.cy + 2, 'pool-wake').setScale(0.75).setAlpha(0.7).setDepth(SWIM_DEPTH);
+            const sprite = scene.add.sprite(spot.cx, spot.cy, 'pool-piranha', 0)
+                .setOrigin(0.5, 0.5)
+                .setDepth(SWIM_DEPTH + 1.5)
+                .play('pool-piranha');
+            this.piranhas.push({ sprite, wake, ...spot });
+        }
     }
 
     /** The deck plus the tower, for fitting the world around it. */
@@ -250,6 +314,40 @@ export class Pool {
                 s.bubble.setPosition(Math.round(p.x), Math.round(p.y - 23));
             }
             s.bubble.setVisible(s.talk > 0);
+        }
+
+        // Update circling piranhas in the pool water.
+        this.piranhaClock += dt;
+        for (const f of this.piranhas) {
+            const angle = this.piranhaClock * f.speed + f.phase;
+            const px = Math.round(f.cx + Math.cos(angle) * f.rx);
+            const py = Math.round(f.cy + Math.sin(angle * 1.3) * f.ry);
+            const vx = -Math.sin(angle) * f.rx * f.speed;
+            f.sprite.setPosition(px, py).setFlipX(vx < 0);
+            f.wake.setPosition(px, py + 2);
+        }
+
+        // Wednesday says a random quote from the series with a 10-second pause between quotes.
+        if (this.wednesdayTalkRemaining > 0) {
+            this.wednesdayTalkRemaining -= dt;
+            if (this.wednesdayTalkRemaining <= 0) {
+                this.wednesdayBubble.setVisible(false);
+                this.wednesdayQuoteTimer = 10;
+            }
+        } else {
+            this.wednesdayQuoteTimer -= dt;
+            if (this.wednesdayQuoteTimer <= 0 && this.wednesdayQuoteKeys.length > 0) {
+                const count = this.wednesdayQuoteKeys.length;
+                const next = count > 1
+                    ? (this.lastWednesdayQuote + Phaser.Math.Between(1, count - 1)) % count
+                    : 0;
+                this.lastWednesdayQuote = next;
+                this.wednesdayBubble
+                    .setTexture(this.wednesdayQuoteKeys[next])
+                    .setPosition(Math.round(this.wednesday.x), Math.round(this.wednesday.y - 36))
+                    .setVisible(true);
+                this.wednesdayTalkRemaining = 4.5;
+            }
         }
     }
 

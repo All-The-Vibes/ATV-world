@@ -198,6 +198,65 @@ body,
     color: #fbe46f;
 }
 
+/* Top-left switches for Night View and Stranger Things (Upside Down) View. */
+.view-switches {
+    position: fixed;
+    left: 16px;
+    top: 174px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    z-index: 5;
+}
+
+.view-switch {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 10px;
+    font: 9px 'Press Start 2P', monospace;
+    color: var(--cream);
+    background: rgb(20 16 30 / 94%);
+    border: 3px solid var(--night);
+    box-shadow: 0 0 0 3px var(--ink), 4px 4px 0 rgb(20 16 30 / 35%);
+    cursor: pointer;
+    text-align: left;
+}
+
+.view-switch:hover {
+    border-color: var(--gold);
+    color: var(--gold);
+}
+
+.view-switch[data-active] {
+    border-color: #7fd6f0;
+    color: #7fd6f0;
+    background: rgb(28 47 94 / 92%);
+}
+
+.view-switch-stranger[data-active] {
+    border-color: #c4314b;
+    color: #fbe46f;
+    background: rgb(110 31 58 / 92%);
+    box-shadow: 0 0 0 3px var(--ink), 0 0 12px rgb(196 49 75 / 65%);
+}
+
+.view-switch-dot {
+    font-size: 12px;
+    line-height: 1;
+}
+
+@media (max-width: 600px) {
+    .view-switches {
+        top: 108px;
+        left: 12px;
+    }
+    .view-switch {
+        font-size: 8px;
+        padding: 5px 8px;
+    }
+}
+
 .sr-only {
     position: absolute;
     width: 1px;
