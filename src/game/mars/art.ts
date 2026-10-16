@@ -158,6 +158,36 @@ function rover() {
     return { canvas: pc, frames: stripFrames(2, 28, 22) };
 }
 
+/** Skin and jumpsuit colors for each kind of Martian. */
+export const MARTIAN_LOOKS = [
+    { skin: 'grass', shade: 'leaf', suit: 'violet' },
+    { skin: 'lime', shade: 'grass', suit: 'blue' },
+    { skin: 'cyan', shade: 'sky', suit: 'red' },
+    { skin: 'pink', shade: 'violet', suit: 'navy' },
+] as const;
+
+/** A little Martian: big head, huge black eyes, bobbly antennae. Frames: walk, walk, wave. */
+function martian(look: (typeof MARTIAN_LOOKS)[number]) {
+    const pc = new PixelCanvas(48, 20);
+    for (let f = 0; f < 3; f++) {
+        const ox = f * 16;
+        pc.line(ox + 5, 4, ox + 3, 1, look.shade).line(ox + 10, 4, ox + 12, 1, look.shade);
+        pc.set(ox + 3, 0, 'yellow').set(ox + 12, 0, 'yellow');
+        pc.ellipse(ox + 8, 7, 6, 4.5, (_x, _y, _nx, ny) => (ny > 0.55 ? look.shade : look.skin));
+        pc.ellipse(ox + 5.5, 7, 1.8, 2, 'ink').ellipse(ox + 10.5, 7, 1.8, 2, 'ink');
+        pc.set(ox + 5, 6, 'white').set(ox + 10, 6, 'white');
+        pc.rect(ox + 7, 10, 2, 1, look.shade);
+        pc.rect(ox + 5, 12, 6, 4, look.suit).rect(ox + 5, 14, 6, 1, 'gold');
+        pc.set(ox + 4, 13, look.skin).set(ox + 4, 14, look.skin);
+        if (f === 2) pc.set(ox + 11, 12, look.skin).set(ox + 12, 11, look.skin).set(ox + 12, 10, look.skin);
+        else pc.set(ox + 11, 13, look.skin).set(ox + 11, 14, look.skin);
+        const [l, r] = f === 1 ? [1, 0] : f === 0 ? [0, 1] : [0, 0];
+        pc.rect(ox + 6, 16, 1, 3 - l, look.shade).rect(ox + 9, 16, 1, 3 - r, look.shade);
+    }
+    pc.outline('ink');
+    return { canvas: pc, frames: stripFrames(3, 16, 20) };
+}
+
 /** Everything on the Martian surface. */
 export function marsTextures(scene: Phaser.Scene) {
     rocketTextures(scene);
@@ -169,6 +199,13 @@ export function marsTextures(scene: Phaser.Scene) {
     ensurePixels(scene, 'mars-rover', rover);
     ensurePixels(scene, 'mars-dust', () => new PixelCanvas(2, 1).rect(0, 0, 2, 1, 'sand'));
     ensurePixels(scene, 'mars-sign', () => sign('WELCOME TO MARS'));
+    MARTIAN_LOOKS.forEach((look, i) => {
+        const key = `martian-${i}`;
+        ensurePixels(scene, key, () => martian(look));
+        if (!scene.anims.exists(key)) {
+            scene.anims.create({ key, frames: [0, 1].map((frame) => ({ key, frame })), frameRate: 6, repeat: -1 });
+        }
+    });
     if (!scene.anims.exists('mars-rover')) {
         scene.anims.create({
             key: 'mars-rover',

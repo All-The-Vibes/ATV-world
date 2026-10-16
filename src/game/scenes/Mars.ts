@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { PLAYER_LOOK, addCreatorNametag, addPixels, shadowTexture, speechArt, type Facing } from '../kit';
 import { marsTextures } from '../mars/art';
+import { Martians } from '../mars/Martians';
 import { Rocket } from '../mars/Rocket';
 
 /** The walkable part of Mars. */
@@ -19,6 +20,7 @@ export class Mars extends Phaser.Scene {
     private hint!: Phaser.GameObjects.Image;
     private rover!: Phaser.GameObjects.Sprite;
     private roverDir = 1;
+    martians!: Martians;
     private dust: { image: Phaser.GameObjects.Image; speed: number }[] = [];
     /** Aboard the rocket (landing or taking off), so the player can't walk. */
     private flying = true;
@@ -47,6 +49,11 @@ export class Mars extends Phaser.Scene {
         this.add.image(42, 22, 'mars-flag').setOrigin(0.5, 1).setDepth(22);
         this.add.image(PAD.x, PAD.y + 40, 'mars-sign').setDepth(PAD.y + 40);
         this.rover = this.add.sprite(-80, 150, 'mars-rover', 0).setOrigin(0.5, 1).setDepth(150).play('mars-rover');
+
+        this.martians = new Martians(this, AREA, [
+            new Phaser.Geom.Rectangle(PAD.x - 50, PAD.y - 40, 110, 100),
+            new Phaser.Geom.Rectangle(-245, -80, 90, 30),
+        ]);
 
         this.rocket = new Rocket(this, PAD.x, PAD.y);
         this.shadow = this.add.image(EXIT.x, EXIT.y, shadowTexture(this, 12)).setAlpha(0.3).setVisible(false);
@@ -82,6 +89,7 @@ export class Mars extends Phaser.Scene {
         const s = Math.min(dt, 50) / 1000;
         this.driveRover(s);
         this.blowDust(s);
+        this.martians.update(s, this.player);
         if (this.flying) return;
 
         const dx = Number(this.cursors.right.isDown) - Number(this.cursors.left.isDown);
