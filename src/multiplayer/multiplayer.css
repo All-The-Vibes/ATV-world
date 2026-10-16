@@ -1,0 +1,60 @@
+.name-prompt {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: grid;
+    place-items: center;
+    background: rgba(10, 8, 20, 0.72);
+}
+
+.name-card {
+    width: min(340px, 88vw);
+    padding: 18px;
+    display: grid;
+    gap: 12px;
+    background: #1b1530;
+    border: 3px solid #f5c542;
+    box-shadow: 4px 4px 0 #0a0814;
+    color: #f5ecd0;
+    font-family: 'VT323', monospace;
+    font-size: 20px;
+}
+
+.name-card h2 {
+    margin: 0;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 14px;
+    color: #f5c542;
+}
+
+.name-card p {
+    margin: 0;
+}
+
+.name-card input {
+    padding: 8px;
+    font: inherit;
+    color: #f5ecd0;
+    background: #0a0814;
+    border: 2px solid #5b4b8a;
+    outline: none;
+}
+
+.name-card input:focus {
+    border-color: #f5c542;
+}
+
+.name-card button {
+    padding: 10px;
+    font-family: 'Press Start 2P', monospace;
+    font-size: 11px;
+    color: #0a0814;
+    background: #f5c542;
+    border: 0;
+    cursor: pointer;
+}
+
+.name-card button:disabled {
+    opacity: 0.5;
+    cursor: default;
+}

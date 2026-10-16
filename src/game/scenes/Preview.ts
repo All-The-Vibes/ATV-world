@@ -22,6 +22,7 @@ import { Roamers } from '../roamers/Roamers';
 import { Workout } from '../workout/Workout';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
+import { Multiplayer } from '../../multiplayer/Multiplayer';
 import { SortingHat } from '../hat/SortingHat';
 import { Atmosphere } from '../fx/Atmosphere';
 import { HQ } from '../hq/HQ';
@@ -126,6 +127,8 @@ export class Preview extends Phaser.Scene {
     private town?: Town;
     /** Microsoft's Redmond campus, west of the plaza (see ../campus). */
     private campus?: Campus;
+    /** Other people on the website right now, live (see ../../multiplayer). */
+    private multiplayer?: Multiplayer;
     /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
     /** The digital AI advertising board: rotates humorous AI ads (see ../billboard). */
@@ -318,8 +321,8 @@ export class Preview extends Phaser.Scene {
         this.billboard = new Billboard(this, 368, 415);
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.billboard.bounds());
-        const rightEdge = Math.max(this.town?.bounds().right ?? 420, 420);
-        this.usaBillboard = new UsaBillboard(this, rightEdge - 75, -165);
+        const townLeft = this.town?.left ?? 756;
+        this.usaBillboard = new UsaBillboard(this, townLeft - 95, -90);
         this.usaBillboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.usaBillboard.footprint);
         const trafficLight = new TrafficLight(this, 60, 170);
@@ -339,6 +342,11 @@ export class Preview extends Phaser.Scene {
         this.createHell();
         this.createSteph();
         this.createPlayer();
+        try {
+            this.multiplayer = new Multiplayer(this, () => (this.player ? { sprite: this.player.sprite, hidden: this.insideHQ } : undefined));
+        } catch (e) {
+            console.error('[multiplayer]', e);
+        }
         this.incidents = new Incidents(this, () => this.sys.isActive() && !this.insideHQ);
         this.incidents.parts.forEach(part => this.includeInWorld(part));
         this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());

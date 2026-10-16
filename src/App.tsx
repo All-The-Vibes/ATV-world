@@ -10,6 +10,8 @@ import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
 import { MapButton, MiniMap } from './map/MiniMap';
 import { SoundButton } from './music/SoundButton';
+import { myName } from './multiplayer/identity';
+import { NamePrompt } from './multiplayer/NamePrompt';
 import { useTouch } from './touch/device';
 import { TouchControls } from './touch/TouchControls';
 
@@ -29,17 +31,19 @@ export default function App() {
     const modes = useSyncExternalStore(onViewModes, getViewModes);
     const [backpackOpen, setBackpackOpen] = useState(false);
     const [searching, setSearching] = useState(false);
+    const [named, setNamed] = useState(() => !!myName() || navigator.webdriver);
     const insideHQ = useSyncExternalStore(onInsideHQ, isInsideHQ);
     const scene = useSyncExternalStore(onActiveScene, activeScene);
     const touch = useTouch();
     // The world map sits out indoors, where the call panel and the library take the screen.
     const outdoors = !state.inside && !insideHQ;
     // The thumb stick shows wherever there's someone to walk and nothing on top; Pulse is the town's Space.
-    const canWalk = WALKABLE.has(scene) && !insideHQ && !state.open && !backpackOpen;
-    const canPulse = scene === 'Preview' && !insideHQ && !state.open && !backpackOpen;
+    const canWalk = WALKABLE.has(scene) && !insideHQ && !state.open && !backpackOpen && named;
+    const canPulse = scene === 'Preview' && !insideHQ && !state.open && !backpackOpen && named;
     return (
         <>
-            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching} />
+            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching || !named} />
+            {!named && <NamePrompt onDone={() => setNamed(true)} />}
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
                 <p>{state.inside

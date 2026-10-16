@@ -40,6 +40,24 @@ export function apiDevPlugin(): Plugin {
                     res.end(String(error));
                 }
             });
+            server.middlewares.use('/api/negotiate', async (req, res) => {
+                try {
+                    const run = require('./api/negotiate/index.js') as (
+                        context: { res?: FunctionResponse },
+                        req: { query: Record<string, string> },
+                    ) => Promise<void>;
+                    const context: { res?: FunctionResponse } = {};
+                    const query = Object.fromEntries(new URL(req.url ?? '', 'http://localhost').searchParams);
+                    await run(context, { query });
+                    const out = context.res ?? {};
+                    res.statusCode = out.status ?? 200;
+                    for (const [name, value] of Object.entries(out.headers ?? {})) res.setHeader(name, value);
+                    res.end(out.body ?? '');
+                } catch (e) {
+                    res.statusCode = 500;
+                    res.end(String(e));
+                }
+            });
             server.middlewares.use('/api/hq', async (req, res) => {
                 try {
                     const run = require('./api/hq/index.js') as HttpFunction;
