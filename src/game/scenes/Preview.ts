@@ -40,6 +40,7 @@ import { Pool } from '../pool/Pool';
 import { Terrain } from '../terrain/Terrain';
 import { Tokens } from '../tokens/Tokens';
 import { TugOfWar } from '../tugOfWar/TugOfWar';
+import { Tarot } from '../tarot/Tarot';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
 import { MarkB } from '../markb/MarkB';
@@ -142,6 +143,7 @@ export class Preview extends Phaser.Scene {
     /** Flying cars that drop free tokens for anyone to pick up (see ../tokens). */
     private tokens?: Tokens;
     private kittens?: Kittens;
+    private tarot?: Tarot;
     private vibes: Vibe[] = [];
     private vibeScore = 0;
     private vibeStreak = 0;
@@ -324,6 +326,9 @@ export class Preview extends Phaser.Scene {
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
         });
+        this.tarot = new Tarot(this, -240, 660);
+        this.tarot.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.tarot.area);
         this.gremlins = new Gremlins(this, {
             bounds: () => this.worldBounds,
             victims: () => [
@@ -584,6 +589,7 @@ export class Preview extends Phaser.Scene {
             ...(this.lockAndKey?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
         ]);
         this.kittens?.update(dt);
+        this.tarot?.update(dt);
         this.updateVibes();
         // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
         const p = this.player?.sprite;

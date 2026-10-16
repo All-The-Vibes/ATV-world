@@ -12,7 +12,7 @@ const LOOK = randomLook('mark-b', {
 });
 
 const QUOTES = [
-    'ATTENTION IS ALL YOU NEED.',
+    'BACKPROPAGATION: BLAMING EVERY LAYER, ONE AT A TIME.',
     'MY CONTEXT WINDOW IS HUGE. YOURS IS A POST-IT.',
     'I FINE-TUNED A MODEL TO FINE-TUNE MODELS.',
     'GRADIENT DESCENT IS JUST HIKING IN REVERSE.',
@@ -36,6 +36,18 @@ const NEAR: [number, number][] = [
 const FAR: [number, number][] = [[0.08, 0.14], [0.92, 0.14], [0.92, 0.86], [0.08, 0.86]];
 
 interface Stop { x: number; y: number; far: boolean }
+const SCARED = [
+    'I AM SCARED OF HEIGHTS.',
+    'HOW DO I GET DOWN?',
+    'DO NOT LOOK DOWN. DO NOT LOOK DOWN.',
+    'WHY DID I PUT ON A JETPACK?',
+    'THIS WAS A BAD IDEA.',
+    'HELLO? CAN SOMEONE PUT ME DOWN?',
+];
+
+/** Every fourth stop he remembers how high up he is. */
+const SCARED_EVERY = 4;
+
 /** Two stops near the middle, then one far away, round and round. */
 const STOPS: Stop[] = NEAR.map(([x, y], i): Stop[] =>
     i % 2 === 1 ? [{ x, y, far: false }, { x: FAR[(i - 1) / 2][0], y: FAR[(i - 1) / 2][1], far: true }] : [{ x, y, far: false }],
@@ -75,6 +87,16 @@ function smileyArt(): PixelCanvas {
     return pc;
 }
 
+/** Wide eyes, a wobbly mouth and a cold sweat. */
+function scaredArt(): PixelCanvas {
+    const pc = new PixelCanvas(13, 13);
+    pc.ellipse(6, 6, 6, 6, 'ink').ellipse(6, 6, 5, 5, 'yellow');
+    pc.rect(3, 3, 3, 3, 'white').rect(7, 3, 3, 3, 'white').set(4, 4, 'ink').set(8, 4, 'ink');
+    pc.set(4, 9, 'ink').set(5, 8, 'ink').set(6, 9, 'ink').set(7, 8, 'ink').set(8, 9, 'ink');
+    pc.rect(11, 2, 1, 2, 'cyan').set(11, 4, 'sky');
+    return pc;
+}
+
 function flameArt() {
     const canvas = new PixelCanvas(10, 9);
     [7, 9].forEach((h, f) => {
@@ -96,6 +118,9 @@ export class MarkB {
     private timer = 0;
     private clock = 0;
     private quote = 0;
+    private scaredQuote = 0;
+    private visits = 0;
+    private scared = false;
     private x: number;
     private y: number;
 
@@ -103,7 +128,9 @@ export class MarkB {
         ensurePixels(scene, 'mark-b', () => characterSheet(LOOK, jetpack));
         ensurePixels(scene, 'mark-b-flame', flameArt);
         ensurePixels(scene, 'mark-b-smile', smileyArt);
+        ensurePixels(scene, 'mark-b-scared', scaredArt);
         QUOTES.forEach((quote, i) => addPixels(scene, `mark-b-quote-${i}`, speechArt(quote, 22)));
+        SCARED.forEach((quote, i) => addPixels(scene, `mark-b-scared-${i}`, speechArt(quote, 22)));
 
         const label = new PixelCanvas(miniTextWidth('MARK B') + 6, 9);
         label.rect(0, 0, label.width, 9, 'ink');
@@ -144,7 +171,9 @@ export class MarkB {
                 this.y = target.y;
                 this.mode = 'talk';
                 this.timer = 0;
-                this.bubble.setTexture(`mark-b-quote-${this.quote}`);
+                this.visits++;
+                this.scared = this.visits % SCARED_EVERY === 0;
+                this.bubble.setTexture(this.scared ? `mark-b-scared-${this.scaredQuote}` : `mark-b-quote-${this.quote}`);
             } else {
                 this.x += (dx / dist) * step;
                 this.y += (dy / dist) * step;
@@ -154,10 +183,12 @@ export class MarkB {
             if (this.mode === 'talk' && this.timer >= TALK) {
                 this.mode = 'emoji';
                 this.timer = 0;
-                this.bubble.setTexture('mark-b-smile');
+                this.bubble.setTexture(this.scared ? 'mark-b-scared' : 'mark-b-smile');
             } else if (this.mode === 'emoji' && this.timer >= EMOJI) {
                 this.mode = 'fly';
-                this.quote = (this.quote + 1) % QUOTES.length;
+                if (this.scared) this.scaredQuote = (this.scaredQuote + 1) % SCARED.length;
+                else this.quote = (this.quote + 1) % QUOTES.length;
+                this.scared = false;
                 this.stop = (this.stop + 1) % STOPS.length;
                 this.bubble.setVisible(false);
             }
@@ -165,7 +196,8 @@ export class MarkB {
 
         const hovering = this.mode !== 'fly';
         const bob = Math.sin(this.clock * (hovering ? 3 : 6)) * (hovering ? 2.5 : 1);
-        const gx = Math.round(this.x), top = Math.round(this.y - ALTITUDE + bob);
+        const shake = this.scared && hovering ? Math.round(Math.sin(this.clock * 40) * 2) : 0;
+        const gx = Math.round(this.x) + shake, top = Math.round(this.y - ALTITUDE + bob);
         const side = this.sprite.flipX ? 1 : -1;
         this.sprite.setPosition(gx, top);
         this.flame.setPosition(gx + 5 * SIZE * side, top - 3 * SIZE).setFrame(Math.floor(this.clock * 14) % 2).setScale(SIZE, SIZE * (hovering ? 0.7 : 1));
