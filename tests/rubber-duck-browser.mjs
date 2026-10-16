@@ -37,7 +37,7 @@ try {
         return {
             x: duck.x, y: duck.y, depth: duck.depth, flip: duck.flipX,
             width: duck.displayWidth, height: duck.displayHeight, frame: duck.frame.name,
-            playing: duck.anims.isPlaying, text: bubble.getData('text'), visible: bubble.visible,
+            playing: duck.anims.isPlaying, text: bubble.getData('text'), kind: bubble.getData('kind'), visible: bubble.visible,
             bubbleX: bubble.x, bubbleY: bubble.y, shadowX: shadow.x, shadowY: shadow.y,
             count: scene.children.list.filter(child => child.name === 'Rubber Duck').length,
         };
@@ -85,14 +85,17 @@ try {
         const scene = window.atv.game.scene.getScene('Preview');
         return scene.children.getByName('Rubber Duck-speech').getData('text') === 'May I review your code, please?';
     }, undefined, { timeout: 60000 });
-    const lines = ["Hi I'm Rubber Duck", (await state()).text];
+    const lines = [{ text: "Hi I'm Rubber Duck", kind: 'review' }, { text: (await state()).text, kind: 'review' }];
     await page.evaluate(() => {
         window.atv.game.scene.getScene('Preview').view.show({ x: -250, y: -20, width: 500, height: 230 });
     });
     await sleep(100);
     const point = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
-        scene.rubberDuck.lineTime = 0;
+        const rd = scene.rubberDuck;
+        while (rd.zap) rd.update(0.1);
+        rd.lineTime = 0;
+        rd.strikeClock = 0;
         const duck = scene.children.getByName('Rubber Duck');
         const cam = scene.cameras.main;
         const canvas = scene.game.canvas;
@@ -104,40 +107,89 @@ try {
     });
     await page.mouse.click(point.x, point.y);
     await page.waitForFunction(() => window.atv.game.scene.getScene('Preview').children
-        .getByName('Rubber Duck-speech').getData('text') === 'Would you kindly walk me through your idea?');
-    lines.push((await state()).text);
+        .getByName('Rubber Duck-speech').getData('kind') === 'more');
+    const clicked = await state();
+    lines.push({ text: clicked.text, kind: 'more' });
     await page.evaluate(() => window.atv.game.scene.getScene('Preview').scene.pause());
-    for (let i = 0; i < 4; i++) {
+    for (let i = 0; i < 10; i++) {
         await page.evaluate(() => {
             window.atv.game.scene.getScene('Preview').children.getByName('Rubber Duck').emit('pointerdown');
         });
         const current = await state();
         assert.ok(current.visible, 'clicking reveals the next line immediately');
-        lines.push(current.text);
+        lines.push({ text: current.text, kind: current.kind });
     }
-    assert.deepEqual(lines, [
-        "Hi I'm Rubber Duck",
-        'May I review your code, please?',
-        'Would you kindly walk me through your idea?',
-        'May we check the edge cases together?',
-        'If you like, I would be delighted to review your tests.',
-        'Thank you for sharing. Take your time; I am happy to listen.',
-        "Hi I'm Rubber Duck",
-    ]);
+    assert.equal(lines[0].text, "Hi I'm Rubber Duck");
+    assert.equal(lines[1].text, 'May I review your code, please?');
+    assert.match(lines[2].text, /days off I play tennis/);
+    lines.forEach((line, i) => assert.equal(line.kind, i % 3 === 2 ? 'more' : 'review', `comment ${i + 1} is ${i % 3 === 2 ? 'a witty extra' : 'a review offer'}`));
+    assert.equal(new Set(lines.map(line => line.text)).size, lines.length, 'the duck does not repeat itself within twelve comments');
+    assert.ok(lines.filter(line => line.kind === 'review').every(line => !/days off|tennis/.test(line.text)));
     const patrol = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
+        const rd = scene.rubberDuck;
         const duck = scene.children.getByName('Rubber Duck');
+        while (rd.zap) rd.update(0.1);
+        rd.strikeClock = -1e9;
         const directions = new Set();
         const positions = [];
         for (let i = 0; i < 300; i++) {
-            scene.rubberDuck.update(0.1);
+            rd.update(0.1);
             directions.add(duck.flipX);
             positions.push({ x: duck.x, y: duck.y });
         }
-        return { directions: directions.size, positions };
+        return { directions: directions.size, positions, home: { ...rd.home } };
     });
-    assert.equal(patrol.directions, 2, 'the duck faces both directions as it rounds the plaza');
-    assert.ok(patrol.positions.every(({ x, y }) => Math.abs(x) <= 180 && y >= 82 && y <= 130));
+    assert.equal(patrol.directions, 2, 'the duck faces both directions as it rounds its patch');
+    assert.ok(patrol.positions.every(({ x, y }) => Math.abs(x - patrol.home.x) <= 71 && Math.abs(y - patrol.home.y) <= 17));
+
+    const strike = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const rd = scene.rubberDuck;
+        const duck = scene.children.getByName('Rubber Duck');
+        const from = { x: duck.x, y: duck.y };
+        rd.strikeClock = 7.97;
+        rd.update(0.05);
+        const struck = { zapping: !!rd.zap, bolts: rd.effects.length };
+        const held = { x: duck.x, y: duck.y };
+        rd.update(0.05);
+        struck.frozen = !!rd.zap && duck.x === held.x && duck.y === held.y;
+        let updates = 0;
+        while (rd.zap && updates++ < 20) rd.update(0.05);
+        const to = { x: duck.x, y: duck.y };
+        const landed = { bolts: rd.effects.length, alpha: duck.alpha };
+        for (let i = 0; i < 5; i++) rd.update(0.1);
+        const b = scene.worldBounds;
+        return {
+            struck, landed, from, to, left: rd.effects.length, centre: { x: b.centerX, y: b.centerY },
+            blocked: scene.solids.some(r => r.contains(to.x, to.y)) || !!scene.hq?.contains(to.x, to.y),
+        };
+    });
+    assert.deepEqual(strike.struck, { zapping: true, bolts: 1, frozen: true }, 'lightning hits the duck, which holds still while it sizzles');
+    assert.equal(strike.landed.bolts, 2, 'a second bolt marks where it lands');
+    assert.equal(strike.landed.alpha, 1);
+    assert.ok(Math.hypot(strike.to.x - strike.from.x, strike.to.y - strike.from.y) >= 90, 'the duck teleports somewhere new');
+    assert.ok(Math.abs(strike.to.x - strike.centre.x) <= 200 && Math.abs(strike.to.y - strike.centre.y) <= 110, 'it lands in the middle of the map');
+    assert.equal(strike.blocked, false, 'it never lands inside a building');
+    assert.equal(strike.left, 0, 'the bolts fade away');
+
+    const crowded = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const rd = scene.rubberDuck;
+        const duck = scene.children.getByName('Rubber Duck');
+        rd.strikeClock = -1e9;
+        const spot = rd.quietSpot();
+        const clutter = Array.from({ length: 16 }, (_, i) => scene.add.image(
+            spot.x + ((i % 4) - 1.5) * 30, spot.y - Math.floor(i / 4) * 18, 'rubber-duck-review-0').setDepth(10));
+        const busyBefore = rd.busyAt(spot.x, spot.y);
+        const next = rd.quietSpot();
+        const result = { busyBefore, busyNext: rd.busyAt(next.x, next.y), moved: next.x !== spot.x || next.y !== spot.y };
+        clutter.forEach(image => image.destroy());
+        duck.setAlpha(1);
+        return result;
+    });
+    assert.ok(crowded.busyBefore >= 16, 'a crowd makes a spot busy');
+    assert.ok(crowded.busyNext < crowded.busyBefore && crowded.moved, 'the duck picks a less busy spot than a crowded one');
     await page.evaluate(() => window.atv.game.scene.getScene('Preview').scene.resume());
     const playerX = await page.evaluate(() => window.atv.game.scene.getScene('Preview').player.sprite.x);
     await page.keyboard.down('ArrowRight');

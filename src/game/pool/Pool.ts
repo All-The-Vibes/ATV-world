@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-    PixelCanvas, addPixels, characterSheet, ensurePixels, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
+    PixelCanvas, addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
     type ColorName, type Facing,
 } from '../kit';
 import { BOARD, DECK, STEPS_X, TOWER, WATER, boardArt, piranhaArt, poolArt, rippleArt, splashArt, towerArt, wakeArt, wednesdayArt } from './art';
@@ -125,6 +125,7 @@ export class Pool {
             .setOrigin(0.5, 1)
             .setDepth(1e5 + 2)
             .setVisible(false);
+        addCreatorNametag(this.wednesday, { githubUsername: 'ShahabName' }, { gap: 16, speech: () => this.wednesdayBubble });
 
         // School of snapping piranhas swimming in the pool water around Wednesday.
         const piranhaSpots = [
@@ -160,7 +161,7 @@ export class Pool {
 
     private addSwimmer(i: number) {
         const scene = this.scene;
-        const base = randomLook(`pool-${i}`);
+        const base = randomLook(`pool-${i}`, { githubUsername: 'markbriggs-ms' });
         const suit = SUITS[(i * 3) % SUITS.length];
         // Most go shirtless in trunks; some wear a one-piece. Everyone's barefoot.
         const look = { ...base, shirt: i % 3 === 1 ? suit : base.skin, pants: suit, shoes: base.skin };
@@ -191,6 +192,7 @@ export class Pool {
             style: 'dive',
             talk: 0,
         };
+        addCreatorNametag(s.sprite, look, { speech: () => s.bubble });
         this.swimmers.push(s);
         this.queue.push(s);
     }

@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { addPixels, ensurePixels, GIANT_H, giantSheet, shadowTexture, speechArt } from '../kit';
+import { addCreatorNametag, addPixels, ensurePixels, GIANT_H, giantSheet, shadowTexture, speechArt } from '../kit';
 
 /** A giant who tramps a wide loop round the plaza, shouting that the floor is lava. */
 export class Giant {
@@ -23,6 +23,7 @@ export class Giant {
         this.shadow = scene.add.image(0, 0, shadowTexture(scene, 44)).setAlpha(0.3).setDepth(-1e8);
         this.sprite = scene.add.sprite(0, 0, 'giant').setOrigin(0.5, 1).play('giant-stomp');
         this.bubble = scene.add.image(0, 0, 'giant-shout').setOrigin(0.5, 1).setDepth(1e5);
+        addCreatorNametag(this.sprite, { githubUsername: 'markbriggs-ms' }, { speech: () => this.bubble });
         this.update(0);
         scene.events.once('shutdown', () => this.destroy());
     }

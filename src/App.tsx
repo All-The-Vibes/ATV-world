@@ -4,7 +4,7 @@ import { Backpack } from './backpack/Backpack';
 import { CallPanel } from './call/CallPanel';
 import { CharacterSearch } from './characters/CharacterSearch';
 import { FactoryPanel } from './factory/FactoryPanel';
-import { getViewModes, onViewModes, send, type Command } from './game/commands';
+import { getViewModes, githubLabelsVisible, onGithubLabels, onViewModes, send, toggleGithubLabels, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
@@ -19,6 +19,7 @@ const buttons: [label: string, command: Command, title: string][] = [
 export default function App() {
     const bridge = useMemo(() => new LibraryBridge(), []);
     const state = useSyncExternalStore(bridge.subscribe, bridge.getSnapshot);
+    const githubLabels = useSyncExternalStore(onGithubLabels, githubLabelsVisible);
     const modes = useSyncExternalStore(onViewModes, getViewModes);
     const [backpackOpen, setBackpackOpen] = useState(false);
     const [searching, setSearching] = useState(false);
@@ -69,6 +70,13 @@ export default function App() {
                         {label}
                     </button>
                 ))}
+                <button type="button" className="github-labels" title={`${githubLabels ? 'Hide' : 'Show'} GitHub usernames`}
+                    aria-label="GitHub username labels" aria-pressed={githubLabels}
+                    onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') e.stopPropagation(); }}
+                    onKeyUp={(e) => { if (e.key === ' ' || e.key === 'Enter') e.stopPropagation(); }}
+                    onMouseDown={(e) => e.preventDefault()} onClick={toggleGithubLabels}>
+                    @
+                </button>
                 <SoundButton />
             </div>
             {!state.open && state.inside && <div className="world-actions">

@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-    PixelCanvas, addPixels, bayer, buildingArt, characterSheet, darker, lighter, lookKey,
+    PixelCanvas, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, darker, lighter, lookKey,
     miniText, miniTextWidth, randomLook, shadowTexture, speechArt, toRamp, type CharacterLook, type Color,
 } from '../kit';
 import type { Burnable } from '../dragon/Dragon';
@@ -32,7 +32,7 @@ const LOCKE_SIBLINGS: {
 }[] = [
     {
         name: 'Tyler Locke',
-        look: { skin: 'peach', hair: 'earth', hairStyle: 'short', shirt: 'blue', pants: 'navy', shoes: 'bark' },
+        look: { githubUsername: 'ShahabName', skin: 'peach', hair: 'earth', hairStyle: 'short', shirt: 'blue', pants: 'navy', shoes: 'bark' },
         dx: -44,
         dy: 18,
         span: 24,
@@ -41,7 +41,7 @@ const LOCKE_SIBLINGS: {
     },
     {
         name: 'Kinsey Locke',
-        look: { skin: 'peach', hair: 'bark', hairStyle: 'long', shirt: 'wine', pants: 'slate', shoes: 'ink' },
+        look: { githubUsername: 'ShahabName', skin: 'peach', hair: 'bark', hairStyle: 'long', shirt: 'wine', pants: 'slate', shoes: 'ink' },
         dx: 0,
         dy: 25,
         span: 26,
@@ -50,7 +50,7 @@ const LOCKE_SIBLINGS: {
     },
     {
         name: 'Bode Locke',
-        look: { skin: 'cream', hair: 'wood', hairStyle: 'spiky', hat: 'gold', shirt: 'orange', pants: 'blue', shoes: 'red' },
+        look: { githubUsername: 'ShahabName', skin: 'cream', hair: 'wood', hairStyle: 'spiky', hat: 'gold', shirt: 'orange', pants: 'blue', shoes: 'red' },
         dx: 44,
         dy: 19,
         span: 24,
@@ -219,6 +219,7 @@ export class LockAndKey {
             const quipKey = `keyhouse-quip-${idx}`;
             addPixels(scene, quipKey, speechArt(spec.quip));
             const bubble = scene.add.image(nx, ny - 37, quipKey).setOrigin(0.5, 1).setDepth(1e5).setVisible(false);
+            addCreatorNametag(sprite, look, { gap: 16, speech: () => bubble });
 
             this.npcs.push({
                 name: spec.name,

@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { ensurePixels, speechArt } from '../kit';
+import { addCreatorNametag, ensurePixels, speechArt } from '../kit';
 import { burrowArt, MOLE_HEIGHT, moleSheet } from './art';
 
 const QUIPS = [
@@ -42,6 +42,8 @@ export class TalkingMoles {
             rim: scene.add.image(x, y, 'talking-mole-rim').setDepth(y + 1),
             bubble: scene.add.image(x, y - 29, 'talking-mole-quip-0').setOrigin(0.5, 1).setDepth(1e5),
         }));
+        this.burrows.forEach(({ mole, bubble }) =>
+            addCreatorNametag(mole, { githubUsername: 'markbriggs-ms' }, { speech: () => bubble }));
         this.update(0);
         scene.events.once('shutdown', () => this.destroy());
     }
@@ -59,6 +61,7 @@ export class TalkingMoles {
                 : phase < HIDE ? 1 : Math.max(0, (CLEAR - phase) / (CLEAR - HIDE));
             hole.setVisible(phase < CLEAR).setAlpha(dirtAlpha);
             rim.setVisible(phase < CLEAR).setAlpha(dirtAlpha);
+            bubble.setPosition(mole.x, mole.y - 30);
             bubble.setVisible(phase >= TALK_START && phase < TALK_END);
             if (bubble.visible) {
                 const cycle = Math.floor(elapsed / PERIOD);

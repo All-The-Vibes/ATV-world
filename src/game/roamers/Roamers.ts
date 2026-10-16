@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, toHexNumber, type Color } from '../kit';
+import { addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, toHexNumber, type Color } from '../kit';
 import type { Burnable } from '../dragon/Dragon';
 import { ROAMERS } from './specs';
 import type { RoamerHandle, RoamerSpec, RoamerWorld } from './types';
@@ -124,6 +124,7 @@ export class Roamers {
             life: Phaser.Math.FloatBetween(...spec.stay), rest: 0, foilCd: 2, greetCd: 3, fx: 0.5,
         } as Roamer;
         r.handle = this.handleFor(r);
+        addCreatorNametag(sprite, look, { speech: () => r.bubble });
         const prop = spec.prop;
         if (prop) {
             const tex = ensurePixels(this.scene, prop.key, prop.make);

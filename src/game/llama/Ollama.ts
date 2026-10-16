@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { addPixels, ensurePixels, llamaSheet, shadowTexture, speechArt } from '../kit';
+import { addCreatorNametag, addPixels, ensurePixels, llamaSheet, shadowTexture, speechArt } from '../kit';
 
 /** A local llama running laps of the open plaza, with a greeting and a punchline. */
 export class Ollama {
@@ -23,6 +23,7 @@ export class Ollama {
         this.shadow = scene.add.image(0, 135, shadowTexture(scene, 28)).setAlpha(0.25).setDepth(-1e8);
         this.sprite = scene.add.sprite(0, 135, 'ollama').setOrigin(0.5, 1).play('ollama-run');
         this.bubble = scene.add.image(0, 89, 'ollama-hello').setOrigin(0.5, 1).setDepth(1e5);
+        addCreatorNametag(this.sprite, { githubUsername: 'markbriggs-ms' }, { headOffsetX: 11, speech: () => this.bubble });
         this.update(0);
         scene.events.once('shutdown', () => this.destroy());
     }

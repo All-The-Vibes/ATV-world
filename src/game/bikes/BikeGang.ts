@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-    PixelCanvas, addPixels, darker, lighter, miniText, miniTextWidth, randomLook, shadowTexture, speechArt, stripFrames,
+    PixelCanvas, addCreatorNametag, addPixels, darker, lighter, miniText, miniTextWidth, randomLook, shadowTexture, speechArt, stripFrames,
     type CharacterLook, type Color, type FullLook,
 } from '../kit';
 import type { Burnable } from '../dragon/Dragon';
@@ -19,22 +19,22 @@ const CREW: RiderSpec[] = [
     {
         name: 'Shahab Gemini 4 Argon',
         frameColor: 'red',
-        look: { skin: 'peach', hair: 'ink', hairStyle: 'cap', hat: 'red', shirt: 'blue', pants: 'navy', shoes: 'white' },
+        look: { githubUsername: 'ShahabName', skin: 'peach', hair: 'ink', hairStyle: 'cap', hat: 'red', shirt: 'blue', pants: 'navy', shoes: 'white' },
     },
     {
         name: 'Dustin',
         frameColor: 'gold',
-        look: { skin: 'peach', hair: 'earth', hairStyle: 'cap', hat: 'blue', shirt: 'red', pants: 'wood', shoes: 'white' },
+        look: { githubUsername: 'ShahabName', skin: 'peach', hair: 'earth', hairStyle: 'cap', hat: 'blue', shirt: 'red', pants: 'wood', shoes: 'white' },
     },
     {
         name: 'Lucas',
         frameColor: 'lime',
-        look: { skin: 'wood', hair: 'ink', hairStyle: 'short', hat: 'forest', shirt: 'orange', pants: 'forest', shoes: 'white' },
+        look: { githubUsername: 'ShahabName', skin: 'wood', hair: 'ink', hairStyle: 'short', hat: 'forest', shirt: 'orange', pants: 'forest', shoes: 'white' },
     },
     {
         name: 'Will',
         frameColor: 'cyan',
-        look: { skin: 'cream', hair: 'earth', hairStyle: 'short', hat: 'gold', shirt: 'gold', pants: 'navy', shoes: 'earth' },
+        look: { githubUsername: 'ShahabName', skin: 'cream', hair: 'earth', hairStyle: 'short', hat: 'gold', shirt: 'gold', pants: 'navy', shoes: 'earth' },
     },
 ];
 
@@ -257,6 +257,7 @@ export class BikeGang {
             miniText(canvas, 3, 2, spec.name, isLead ? 'yellow' : 'cream');
             addPixels(scene, labelKey, canvas);
             const label = scene.add.image(x, y - 28, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
+            addCreatorNametag(sprite, look, { gap: 14, headOffsetX: -2, speech: () => isLead ? this.bubble : undefined });
 
             this.bikers.push({
                 name: spec.name,

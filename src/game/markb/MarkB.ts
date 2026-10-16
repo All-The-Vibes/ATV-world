@@ -1,12 +1,13 @@
 import Phaser from 'phaser';
 import {
-    PixelCanvas, addPixels, characterSheet, ensurePixels, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
+    PixelCanvas, addCreatorNametag, addPixels, characterSheet, ensurePixels, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
     stripFrames,
     type Accessory,
 } from '../kit';
 
 /** Mark B: orange hair, a jetpack, and a slow lap of the whole map, stopping to say something nerdy about AI. */
 const LOOK = randomLook('mark-b', {
+    githubUsername: 'markbriggs-ms',
     skin: 'peach', hair: 'orange', hairStyle: 'short', shirt: 'forest', pants: 'navy', shoes: 'white',
 });
 
@@ -144,6 +145,7 @@ export class MarkB {
         this.sprite = scene.add.sprite(0, 0, 'mark-b', 'side-0').setName('Mark B').setOrigin(0.5, 1).setDepth(1e6 + 3).setScale(SIZE);
         this.name = scene.add.image(0, 0, 'mark-b-label').setOrigin(0.5, 1).setDepth(1e6 + 4);
         this.bubble = scene.add.image(0, 0, 'mark-b-smile').setOrigin(0.5, 1).setDepth(1e6 + 5).setVisible(false);
+        addCreatorNametag(this.sprite, LOOK, { gap: 14, speech: () => this.bubble });
         this.update(0);
         scene.events.once('shutdown', () => this.destroy());
     }

@@ -126,6 +126,7 @@ export class Kittens {
             const sprite = scene.add.sprite(at.x - 9, at.y + 6, key).setOrigin(0.5, 1).setDepth(at.y);
             const shadow = scene.add.image(sprite.x, sprite.y, shadowTexture(scene, 14)).setDepth(-1e6).setAlpha(0.22);
             const bubble = scene.add.image(0, 0, this.bubble('TOYS!')).setOrigin(0.5, 1).setVisible(false);
+            addCreatorNametag(sprite, { githubUsername: 'DeaderestPool' }, { speech: () => bubble });
             this.cats.push({
                 x: sprite.x, y: sprite.y, hunter: i < 2, sprite, shadow, bubble, mood: 'play', target: at,
                 toy, timer: 2 + i * 0.65, cooldown: 0, jump: 0, talk: 0, phase: i * 1.7,

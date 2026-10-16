@@ -270,8 +270,8 @@ export class Preview extends Phaser.Scene {
         // Introduction commits: 9c37211 (six originals), 3c1fb9c (Abdallah).
         for (let i = 0; i < 6; i++) this.walker(i, undefined, undefined, undefined, 'Bakar404');
         this.walker(6, 'Abdallah', undefined, undefined, 'aifateen');
-        this.walker(7, 'Daenerys', -240, daenerysSheet());
-        this.walker(8, 'Ahmed', -180);
+        this.walker(7, 'Daenerys', -240, daenerysSheet(), 'stephschofield');
+        this.walker(8, 'Ahmed', -180, undefined, 'Bakar404');
         this.bikeGang = new BikeGang(this, () => {
             const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
             const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
@@ -285,7 +285,10 @@ export class Preview extends Phaser.Scene {
         this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
         this.fitWorld();
         this.ollama = new Ollama(this);
-        this.rubberDuck = new RubberDuck(this);
+        this.rubberDuck = new RubberDuck(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+        });
         this.talkingMoles = new TalkingMoles(this);
         this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
@@ -1056,7 +1059,8 @@ export class Preview extends Phaser.Scene {
         addPixels(this, 'steph-label', nameplate);
         const label = this.add.image(x, y - 48, 'steph-label')
             .setName('Steph-label').setOrigin(0.5, 1).setDepth(y + 1);
-        this.walkers.push({ sprite, shadow, label, anim: key, dir: 1, speed: 26, rest: 0 });
+        const nametag = addCreatorNametag(sprite, { githubUsername: 'stephschofield' }, { gap: 16 });
+        this.walkers.push({ sprite, shadow, label, nametag, anim: key, dir: 1, speed: 26, rest: 0 });
     }
 
     /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
