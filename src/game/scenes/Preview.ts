@@ -25,6 +25,7 @@ import { Lake } from '../lake/Lake';
 import { daenerysSheet } from '../kit/daenerys';
 import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
+import { Ambience } from '../life/Ambience';
 import { Ollama } from '../llama/Ollama';
 import { LaunchPad } from '../mars/Rocket';
 import { Moles } from '../moles/Moles';
@@ -79,6 +80,7 @@ export class Preview extends Phaser.Scene {
     private tugOfWar?: TugOfWar;
     private ufo?: UFO;
     private incidents?: Incidents;
+    private ambience?: Ambience;
     private ground?: Phaser.GameObjects.TileSprite;
     /** The painted town ground: meadow, plaza, lanes, pond (see ../terrain). */
     private terrain?: Terrain;
@@ -304,6 +306,7 @@ export class Preview extends Phaser.Scene {
             walkers: () => this.walkers.map((w) => w.sprite),
             dragon: () => this.dragon?.plaything(),
         });
+        this.ambience = new Ambience(this, { player: () => this.player?.sprite, walkers: () => this.walkers.map((w) => w.sprite), indoors: () => this.insideHQ });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
             this.syncVibes(true);
@@ -479,6 +482,7 @@ export class Preview extends Phaser.Scene {
         this.billboard?.update(dt);
         this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
         this.factory?.update(dt, this.insideHQ ? undefined : this.player?.sprite);
+        this.ambience?.update(dt);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
@@ -791,6 +795,7 @@ export class Preview extends Phaser.Scene {
         this.surfacePortal?.setVisible(!active);
         this.hellPortal?.setVisible(active);
         this.hellDecor.forEach((object) => object.setVisible(active));
+        this.ambience?.setVisible(!active);
         this.terrain?.setVisible(!active);
 
         const exempt = new Set<Phaser.GameObjects.GameObject>([
