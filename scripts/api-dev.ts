@@ -26,6 +26,20 @@ export function apiDevPlugin(): Plugin {
         apply: 'serve',
         configureServer(server) {
             const require = createRequire(path.join(server.config.root, 'package.json'));
+            server.middlewares.use('/api/health', async (_req, res) => {
+                try {
+                    const run = require('./api/health/index.js') as HttpFunction;
+                    const context: { res?: FunctionResponse } = {};
+                    await run(context, { method: 'GET', headers: {}, params: {} });
+                    const out = context.res ?? {};
+                    res.statusCode = out.status ?? 200;
+                    for (const [name, value] of Object.entries(out.headers ?? {})) res.setHeader(name, value);
+                    res.end(out.body ?? '');
+                } catch (error) {
+                    res.statusCode = 500;
+                    res.end(String(error));
+                }
+            });
             server.middlewares.use('/api/hq', async (req, res) => {
                 try {
                     const run = require('./api/hq/index.js') as HttpFunction;

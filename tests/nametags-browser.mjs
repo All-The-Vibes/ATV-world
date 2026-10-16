@@ -10,7 +10,7 @@ if (shots) mkdirSync(shots, { recursive: true });
 const server = await createServer({
     server: { host: '127.0.0.1', port: 0, strictPort: true, fs: { allow: [process.cwd(), realpathSync('node_modules')] } },
 });
-const expectedTags = [...Array(6).fill('@Bakar404'), '@DeaderestPool', '@aifateen', ...Array(14).fill('@markbriggs-ms'), '@vvundela1111'].sort();
+const expectedTags = [...Array(6).fill('@Bakar404'), '@DeaderestPool', '@aifateen', ...Array(15).fill('@markbriggs-ms'), '@vvundela1111'].sort();
 let browser;
 try {
     await server.listen();
@@ -20,6 +20,8 @@ try {
     const errors = [];
     page.on('pageerror', error => errors.push(error.message));
     page.on('console', message => { if (message.type() === 'error') errors.push(message.text()); });
+    // The unrelated traffic-light widget must not make this regression test depend on live GitHub CI.
+    await page.route('**/api/health', route => route.fulfill({ json: { state: 'unknown', message: 'AWAITING CI' } }));
     await page.clock.install();
     await page.goto(`${origin}/?call=Ana,Ben`);
     await page.waitForFunction(() => window.atv?.game?.scene.getScene('Preview')?.player?.sprite);

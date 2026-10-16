@@ -82,6 +82,7 @@ try {
         const k = scene.kittens;
         const seen = new Set();
         const conversations = new Set();
+        const roamingHunters = new Set();
         let escaped = false, bored = false, carried = false, returned = false, bounded = true;
         const cargo = new Set();
         for (let frame = 0; frame < 90 * 60; frame++) {
@@ -93,6 +94,9 @@ try {
                 if (cat.mood === 'carried') { carried = true; cargo.add(cat); }
                 if (cargo.has(cat) && cat.mood !== 'carried' && k.bounds.contains(cat.x, cat.y)) returned = true;
                 bounded &&= scene.worldBounds.contains(cat.x, cat.y) && Number.isFinite(cat.sprite.y);
+                const dx = cat.x - Math.max(k.bounds.left, Math.min(k.bounds.right, cat.x));
+                const dy = cat.y - Math.max(k.bounds.top, Math.min(k.bounds.bottom, cat.y));
+                if (cat.hunter && Math.hypot(dx, dy) > 180) roamingHunters.add(cat);
             }
             for (const visitor of k.visitors) {
                 if (visitor.stage === 'talk') {
@@ -105,6 +109,7 @@ try {
             seen: [...seen], escaped, bored, carried, returned, bounded,
             caught: k.catches, missed: k.misses, conversations: [...conversations],
             status: k.status.text,
+            roamingHunters: roamingHunters.size,
         };
     });
     assert.ok(natural.seen.includes('play') && natural.seen.includes('escape') && natural.seen.includes('wander'));
@@ -112,6 +117,7 @@ try {
     assert.ok(natural.caught > 0 && natural.missed > 0, 'PM sometimes catches and sometimes misses');
     assert.ok(natural.carried && natural.returned, 'successful catches carry kittens home instead of teleporting');
     assert.ok(natural.bounded, 'kittens remain finite and inside the world');
+    assert.equal(natural.roamingHunters, 2, 'both hunters naturally venture at least 180px beyond the corral');
     assert.ok(natural.conversations.some((line) => line.includes('GET BACK TO WORK')), 'people try to return to work');
     assert.ok(natural.conversations.some((line) => line.includes('ERR... MEOW, MEOW')), 'people relapse into meowing');
     assert.ok(natural.conversations.some((line) => line.includes('MEOW MEOW!')), 'kittens answer people');
@@ -121,8 +127,16 @@ try {
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         scene.kittens.managerRest = 30;
+        scene.kittens.carried = undefined;
+        scene.kittens.quarry = undefined;
+        scene.kittens.visitors.forEach((visitor) => {
+            visitor.stage = 'idle';
+            visitor.cat = undefined;
+            visitor.timer = 60;
+            visitor.bubble.setVisible(false);
+        });
         scene.dragon.sprite.setVisible(false);
-        scene.tokens.drop(-215, 430, 480);
+        scene.tokens.drop(-215, 400, 445);
         scene.game.loop.wake();
     });
     await page.clock.runFor(2000);
@@ -133,6 +147,7 @@ try {
         const token = scene.tokens.tokens.find((token) => token.landed && k.meadow.contains(token.sprite.x, token.sprite.y));
         if (!token) throw new Error('No real landed token near the corral');
         const cat = k.cats[0];
+        k.detours.delete(cat);
         Object.assign(cat, { x: token.sprite.x - 20, y: token.sprite.y, mood: 'wander', cooldown: 0, timer: 6 });
         k.visitors.forEach((visitor) => { if (visitor.stage === 'idle') visitor.timer = 20; });
         const count = scene.tokens.count;
@@ -154,6 +169,7 @@ try {
         const scene = window.atv.game.scene.getScene('Preview');
         const k = scene.kittens;
         const cat = k.cats[0];
+        k.detours.delete(cat);
         Object.assign(cat, { x: -245, y: 478, mood: 'wander', cooldown: 0, timer: 8 });
         Object.assign(scene.dragon, { x: -210, y: 478 });
         scene.dragon.sprite.setPosition(-210, 450).setVisible(true);
@@ -177,8 +193,76 @@ try {
         k.update(1 / 60);
         return { chasing, jumping, closer, safe, ignoresHidden, ignoresDistant: cat.mood !== 'dragon' };
     });
-    assert.ok(dragon.chasing && dragon.closer && dragon.jumping, 'nearby visible dragon triggers a chase and jump');
+    assert.ok(dragon.chasing && dragon.closer && dragon.jumping, `nearby dragon chase and jump: ${JSON.stringify(dragon)}`);
     assert.ok(dragon.safe && dragon.ignoresHidden && dragon.ignoresDistant, 'kittens are not burned and cannot see distant/hidden dragons');
+
+    const hunting = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const k = scene.kittens;
+        const hunters = k.cats.filter((cat) => cat.hunter);
+        if (hunters.length !== 2) return { hunters: hunters.length };
+        k.managerRest = 90;
+        const cat = hunters[0];
+        k.detours.delete(cat);
+        Object.assign(cat, { x: -45, y: 400, mood: 'wander', cooldown: 0, timer: 60 });
+        Object.assign(scene.dragon, { x: 210, y: 400 });
+        scene.dragon.sprite.setPosition(210, 372).setVisible(true);
+        let chasing = false, far = false, jumping = false;
+        for (let frame = 0; frame < 12 * 60; frame++) {
+            k.update(1 / 60);
+            chasing ||= cat.mood === 'dragon';
+            far ||= cat.x > 130;
+            jumping ||= cat.mood === 'dragon' && cat.y - cat.sprite.y > 15;
+        }
+        const sustained = cat.mood === 'dragon';
+        const homebody = k.cats.find((kitten) => !kitten.hunter);
+        Object.assign(homebody, { x: -45, y: 400, mood: 'wander', cooldown: 0, timer: 8 });
+        k.update(1 / 60);
+        return { hunters: hunters.length, chasing, far, jumping, sustained, homebodyStaysLocal: homebody.mood !== 'dragon' };
+    });
+    assert.equal(hunting.hunters, 2, 'exactly two kittens are adventurous dragon hunters');
+    assert.ok(hunting.chasing && hunting.far && hunting.jumping && hunting.sustained,
+        'hunters pursue and pounce far beyond the meadow for more than four seconds');
+    assert.ok(hunting.homebodyStaysLocal, 'the other six kittens keep their local playground behavior');
+
+    const obstacles = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const k = scene.kittens;
+        const cat = k.cats[0];
+        const wall = scene.solids.find((solid) => solid.contains(285, 160));
+        if (!wall) throw new Error('Real library footprint missing');
+        Object.assign(cat, { x: wall.left - 20, y: wall.centerY, mood: 'wander', timer: 60, cooldown: 0 });
+        k.detours.delete(cat);
+        Object.assign(scene.dragon, { x: wall.right + 20, y: wall.centerY });
+        let stayedOpen = true;
+        for (let i = 0; i < 12 * 60; i++) {
+            k.update(1 / 60);
+            stayedOpen &&= !wall.contains(cat.x, cat.y);
+        }
+        return { stayedOpen, passed: cat.x > wall.right, x: cat.x, y: cat.y, mood: cat.mood, wall: { x: wall.x, y: wall.y, width: wall.width, height: wall.height } };
+    });
+    assert.ok(obstacles.stayedOpen && obstacles.passed, `hunters navigate the library: ${JSON.stringify(obstacles)}`);
+
+    const disco = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const k = scene.kittens;
+        const cat = k.cats[4];
+        const floor = scene.disco.floor;
+        Object.assign(cat, {
+            x: floor.centerX, y: floor.centerY, mood: 'play', timer: 30,
+            cooldown: 30, talk: 0, jokeAt: 0, joke: 0,
+        });
+        k.update(1 / 60);
+        const line = cat.bubble.texture.key;
+        const visible = cat.bubble.visible;
+        const dancing = cat.sprite.angle !== 0;
+        Object.assign(cat, { x: floor.right + 30, y: floor.centerY, talk: 0, jokeAt: 0 });
+        k.update(1 / 60);
+        return { line, visible, dancing, quietOutside: !cat.bubble.visible && cat.jokeAt === 0, stopsDancing: cat.sprite.angle === 0 };
+    });
+    assert.match(disco.line, /DISCO INFERNO\? WHO INVITED THE DRAGON/);
+    assert.ok(disco.visible && disco.dancing, 'kittens on the real disco floor dance and tell disco jokes');
+    assert.ok(disco.quietOutside && disco.stopsDancing, 'disco behavior stops off the dance floor');
 
     // Let the actual renderer draw the simulated scene, then frame the playground.
     await page.evaluate(() => {
@@ -190,7 +274,7 @@ try {
     await page.clock.runFor(100);
     if (SHOTS) await page.screenshot({ path: join(SHOTS, 'kittens-playground.png') });
     assert.deepEqual(errors, [], 'no scene or browser errors');
-    console.log('Kitten browser test passed: 8 kittens, 24 toys, escapes, PM catch/miss/carry, coin play, dragon pounces, and meowing conversations.');
+    console.log('Kitten browser test passed: 8 kittens, 24 toys, escapes, PM catch/miss/carry, coin play, two long-range dragon hunters, obstacle detours, disco jokes/dancing, and meowing conversations.');
 } finally {
     await browser?.close();
     server.kill();

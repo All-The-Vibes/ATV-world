@@ -2,6 +2,9 @@ import type { Color } from './palette';
 import { PixelCanvas } from './pixels';
 import { stripFrames, type FrameRect } from './textures';
 
+/** Creator verified at introduction, commit b13d64d. */
+export const DRAGON_CREATOR = { githubUsername: 'markbriggs-ms' };
+
 /** One frame of the dragon sheet. The art faces right; flip it to fly left. */
 export const DRAGON_W = 48;
 export const DRAGON_H = 36;

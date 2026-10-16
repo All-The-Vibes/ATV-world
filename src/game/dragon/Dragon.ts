@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-    DRAGON_FRAMES, DRAGON_H, DRAGON_MOUTH, DRAGON_W, addPixels, dragonSheet, ensurePixels, flameArt, hairFlameArt,
+    DRAGON_CREATOR, DRAGON_FRAMES, DRAGON_H, DRAGON_MOUTH, DRAGON_W, addCreatorNametag, addPixels, dragonSheet, ensurePixels, flameArt, hairFlameArt,
     shadowTexture, smokeArt, speechArt,
 } from '../kit';
 import { QUIPS } from './quips';
@@ -92,6 +92,7 @@ export class Dragon {
         this.pickWaypoint();
         this.shadow = scene.add.image(this.x, this.y, shadowTexture(scene, 30)).setAlpha(0.18).setDepth(-1e8 + 1);
         this.sprite = scene.add.sprite(this.x, this.y - this.alt, 'dragon', 0).setOrigin(0.5, 1).setDepth(SKY).play('dragon');
+        addCreatorNametag(this.sprite, DRAGON_CREATOR, { headOffsetX: 14 });
         scene.events.once('shutdown', () => this.destroy());
     }
 
@@ -277,7 +278,7 @@ export class Dragon {
             sprite: s,
             headroom: t.headroom,
             nametag: t.nametag,
-            hair: this.scene.add.sprite(s.x, s.y - 19, 'dragon-hair-flame', 0).setOrigin(0.5, 1).setDepth(SKY + 1).play('dragon-hair-flame'),
+            hair: this.scene.add.sprite(s.x, s.y - s.displayHeight + 3, 'dragon-hair-flame', 0).setOrigin(0.5, 1).setDepth(SKY + 1).play('dragon-hair-flame'),
             bubble: this.scene.add.image(s.x, s.y - t.headroom, key).setOrigin(0.5, 1).setDepth(SKY + 2).setAlpha(0),
             age: 0,
             puff: 0,
@@ -300,7 +301,7 @@ export class Dragon {
 
         if (b.hair.active) {
             if (b.age > HAIR_LIFE) b.hair.destroy();
-            else b.hair.setPosition(s.x, s.y - 19).setFlipX(s.flipX);
+            else b.hair.setPosition(s.x, s.y - s.displayHeight + 3).setFlipX(s.flipX);
         }
         b.puff -= dt;
         if (b.age < 2.2 && b.puff <= 0) {

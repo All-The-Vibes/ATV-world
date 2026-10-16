@@ -1,16 +1,25 @@
 import Phaser from 'phaser';
+import stephWalkUrl from '../../../assets/steph-walk.png';
 import { LibraryBridge } from '../../library/bridge';
 import {
     HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
-    miniText, miniTextWidth, shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
+    miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, setInsideHQ } from '../commands';
+import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
 import { Disco } from '../disco/Disco';
+import { Gremlins } from '../gremlins/Gremlins';
 import { Dragon, type Burnable } from '../dragon/Dragon';
+import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
+import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
+import { TrafficLight } from '../health/TrafficLight';
+import { Giant } from '../giant/Giant';
 import { Ollama } from '../llama/Ollama';
+import { Moles } from '../moles/Moles';
+import { TalkingMoles } from '../talkingMoles/TalkingMoles';
+import { Pool } from '../pool/Pool';
 import { Tokens } from '../tokens/Tokens';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
@@ -36,8 +45,16 @@ export class Preview extends Phaser.Scene {
     private dragon?: Dragon;
     /** The sorting hat on its stool: walk up to it to be sorted into a house (see ../hat). */
     private sortingHat?: SortingHat;
+    /** Gremlins that run around stealing tokens (see ../gremlins). */
+    private gremlins?: Gremlins;
     private ollama?: Ollama;
+    private talkingMoles?: TalkingMoles;
+    /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
+    private giant?: Giant;
+    /** The swimming pool, where people queue for the high dive (see ../pool). */
+    private pool?: Pool;
     private ufo?: UFO;
+    private incidents?: Incidents;
     private ground?: Phaser.GameObjects.TileSprite;
     private player?: {
         sprite: Phaser.GameObjects.Sprite;
@@ -55,8 +72,12 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
     private town?: Town;
-    /** The disco down in the south-west corner: light-up floor, glitter ball, dancers (see ../disco). */
+    /** Microsoft's Redmond campus, west of the plaza (see ../campus). */
+    private campus?: Campus;
+    /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
+    /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
+    private moles?: Moles;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -82,9 +103,21 @@ export class Preview extends Phaser.Scene {
     private surfacePortal?: Phaser.GameObjects.Sprite;
     private hellPortal?: Phaser.GameObjects.Sprite;
     private hellDecor: (Phaser.GameObjects.Image | Phaser.GameObjects.Sprite)[] = [];
+    private ideaMachine?: Phaser.GameObjects.Image;
+    private ideaBubble?: Phaser.GameObjects.Image;
+    private ideaIndex = -1;
+    private readonly buildChallenges = [
+        'Build an arcade game',
+        'Create an AI character',
+        'Add something that changes the whole world',
+    ];
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
+    }
+
+    preload() {
+        this.load.spritesheet('steph-walk', stephWalkUrl, { frameWidth: 64, frameHeight: 88 });
     }
 
     create() {
@@ -107,8 +140,10 @@ export class Preview extends Phaser.Scene {
             { x: -190, y: -106, kind: 'cherry' },
             { x: 190, y: -70, kind: 'autumn' },
             { x: 370, y: 112, kind: 'pine' },
+            { x: -65, y: 195, kind: 'atv' },
         ].forEach(({ x, y, kind }, i) => this.tree(x, y, kind, i + 1));
         this.prop('fountain', -150, 205);
+        this.prop('fountain', 55, 195, { colors: ['cyan', 'pink', 'gold', 'lime', 'violet', 'orange'] });
         this.prop('lamp', -210, 133);
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
@@ -117,20 +152,44 @@ export class Preview extends Phaser.Scene {
         this.includeInWorld(this.sortingHat.stool);
         this.includeInWorld(this.sortingHat.hat);
         [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', x, y));
-        this.disco = new Disco(this, -250, 334);
+        this.pool = new Pool(this, 160, -215);
+        this.solids.push(this.pool.deckBounds());
+        this.includeInWorld(this.pool);
+        this.disco = new Disco(this, -290, -250);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
+        this.moles = new Moles(this, 150, 335);
+        this.moles.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.moles.area);
         try {
             this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
         } catch (e) {
             console.error('[town]', e);
         }
+        try {
+            this.campus = new Campus(this, Math.min(-457, (this.contentBounds?.left ?? -411) - 64));
+        } catch (e) {
+            console.error('[campus]', e);
+        }
         this.fitWorld();
+        const trafficLight = new TrafficLight(this, 60, 170);
+        this.solids.push(trafficLight.sprite.getBounds());
+        this.includeInWorld(trafficLight.sprite);
+        this.includeInWorld(trafficLight.label);
+        this.createIdeaMachine(-85, 170);
         // Introduction commits: 9c37211 (six originals), 3c1fb9c (Abdallah).
         for (let i = 0; i < 6; i++) this.walker(i, undefined, 'Bakar404');
         this.walker(6, 'Abdallah', 'aifateen');
+        this.walker(7, 'Shahab');
         this.createHell();
+        this.createSteph();
         this.createPlayer();
+        this.incidents = new Incidents(this, () => this.sys.isActive() && !this.insideHQ);
+        this.incidents.parts.forEach(part => this.includeInWorld(part));
+        this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
+        this.fitWorld();
         this.ollama = new Ollama(this);
+        this.talkingMoles = new TalkingMoles(this);
+        this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
@@ -144,14 +203,24 @@ export class Preview extends Phaser.Scene {
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
         this.kittens = new Kittens(this, {
+            bounds: () => this.worldBounds,
             include: (object) => this.includeInWorld(object),
             open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
             coins: () => this.tokens?.playthings() ?? [],
             dragon: () => this.dragon?.plaything(),
+            disco: (x, y) => this.disco?.contains(x, y) ?? false,
             people: this.walkers.map((w) => ({
                 sprite: w.sprite, shadow: w.shadow, label: w.label, nametag: w.nametag, anim: w.anim,
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
+        });
+        this.gremlins = new Gremlins(this, {
+            bounds: () => this.worldBounds,
+            victims: () => [
+                ...(this.player && !this.insideHQ && tokenCount() > 0 ? [{ sprite: this.player.sprite, player: true }] : []),
+                ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
+            ],
+            stealFromPlayer: () => removeToken(),
         });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
@@ -166,6 +235,9 @@ export class Preview extends Phaser.Scene {
         const onKey = (e: KeyboardEvent) => {
             if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
             if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
+            else if (!e.repeat && e.key.toLowerCase() === 'e') this.rollIdea();
+            else if (!e.repeat && e.key.toLowerCase() === 'c' && this.player
+                && this.incidents?.near(this.player.sprite.x, this.player.sprite.y)) this.incidents.trigger();
             else if (!this.insideHQ && !e.repeat && e.key === ' ') {
                 e.preventDefault();
                 this.vibePulse();
@@ -236,7 +308,7 @@ export class Preview extends Phaser.Scene {
     update(_t: number, dtMs: number) {
         const dt = dtMs / 1000;
 
-        const walkerLeft = this.worldBounds.left + 24;
+        const walkerLeft = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
         const walkerRight = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
         for (const w of this.walkers) {
             if (w.rest > 0) {
@@ -254,14 +326,22 @@ export class Preview extends Phaser.Scene {
             }
             w.sprite.setFlipX(w.dir < 0);
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
-            w.label?.setPosition(w.sprite.x, w.sprite.y - 26);
+            w.label?.setPosition(w.sprite.x, w.sprite.y - w.sprite.displayHeight - 4);
         }
         this.movePlayer(dt);
+        this.incidents?.update(dt);
+        this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.sortingHat?.update(dt);
+        this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.dragon?.update(dt);
+        this.gremlins?.update(dt);
         this.ollama?.update(dt);
+        this.talkingMoles?.update(dt);
+        this.giant?.update(dt);
+        this.pool?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
+        this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
@@ -275,6 +355,57 @@ export class Preview extends Phaser.Scene {
             this.scene.launch('Library');
             this.scene.sleep();
         }
+    }
+
+    private createIdeaMachine(x: number, y: number) {
+        const art = new PixelCanvas(34, 48);
+        art.rect(3, 18, 28, 28, 'night').rect(5, 20, 24, 23, 'violet')
+            .rect(7, 22, 20, 10, 'ink').rect(9, 24, 16, 6, 'cyan')
+            .rect(7, 35, 12, 5, 'plum').rect(22, 34, 5, 5, 'gold')
+            .set(23, 35, 'yellow').rect(5, 45, 7, 2, 'ink').rect(22, 45, 7, 2, 'ink')
+            .rect(14, 13, 6, 6, 'steel').rect(14, 15, 6, 1, 'cloud')
+            .ellipse(17, 7, 7, 7, 'gold').ellipse(16, 6, 5, 5, 'yellow')
+            .rect(14, 3, 2, 5, 'white').line(5, 5, 2, 4, 'yellow')
+            .line(28, 5, 31, 4, 'yellow').line(17, 0, 17, 1, 'white')
+            .outline('ink');
+        addPixels(this, 'preview-idea-machine', art);
+        this.add.image(x, y, shadowTexture(this, 32)).setAlpha(0.3).setDepth(-1e8);
+        this.ideaMachine = this.add.image(x, y, 'preview-idea-machine')
+            .setOrigin(0.5, 1).setDepth(y).setInteractive({ useHandCursor: true });
+        this.ideaMachine.on('pointerdown', () => {
+            if (!isTyping()) this.rollIdea();
+        });
+        this.solids.push(this.ideaMachine.getBounds());
+        this.includeInWorld(this.ideaMachine);
+
+        const label = new PixelCanvas(miniTextWidth('IDEA MACHINE') + 6, 11);
+        label.rect(0, 0, label.width, label.height, 'ink');
+        miniText(label, 3, 3, 'IDEA MACHINE', 'yellow');
+        addPixels(this, 'preview-idea-label', label);
+        this.includeInWorld(this.add.image(x, y + 12, 'preview-idea-label').setDepth(y + 1));
+        addPixels(this, 'preview-idea-prompt', speechArt('Press E or click for a build challenge'));
+        this.buildChallenges.forEach((text, index) => {
+            addPixels(this, `preview-idea-${index}`, speechArt(`${text}! E or click for another.`));
+        });
+        this.ideaBubble = this.add.image(x, y - 49, 'preview-idea-prompt')
+            .setOrigin(0.5, 1).setDepth(1e5).setVisible(false);
+        this.includeInWorld(this.ideaBubble);
+    }
+
+    private nearIdeaMachine() {
+        const p = this.player?.sprite;
+        const m = this.ideaMachine;
+        return !!p && !!m && !this.insideHQ && this.sys.isActive()
+            && Phaser.Math.Distance.Between(p.x, p.y, m.x, m.y) <= 58;
+    }
+
+    private rollIdea() {
+        if (!this.nearIdeaMachine()) return;
+        // Pick a different challenge each time, without favoring either alternative.
+        this.ideaIndex = this.ideaIndex < 0
+            ? Phaser.Math.Between(0, this.buildChallenges.length - 1)
+            : (this.ideaIndex + Phaser.Math.Between(1, this.buildChallenges.length - 1)) % this.buildChallenges.length;
+        this.ideaBubble?.setTexture(`preview-idea-${this.ideaIndex}`).setVisible(true);
     }
 
     private grass() {
@@ -550,7 +681,8 @@ export class Preview extends Phaser.Scene {
 
     private prop(name: string, x: number, y: number, opts: PropOptions = {}) {
         const p = paintProp(PROPS[name], opts);
-        const key = `preview-prop-${name}`;
+        const optSuffix = Object.keys(opts).length ? `-${JSON.stringify(opts)}` : '';
+        const key = `preview-prop-${name}${optSuffix}`;
         addPixels(this, key, p.canvas, stripFrames(p.frames, p.frameW, p.frameH));
         if (p.shadow) this.add.image(x, y, shadowTexture(this, p.shadow)).setAlpha(0.25).setDepth(-1e8);
         const s = this.add.sprite(x, y + 1, key, 0).setOrigin(0.5, 1).setDepth(y);
@@ -572,9 +704,11 @@ export class Preview extends Phaser.Scene {
         if (!this.anims.exists(anim)) {
             this.anims.create({ key: anim, frames: ['side-1', 'side-0', 'side-2', 'side-0'].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1 });
         }
-        const y = [62, 124, 184, 96, 154, 42, 214][i];
+        const lanes = [62, 124, 184, 96, 154, 42, 214, 140];
+        const y = lanes[i % lanes.length];
         const shadow = this.add.image(0, y, shadowTexture(this, 10)).setAlpha(0.25).setDepth(-1e8);
-        const sprite = this.add.sprite(-310 + i * 120, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
+        const startX = Phaser.Math.Clamp(-310 + i * 95, this.worldBounds.left + 28, this.worldBounds.right - 28);
+        const sprite = this.add.sprite(startX, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
         let label: Phaser.GameObjects.Image | undefined;
         if (name) {
             const labelKey = `preview-walker-label-${name}`;
@@ -589,11 +723,32 @@ export class Preview extends Phaser.Scene {
         this.walkers.push({ sprite, shadow, label, nametag, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
     }
 
+    private createSteph() {
+        const key = 'steph-walk';
+        this.textures.get(key).add('side-0', 0, 0, 0, 64, 88);
+        if (!this.anims.exists(key)) {
+            this.anims.create({
+                key, frames: [1, 0, 3, 2].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1,
+            });
+        }
+        const x = -20, y = 124;
+        const sprite = this.add.sprite(x, y, key, 'side-0')
+            .setName('Steph').setOrigin(0.5, 1).setScale(0.5).setDepth(y).play(key);
+        const shadow = this.add.image(x, y, shadowTexture(this, 16)).setAlpha(0.25).setDepth(-1e8);
+        const nameplate = new PixelCanvas(miniTextWidth('STEPH') + 6, 9);
+        nameplate.rect(0, 0, nameplate.width, 9, 'ink');
+        miniText(nameplate, 3, 2, 'STEPH', 'cream');
+        addPixels(this, 'steph-label', nameplate);
+        const label = this.add.image(x, y - 48, 'steph-label')
+            .setName('Steph-label').setOrigin(0.5, 1).setDepth(y + 1);
+        this.walkers.push({ sprite, shadow, label, anim: key, dir: 1, speed: 26, rest: 0 });
+    }
+
     /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
     private burnables(): Burnable[] {
         const out: Burnable[] = this.walkers.map((w) => ({
             sprite: w.sprite,
-            headroom: w.label ? 38 : 24,
+            headroom: w.label ? w.sprite.displayHeight + 16 : 24,
             nametag: w.nametag,
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
@@ -868,7 +1023,7 @@ export class Preview extends Phaser.Scene {
 
     /** The world is everything placed so far plus ATV HQ (which grows and shrinks with the call), with a margin. */
     private fitWorld() {
-        const parts = [this.contentBounds, this.hq?.bounds(), this.town?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
+        const parts = [this.contentBounds, this.hq?.bounds(), this.town?.bounds(), this.campus?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
         if (!parts.length) return;
         const left = Math.min(...parts.map((r) => r.left));
         const top = Math.min(...parts.map((r) => r.top));

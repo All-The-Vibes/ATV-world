@@ -45,10 +45,16 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/game/world/layout.ts` is the lot grid the town grows on.
 - `src/game/scenes/Preview.ts` is the world on the live screen. Find all six glowing vibes, chain quick pickups for a combo, and clear a round for a temporary speed rush. Press Space for a short-range Vibe Pulse that grabs nearby shards and makes the locals hop.
 - `src/game/llama/Ollama.ts` runs a fluffy pixel-art llama around the plaza. It says "Hi, I'm Ollama!" followed by "I run local. Mostly in circles." on a repeating speech-bubble loop.
+- `src/game/talkingMoles/` runs three staggered lawn burrows, separate from the Whack-a-Mole game. Pixel-art moles pop out, share eight rotating jokes about AI agents, vibe coding, and token bills, then disappear underground. Each joke stays up for 5.5 seconds before its mole burrows away; no clicks needed. `node tests/moles-browser.mjs` checks the full cycle in a real browser.
+- `src/game/pool/` is a swimming pool with a high dive next to ATV HQ. Swimmers queue up, climb the ladder, bounce on the board, and dive, flip, cannonball, or belly flop in, saying something silly when they splash down.
 - Abdallah walks around town with a pixel-art nameplate.
+- **Chaos / Incident Button:** Click the big red button beside the production station west of the plaza (or walk nearby and press **C**). It randomly starts a building fire, power outage, alien invasion, or network failure. Watch, Patch, and Rollback detect the incident, run to the station, visibly repair it, and return to standby. The board and progress bar show recovery; one incident runs at a time. These are harmless in-world drills, not real service outages. Run `node tests/incidents-browser.mjs` to check every incident and the input guards.
+- **🛠️ Self-Healing Repair Crew:** Watch, Patch, and Rollback automatically detect and fix a simulated fault after 30 seconds on standby, using animated wrenches and repair sparks. Click the **AUTO ON/OFF** sign beneath the incident board to pause or enable automatic drills; manual chaos-button use still works. Disabling automation lets any current repair finish. The standby timer only advances while the world is active, you're outside HQ, and you're not typing; each return to standby starts a fresh countdown. This crew repairs the in-world production station, not real code, workflows, or services.
+- **💡 Idea Machine:** Walk up to the lightbulb machine just left of the starting spot, then press **E** or click it for a random build challenge. Try building an arcade game, creating an AI character, or adding something that changes the whole world. Press again for a different idea.
 - A flying saucer circles above town with a little alien pilot, chasing lights, and a hovering shadow.
+- Steph strolls across the plaza automatically, with a `STEPH` name tag, blonde hair, a red top, and dark pants. The existing arrow-key player is unchanged. Her transparent walk sheet is `assets/steph-walk.png`, cut from the supplied artwork preserved in `assets/steph-reference.png`. Run `npm run test:steph` to check her walk, turns, and player controls.
 - `src/game/view.ts` is the camera: F fits the whole world, +/- or the mouse wheel zooms, dragging looks around, and the view survives reloads.
-- `src/game/kittens.ts` runs the south-lawn cat and kitten corral: eight slippery kittens, 24 toys (yarn, balls, mice, tunnels, scratching posts and feather teasers), and a project manager trying to carry escapees home. Kittens get bored, dodge catches, bat at dropped coins without spending them, and chase and jump toward a nearby dragon. People get distracted and exchange meows: "I have to get back to work now.. err... meow, meow." Press F to fit the whole playground; `npm run test:kittens` checks their antics in a real browser.
+- `src/game/kittens.ts` runs the south-lawn cat and kitten corral: eight slippery kittens, 24 toys (yarn, balls, mice, tunnels, scratching posts and feather teasers), and a project manager trying to carry escapees home. Two adventurous kittens roam across town hunting the dragon; the other six prefer local mischief. They bat at coins without spending them, pounce at the dragon, and dance and tell '70s jokes on the disco floor. People get distracted and exchange meows: "I have to get back to work now.. err... meow, meow." Press F to fit the whole playground; `npm run test:kittens` checks their antics in a real browser.
 - `src/live.ts` is the LIVE badge in the bottom left. It shows the commit that's live and reloads the page when a newer push deploys.
 - `src/music/` is the background music: an 80s arcade loop made with Gemini. The speaker button or M turns it off and on.
 
@@ -82,6 +88,7 @@ checked October 16, 2026):
 | Player, including the library copy (`PLAYER_LOOK`) | `vvundela1111` | `9fd2cf3a9bd3c02e8374a6dc25b13737725deb52` |
 | Abdallah (the named street walker) | `aifateen` | `3c1fb9c186c8051a961a26073761e970347316de` |
 | Disco dancers | `markbriggs-ms` | `c5fedcc91e9cd741957049bda145811b8a768dc4` |
+| Dragon | `markbriggs-ms` | `b13d64dd83a60f510e921dfeed1eb3d8bf8e4400` |
 | Kitten playground's project manager | `DeaderestPool` | `bee168535494ad2ed5f4eef73dcfdfd2da2e8be0` |
 | HQ seated coders and arriving/departing avatars (`callerLook`) | **Unresolved; unlabeled** | `3ccda30b460936980682095775fdcd746f1b5f75` |
 
@@ -90,6 +97,24 @@ the creator's account before adding `githubUsername` to `callerLook` in
 `src/game/hq/art.ts`; both seated and walking sprites already support it. Existing
 HQ desk plates still identify call participants, separately from creator tags.
 
+Concurrent additions outside this backfill remain unverified and unlabeled:
+Shahab, Steph's supplied sprite, pool swimmers, repair crew, and custom creatures
+(kittens, llama, gremlins, giant, moles and the saucer pilot). Do not apply
+the shared pixel-kit author's username to them; confirm each creation separately.
+
 Run `node tests/nametags-browser.mjs` for focused real-Phaser regression checks at
 desktop and mobile widths. It uses an OS-assigned local port and closes only its
 own server. Set `NAMETAG_SCREENSHOTS` to a directory to save screenshots.
+
+## CI/CD Traffic Light
+
+The giant traffic light in the town square watches the latest `main` runs of Deploy, CI Health, and CodeQL. Click it to open GitHub Actions.
+
+- **Green:** deployment and strict CI are present, and all observed checks pass.
+- **Yellow:** one workflow is failing, or checks are running/cancelled.
+- **Red:** deployment failed, or two or more workflows are failing.
+- **Lights off:** waiting for the first CI results, or GitHub is unavailable. Unknown is never shown as healthy.
+
+The separate CI Health workflow runs strict typecheck and build without blocking the existing resilient deployment. The light refreshes every minute through `/api/health`, which caches GitHub results for a minute per server instance. Public repository reads need no setup; optionally set the server-only `GITHUB_HEALTH_TOKEN` app setting (Actions read permission) for a higher GitHub rate limit.
+
+Check the status rules with `node --test tests/health.test.cjs` and the game integration with `node tests/health-browser.mjs` (Edge).
