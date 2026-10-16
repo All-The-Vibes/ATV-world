@@ -53,3 +53,16 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/music/` is the background music: an 80s arcade loop made with Gemini. The speaker button or M turns it off and on.
 
 Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.
+
+## CI/CD Traffic Light
+
+The giant traffic light in the town square watches the latest `main` runs of Deploy, CI Health, and CodeQL. Click it to open GitHub Actions.
+
+- **Green:** deployment and strict CI are present, and all observed checks pass.
+- **Yellow:** one workflow is failing, or checks are running/cancelled.
+- **Red:** deployment failed, or two or more workflows are failing.
+- **Lights off:** waiting for the first CI results, or GitHub is unavailable. Unknown is never shown as healthy.
+
+The separate CI Health workflow runs strict typecheck and build without blocking the existing resilient deployment. The light refreshes every minute through `/api/health`, which caches GitHub results for a minute per server instance. Public repository reads need no setup; optionally set the server-only `GITHUB_HEALTH_TOKEN` app setting (Actions read permission) for a higher GitHub rate limit.
+
+Check the status rules with `node --test tests/health.test.cjs` and the game integration with `node tests/health-browser.mjs` (Edge).

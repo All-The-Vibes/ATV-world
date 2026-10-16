@@ -8,6 +8,7 @@ import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { Disco } from '../disco/Disco';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
+import { TrafficLight } from '../health/TrafficLight';
 import { Kittens } from '../kittens';
 import { Ollama } from '../llama/Ollama';
 import { Tokens } from '../tokens/Tokens';
@@ -116,6 +117,10 @@ export class Preview extends Phaser.Scene {
             console.error('[town]', e);
         }
         this.fitWorld();
+        const trafficLight = new TrafficLight(this, 60, 170);
+        this.solids.push(trafficLight.sprite.getBounds());
+        this.includeInWorld(trafficLight.sprite);
+        this.includeInWorld(trafficLight.label);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
         this.createHell();
