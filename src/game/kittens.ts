@@ -461,8 +461,8 @@ export class Kittens {
             } else s.stop().setFrame('side-0');
             s.setDepth(s.y);
             person.shadow.setPosition(s.x, s.y);
-            person.label?.setPosition(s.x, s.y - 26);
-            visitor.bubble.setPosition(s.x, s.y - 29).setDepth(s.y + 1000);
+            person.label?.setPosition(s.x, s.y - s.displayHeight - 4);
+            visitor.bubble.setPosition(s.x, s.y - s.displayHeight - 7).setDepth(s.y + 1000);
         }
     }
 

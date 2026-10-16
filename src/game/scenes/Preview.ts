@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import stephWalkUrl from '../../../assets/steph-walk.png';
 import { LibraryBridge } from '../../library/bridge';
 import {
     HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
@@ -108,6 +109,10 @@ export class Preview extends Phaser.Scene {
         super('Preview');
     }
 
+    preload() {
+        this.load.spritesheet('steph-walk', stephWalkUrl, { frameWidth: 64, frameHeight: 88 });
+    }
+
     create() {
         this.grass();
         const buildings = [
@@ -168,6 +173,7 @@ export class Preview extends Phaser.Scene {
         this.walker(6, 'Abdallah');
         this.walker(7, 'Shahab');
         this.createHell();
+        this.createSteph();
         this.createPlayer();
         this.incidents = new Incidents(this, () => this.sys.isActive() && !this.insideHQ);
         this.incidents.parts.forEach(part => this.includeInWorld(part));
@@ -310,7 +316,7 @@ export class Preview extends Phaser.Scene {
             }
             w.sprite.setFlipX(w.dir < 0);
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
-            w.label?.setPosition(w.sprite.x, w.sprite.y - 26);
+            w.label?.setPosition(w.sprite.x, w.sprite.y - w.sprite.displayHeight - 4);
         }
         this.movePlayer(dt);
         this.incidents?.update(dt);
@@ -704,11 +710,32 @@ export class Preview extends Phaser.Scene {
         this.walkers.push({ sprite, shadow, label, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
     }
 
+    private createSteph() {
+        const key = 'steph-walk';
+        this.textures.get(key).add('side-0', 0, 0, 0, 64, 88);
+        if (!this.anims.exists(key)) {
+            this.anims.create({
+                key, frames: [1, 0, 3, 2].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1,
+            });
+        }
+        const x = -20, y = 124;
+        const sprite = this.add.sprite(x, y, key, 'side-0')
+            .setName('Steph').setOrigin(0.5, 1).setScale(0.5).setDepth(y).play(key);
+        const shadow = this.add.image(x, y, shadowTexture(this, 16)).setAlpha(0.25).setDepth(-1e8);
+        const nameplate = new PixelCanvas(miniTextWidth('STEPH') + 6, 9);
+        nameplate.rect(0, 0, nameplate.width, 9, 'ink');
+        miniText(nameplate, 3, 2, 'STEPH', 'cream');
+        addPixels(this, 'steph-label', nameplate);
+        const label = this.add.image(x, y - 48, 'steph-label')
+            .setName('Steph-label').setOrigin(0.5, 1).setDepth(y + 1);
+        this.walkers.push({ sprite, shadow, label, anim: key, dir: 1, speed: 26, rest: 0 });
+    }
+
     /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
     private burnables(): Burnable[] {
         const out: Burnable[] = this.walkers.map((w) => ({
             sprite: w.sprite,
-            headroom: w.label ? 38 : 24,
+            headroom: w.label ? w.sprite.displayHeight + 16 : 24,
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
