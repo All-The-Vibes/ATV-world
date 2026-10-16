@@ -114,6 +114,7 @@ export class Preview extends Phaser.Scene {
         this.sortingHat = new SortingHat(this, -110, 30, () => this.player, () => !this.insideHQ);
         this.includeInWorld(this.sortingHat.stool);
         this.includeInWorld(this.sortingHat.hat);
+        [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', x, y));
         this.disco = new Disco(this, -250, 334);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
         try {
