@@ -51,6 +51,17 @@ export function addToken() {
     bus.dispatchEvent(new Event('tokens'));
 }
 
+/** A gremlin snatched one. Returns whether there was a token to take. */
+export function removeToken(): boolean {
+    if (tokens <= 0) return false;
+    tokens--;
+    try {
+        localStorage.setItem(TOKENS_KEY, String(tokens));
+    } catch { /* private mode: the count just won't stick */ }
+    bus.dispatchEvent(new Event('tokens'));
+    return true;
+}
+
 /** Listen for the player's token count changing. Returns a function that stops listening. */
 export function onTokens(fn: () => void): () => void {
     bus.addEventListener('tokens', fn);

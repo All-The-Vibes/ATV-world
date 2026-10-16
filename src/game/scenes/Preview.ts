@@ -4,8 +4,9 @@ import {
     HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, setInsideHQ } from '../commands';
+import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
 import { Disco } from '../disco/Disco';
+import { Gremlins } from '../gremlins/Gremlins';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
@@ -35,6 +36,8 @@ export class Preview extends Phaser.Scene {
     private dragon?: Dragon;
     /** The sorting hat on its stool: walk up to it to be sorted into a house (see ../hat). */
     private sortingHat?: SortingHat;
+    /** Gremlins that run around stealing tokens (see ../gremlins). */
+    private gremlins?: Gremlins;
     private ollama?: Ollama;
     private ufo?: UFO;
     private ground?: Phaser.GameObjects.TileSprite;
@@ -150,6 +153,14 @@ export class Preview extends Phaser.Scene {
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
         });
+        this.gremlins = new Gremlins(this, {
+            bounds: () => this.worldBounds,
+            victims: () => [
+                ...(this.player && !this.insideHQ && tokenCount() > 0 ? [{ sprite: this.player.sprite, player: true }] : []),
+                ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
+            ],
+            stealFromPlayer: () => removeToken(),
+        });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
             this.syncVibes(true);
@@ -256,6 +267,7 @@ export class Preview extends Phaser.Scene {
         this.movePlayer(dt);
         this.sortingHat?.update(dt);
         this.dragon?.update(dt);
+        this.gremlins?.update(dt);
         this.ollama?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
