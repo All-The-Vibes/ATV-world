@@ -5,71 +5,100 @@ import './characters.css';
 /** Rows showing at once, and the height of one row (keep in step with characters.css). */
 const PAGE = 5;
 const ROW = 34;
-/** How often the list turns to its next five, and how long it stays still after someone scrolls it. */
-const CYCLE_MS = 3500;
-const RESUME_MS = 8000;
+/** How often the list turns to its next five, how long the turn takes, and how long it stays put after someone scrolls it. */
+const CYCLE_MS = 3000;
+const TURN_MS = 500;
+const RESUME_MS = 6000;
+
+type Hold = 'searching' | 'scrolled' | undefined;
 
 export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; onFocusChange?: (focused: boolean) => void }) {
     const characters = useSyncExternalStore(onCharacters, getCharacters);
     const [query, setQuery] = useState('');
     const [open, setOpen] = useState(() => window.innerWidth > 600);
-    const [paused, setPaused] = useState(false);
+    const [hold, setHold] = useState<Hold>();
     const list = useRef<HTMLUListElement>(null);
-    const hovering = useRef(false);
     const typing = useRef(false);
-    const pausedUntil = useRef(0);
-    const autoUntil = useRef(0);
+    const queried = useRef(false);
+    const scrolledUntil = useRef(0);
+    // The list turns itself with a short script, so its own scrolling is told apart from the user's.
+    const turning = useRef(0);
+    const lastSet = useRef(0);
 
     const q = query.trim().toLowerCase();
+    queried.current = q !== '';
     const shown = useMemo(
         () => (q ? characters.filter((c) => c.name.toLowerCase().includes(q) || c.kind.toLowerCase().includes(q)) : characters),
         [characters, q],
     );
     const here = characters.filter((c) => c.here).length;
 
-    // Whether the list is standing still: hovered, being typed in, recently scrolled by hand, or too short to cycle.
-    const holding = useCallback(() => {
-        const el = list.current;
-        const short = !el || el.scrollHeight <= el.clientHeight + 1;
-        return hovering.current || typing.current || performance.now() < pausedUntil.current || short;
+    // Why the list should stand still right now, if it should: someone is using the search, or scrolled it by hand.
+    const holdReason = useCallback((): Hold => {
+        if (typing.current || queried.current) return 'searching';
+        if (performance.now() < scrolledUntil.current) return 'scrolled';
+        return undefined;
     }, []);
 
-    const refresh = useCallback(() => setPaused(holding()), [holding]);
+    const stopTurning = useCallback(() => {
+        cancelAnimationFrame(turning.current);
+        turning.current = 0;
+    }, []);
+
+    const turnTo = useCallback((el: HTMLElement, to: number) => {
+        stopTurning();
+        const from = el.scrollTop;
+        const start = performance.now();
+        const step = (now: number) => {
+            const t = Math.min(1, (now - start) / TURN_MS);
+            const eased = t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+            el.scrollTop = from + (to - from) * eased;
+            lastSet.current = el.scrollTop;
+            turning.current = t < 1 ? requestAnimationFrame(step) : 0;
+        };
+        turning.current = requestAnimationFrame(step);
+    }, [stopTurning]);
 
     useEffect(() => {
         if (!open) return;
         const id = window.setInterval(() => {
             const el = list.current;
-            if (!el) return;
-            if (holding()) {
-                setPaused(true);
-                return;
-            }
-            setPaused(false);
+            const reason = holdReason();
+            setHold(reason);
+            if (!el || reason || el.scrollHeight <= el.clientHeight + 1) return;
             const max = el.scrollHeight - el.clientHeight;
             const page = Math.round(el.scrollTop / ROW) * ROW;
-            const next = el.scrollTop >= max - 1 ? 0 : Math.min(max, page + PAGE * ROW);
-            autoUntil.current = performance.now() + 800;
-            el.scrollTo({ top: next, behavior: 'smooth' });
+            turnTo(el, el.scrollTop >= max - 1 ? 0 : Math.min(max, page + PAGE * ROW));
         }, CYCLE_MS);
-        return () => window.clearInterval(id);
-    }, [open, holding]);
+        return () => {
+            window.clearInterval(id);
+            stopTurning();
+        };
+    }, [open, holdReason, turnTo, stopTurning]);
 
     // A new filter starts from the top.
     useEffect(() => {
-        list.current?.scrollTo({ top: 0 });
-        refresh();
-    }, [q, refresh]);
+        const el = list.current;
+        if (el) {
+            stopTurning();
+            el.scrollTop = 0;
+            lastSet.current = el.scrollTop;
+        }
+        setHold(holdReason());
+    }, [q, holdReason, stopTurning]);
 
-    // Any scrolling the list didn't do itself (the scrollbar, the wheel, a swipe) holds the cycling for a while.
-    const hold = () => {
-        pausedUntil.current = performance.now() + RESUME_MS;
-        setPaused(true);
+    // Scrolling by hand (the scrollbar, the wheel, a swipe) holds the cycling for a few seconds.
+    const scrolledByHand = () => {
+        stopTurning();
+        scrolledUntil.current = performance.now() + RESUME_MS;
+        setHold(holdReason());
     };
 
     const onScroll = () => {
-        if (performance.now() < autoUntil.current) return;
-        hold();
+        const el = list.current;
+        if (!el || turning.current || Math.abs(el.scrollTop - lastSet.current) < 2) return;
+        lastSet.current = el.scrollTop;
+        scrolledByHand();
     };
 
     if (hidden) return null;
@@ -93,8 +122,8 @@ export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; o
                     autoComplete="off"
                     spellCheck={false}
                     onChange={(e) => setQuery(e.target.value)}
-                    onFocus={() => { typing.current = true; refresh(); onFocusChange?.(true); }}
-                    onBlur={() => { typing.current = false; refresh(); onFocusChange?.(false); }}
+                    onFocus={() => { typing.current = true; setHold(holdReason()); onFocusChange?.(true); }}
+                    onBlur={() => { typing.current = false; setHold(holdReason()); onFocusChange?.(false); }}
                     onKeyDown={(e) => {
                         e.stopPropagation();
                         if (e.key === 'Escape') {
@@ -110,9 +139,9 @@ export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; o
                     ref={list}
                     className="char-list"
                     onScroll={onScroll}
-                    onPointerDown={hold}
-                    onMouseEnter={() => { hovering.current = true; refresh(); }}
-                    onMouseLeave={() => { hovering.current = false; pausedUntil.current = Math.max(pausedUntil.current, performance.now() + 1500); refresh(); }}
+                    onWheel={scrolledByHand}
+                    onPointerDown={(e) => { if (e.target === e.currentTarget) scrolledByHand(); }}
+                    onTouchMove={scrolledByHand}
                 >
                     {shown.map((c) => (
                         <li key={c.id} className="char-row" data-away={c.here ? undefined : ''}>
@@ -138,7 +167,7 @@ export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; o
                 </ul>
                 <footer className="char-foot">
                     <span>{shown.length} shown</span>
-                    <span data-paused={paused ? '' : undefined}>{paused ? 'PAUSED' : 'CYCLING'}</span>
+                    <span data-paused={hold ? '' : undefined}>{hold === 'searching' ? 'PAUSED: SEARCH' : hold === 'scrolled' ? 'PAUSED: SCROLLED' : 'CYCLING'}</span>
                 </footer>
             </>}
         </section>
