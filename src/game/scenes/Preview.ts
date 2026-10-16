@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import stephWalkUrl from '../../../assets/steph-walk.png';
 import { LibraryBridge } from '../../library/bridge';
 import {
     HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
@@ -8,10 +9,12 @@ import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '..
 import { Disco } from '../disco/Disco';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Dragon, type Burnable } from '../dragon/Dragon';
+import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
-import { TrafficLight } from '../health/TrafficLight';
+import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
+import { TrafficLight } from '../health/TrafficLight';
 import { Ollama } from '../llama/Ollama';
 import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
@@ -47,6 +50,7 @@ export class Preview extends Phaser.Scene {
     /** The swimming pool, where people queue for the high dive (see ../pool). */
     private pool?: Pool;
     private ufo?: UFO;
+    private incidents?: Incidents;
     private ground?: Phaser.GameObjects.TileSprite;
     private player?: {
         sprite: Phaser.GameObjects.Sprite;
@@ -63,6 +67,8 @@ export class Preview extends Phaser.Scene {
     private hq?: HQ;
     /** The town east of the plaza: roads, traffic, police and fire stations, house fires (see ../town). */
     private town?: Town;
+    /** Microsoft's Redmond campus, west of the plaza (see ../campus). */
+    private campus?: Campus;
     /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
@@ -103,6 +109,10 @@ export class Preview extends Phaser.Scene {
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
+    }
+
+    preload() {
+        this.load.spritesheet('steph-walk', stephWalkUrl, { frameWidth: 64, frameHeight: 88 });
     }
 
     create() {
@@ -150,6 +160,11 @@ export class Preview extends Phaser.Scene {
         } catch (e) {
             console.error('[town]', e);
         }
+        try {
+            this.campus = new Campus(this, Math.min(-457, (this.contentBounds?.left ?? -411) - 64));
+        } catch (e) {
+            console.error('[campus]', e);
+        }
         this.fitWorld();
         const trafficLight = new TrafficLight(this, 60, 170);
         this.solids.push(trafficLight.sprite.getBounds());
@@ -160,7 +175,12 @@ export class Preview extends Phaser.Scene {
         this.walker(6, 'Abdallah');
         this.walker(7, 'Shahab');
         this.createHell();
+        this.createSteph();
         this.createPlayer();
+        this.incidents = new Incidents(this, () => this.sys.isActive() && !this.insideHQ);
+        this.incidents.parts.forEach(part => this.includeInWorld(part));
+        this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
+        this.fitWorld();
         this.ollama = new Ollama(this);
         this.talkingMoles = new TalkingMoles(this);
         this.ufo = new UFO(this, () => this.worldBounds);
@@ -176,10 +196,12 @@ export class Preview extends Phaser.Scene {
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
         this.kittens = new Kittens(this, {
+            bounds: () => this.worldBounds,
             include: (object) => this.includeInWorld(object),
             open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
             coins: () => this.tokens?.playthings() ?? [],
             dragon: () => this.dragon?.plaything(),
+            disco: (x, y) => this.disco?.contains(x, y) ?? false,
             people: this.walkers.map((w) => ({
                 sprite: w.sprite, shadow: w.shadow, label: w.label, anim: w.anim,
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
@@ -207,6 +229,8 @@ export class Preview extends Phaser.Scene {
             if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
             if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
             else if (!e.repeat && e.key.toLowerCase() === 'e') this.rollIdea();
+            else if (!e.repeat && e.key.toLowerCase() === 'c' && this.player
+                && this.incidents?.near(this.player.sprite.x, this.player.sprite.y)) this.incidents.trigger();
             else if (!this.insideHQ && !e.repeat && e.key === ' ') {
                 e.preventDefault();
                 this.vibePulse();
@@ -277,7 +301,7 @@ export class Preview extends Phaser.Scene {
     update(_t: number, dtMs: number) {
         const dt = dtMs / 1000;
 
-        const walkerLeft = this.worldBounds.left + 24;
+        const walkerLeft = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
         const walkerRight = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
         for (const w of this.walkers) {
             if (w.rest > 0) {
@@ -295,9 +319,10 @@ export class Preview extends Phaser.Scene {
             }
             w.sprite.setFlipX(w.dir < 0);
             w.shadow.setPosition(w.sprite.x, w.sprite.y);
-            w.label?.setPosition(w.sprite.x, w.sprite.y - 26);
+            w.label?.setPosition(w.sprite.x, w.sprite.y - w.sprite.displayHeight - 4);
         }
         this.movePlayer(dt);
+        this.incidents?.update(dt);
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.sortingHat?.update(dt);
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
@@ -689,11 +714,32 @@ export class Preview extends Phaser.Scene {
         this.walkers.push({ sprite, shadow, label, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
     }
 
+    private createSteph() {
+        const key = 'steph-walk';
+        this.textures.get(key).add('side-0', 0, 0, 0, 64, 88);
+        if (!this.anims.exists(key)) {
+            this.anims.create({
+                key, frames: [1, 0, 3, 2].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1,
+            });
+        }
+        const x = -20, y = 124;
+        const sprite = this.add.sprite(x, y, key, 'side-0')
+            .setName('Steph').setOrigin(0.5, 1).setScale(0.5).setDepth(y).play(key);
+        const shadow = this.add.image(x, y, shadowTexture(this, 16)).setAlpha(0.25).setDepth(-1e8);
+        const nameplate = new PixelCanvas(miniTextWidth('STEPH') + 6, 9);
+        nameplate.rect(0, 0, nameplate.width, 9, 'ink');
+        miniText(nameplate, 3, 2, 'STEPH', 'cream');
+        addPixels(this, 'steph-label', nameplate);
+        const label = this.add.image(x, y - 48, 'steph-label')
+            .setName('Steph-label').setOrigin(0.5, 1).setDepth(y + 1);
+        this.walkers.push({ sprite, shadow, label, anim: key, dir: 1, speed: 26, rest: 0 });
+    }
+
     /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
     private burnables(): Burnable[] {
         const out: Burnable[] = this.walkers.map((w) => ({
             sprite: w.sprite,
-            headroom: w.label ? 38 : 24,
+            headroom: w.label ? w.sprite.displayHeight + 16 : 24,
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
@@ -974,7 +1020,7 @@ export class Preview extends Phaser.Scene {
 
     /** The world is everything placed so far plus ATV HQ (which grows and shrinks with the call), with a margin. */
     private fitWorld() {
-        const parts = [this.contentBounds, this.hq?.bounds(), this.town?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
+        const parts = [this.contentBounds, this.hq?.bounds(), this.town?.bounds(), this.campus?.bounds()].filter((r): r is Phaser.Geom.Rectangle => !!r);
         if (!parts.length) return;
         const left = Math.min(...parts.map((r) => r.left));
         const top = Math.min(...parts.map((r) => r.top));

@@ -274,7 +274,7 @@ export class Dragon {
         const burn: Burn = {
             sprite: s,
             headroom: t.headroom,
-            hair: this.scene.add.sprite(s.x, s.y - 19, 'dragon-hair-flame', 0).setOrigin(0.5, 1).setDepth(SKY + 1).play('dragon-hair-flame'),
+            hair: this.scene.add.sprite(s.x, s.y - s.displayHeight + 3, 'dragon-hair-flame', 0).setOrigin(0.5, 1).setDepth(SKY + 1).play('dragon-hair-flame'),
             bubble: this.scene.add.image(s.x, s.y - t.headroom, key).setOrigin(0.5, 1).setDepth(SKY + 2).setAlpha(0),
             age: 0,
             puff: 0,
@@ -297,7 +297,7 @@ export class Dragon {
 
         if (b.hair.active) {
             if (b.age > HAIR_LIFE) b.hair.destroy();
-            else b.hair.setPosition(s.x, s.y - 19).setFlipX(s.flipX);
+            else b.hair.setPosition(s.x, s.y - s.displayHeight + 3).setFlipX(s.flipX);
         }
         b.puff -= dt;
         if (b.age < 2.2 && b.puff <= 0) {

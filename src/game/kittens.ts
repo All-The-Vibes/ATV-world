@@ -25,6 +25,7 @@ interface Visitor {
 }
 
 interface Kitten extends Point {
+    hunter: boolean;
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
     bubble: Phaser.GameObjects.Image;
@@ -36,15 +37,28 @@ interface Kitten extends Point {
     jump: number;
     talk: number;
     phase: number;
+    joke: number;
+    jokeAt: number;
 }
 
 interface Options {
+    bounds: () => Phaser.Geom.Rectangle;
     include: (object: { getBounds(): Phaser.Geom.Rectangle }) => void;
     open: (x: number, y: number) => boolean;
     coins: () => readonly Point[];
     dragon: () => Point | undefined;
     people: readonly Person[];
+    disco: (x: number, y: number) => boolean;
 }
+
+const DISCO_JOKES = [
+    'DISCO INFERNO? WHO INVITED THE DRAGON?',
+    'THE PM SAID DO THE HUSTLE. I TOOK A NAP.',
+    "THESE AREN'T BELL-BOTTOMS. I'M JUST VERY FLUFFY.",
+    "STAYIN' ALIVE IS EASIER WITH NINE LIVES.",
+    'THAT MIRROR BALL OWES ME A LASER DOT.',
+    'I CAME FOR THE FUNK. I STAYED FOR THE CARDBOARD BOX.',
+];
 
 /** A playground full of short attention spans, and one PM who really did not sign up for this. */
 export class Kittens {
@@ -66,10 +80,11 @@ export class Kittens {
     private managerRest = 0;
     private managerTalk = 0;
     private clock = 0;
+    private readonly detours = new WeakMap<Point, { x: number; y: number; until: number }>();
 
     constructor(private readonly scene: Phaser.Scene, private readonly opts: Options) {
         const b = this.bounds;
-        scene.add.rectangle(b.centerX, b.centerY, b.width, b.height, 0xb4e05a, 0.45).setDepth(-1e7);
+        scene.add.rectangle(b.centerX, b.centerY, b.width, b.height, 0xb4e05a, 0.45).setDepth(-1e8 - 3);
         const back = addPixels(scene, 'kittens-fence-back', fenceArt(b.width));
         const side = addPixels(scene, 'kittens-fence-side', fenceArt(18));
         scene.add.image(b.centerX, b.top, back).setOrigin(0.5, 1).setDepth(b.top);
@@ -110,8 +125,9 @@ export class Kittens {
             const shadow = scene.add.image(sprite.x, sprite.y, shadowTexture(scene, 14)).setDepth(-1e6).setAlpha(0.22);
             const bubble = scene.add.image(0, 0, this.bubble('TOYS!')).setOrigin(0.5, 1).setVisible(false);
             this.cats.push({
-                x: sprite.x, y: sprite.y, sprite, shadow, bubble, mood: 'play', target: at,
+                x: sprite.x, y: sprite.y, hunter: i < 2, sprite, shadow, bubble, mood: 'play', target: at,
                 toy, timer: 2 + i * 0.65, cooldown: 0, jump: 0, talk: 0, phase: i * 1.7,
+                joke: i % DISCO_JOKES.length, jokeAt: 5 + i * 1.2,
             });
         });
 
@@ -175,14 +191,17 @@ export class Kittens {
 
     private stroll(cat: Kitten) {
         cat.mood = 'wander';
-        cat.timer = 6 + Math.random() * 5;
+        cat.timer = cat.hunter ? 45 + Math.random() * 20 : 6 + Math.random() * 5;
         cat.target = this.wanderPoint(cat);
     }
 
-    private wanderPoint(cat: Point): Point {
+    private wanderPoint(cat: Kitten): Point {
+        const area = cat.hunter ? this.opts.bounds() : this.meadow;
         for (let i = 0; i < 12; i++) {
-            const x = Phaser.Math.Clamp(cat.x + Phaser.Math.FloatBetween(-65, 65), this.meadow.left + 8, this.meadow.right - 8);
-            const y = Phaser.Math.Clamp(cat.y + Phaser.Math.FloatBetween(-55, 55), this.meadow.top + 8, this.meadow.bottom - 8);
+            const angle = Math.random() * Math.PI * 2;
+            const reach = cat.hunter ? Phaser.Math.FloatBetween(240, 420) : Phaser.Math.FloatBetween(25, 65);
+            const x = Phaser.Math.Clamp(cat.x + Math.cos(angle) * reach, area.left + 18, area.right - 18);
+            const y = Phaser.Math.Clamp(cat.y + Math.sin(angle) * reach, area.top + 18, area.bottom - 18);
             if (!this.bounds.contains(x, y) && this.opts.open(x, y)) return { x, y };
         }
         return { x: this.bounds.centerX, y: this.bounds.bottom + 24 };
@@ -199,13 +218,24 @@ export class Kittens {
         const d = this.distance(who, to);
         if (d < 1) return true;
         const step = Math.min(d, speed * dt);
-        const x = who.x + (to.x - who.x) / d * step;
-        const y = who.y + (to.y - who.y) / d * step;
-        if (this.opts.open(x, y)) {
+        const dx = (to.x - who.x) / d;
+        const dy = (to.y - who.y) / d;
+        const detour = this.detours.get(who);
+        const directions = detour && detour.until > this.clock
+            ? [detour, { x: dx, y: dy }, { x: -detour.x, y: -detour.y }]
+            : [{ x: dx, y: dy }, { x: -dy, y: dx }, { x: dy, y: -dx }];
+        for (const direction of directions) {
+            const x = who.x + direction.x * step;
+            const y = who.y + direction.y * step;
+            if (!this.opts.bounds().contains(x, y) || !this.opts.open(x, y)) continue;
             who.x = x;
             who.y = y;
+            if (direction.x !== dx || direction.y !== dy) {
+                if (direction !== detour) this.detours.set(who, { ...direction, until: this.clock + 2 });
+            } else this.detours.delete(who);
+            break;
         }
-        return d <= step + 1;
+        return this.distance(who, to) < 1;
     }
 
     update(dt: number) {
@@ -221,14 +251,15 @@ export class Kittens {
             if (cat.mood === 'carried') continue;
 
             if (cat.cooldown <= 0 && !['escape', 'dragon', 'coin', 'chat'].includes(cat.mood)) {
-                if (dragon && this.meadow.contains(dragon.x, dragon.y) && this.distance(cat, dragon) < 125) {
+                const area = cat.hunter ? this.opts.bounds() : this.meadow;
+                if (dragon && area.contains(dragon.x, dragon.y) && this.distance(cat, dragon) < (cat.hunter ? 420 : 125)) {
                     if (this.bounds.contains(cat.x, cat.y) && !this.bounds.contains(dragon.x, dragon.y)) {
                         this.exit(cat);
                     } else {
                         cat.mood = 'dragon';
-                        cat.timer = 4;
+                        cat.timer = cat.hunter ? 30 : 4;
                     }
-                    this.say(cat, 'BIG FLYING TOY!');
+                    this.say(cat, cat.hunter ? 'DRAGON HUNT! MEOW!' : 'BIG FLYING TOY!');
                 } else {
                     const coin = coins.find((c) => this.meadow.contains(c.x, c.y) && this.distance(cat, c) < 76);
                     if (coin) {
@@ -267,21 +298,26 @@ export class Kittens {
                     break;
                 case 'wander':
                     if (cat.timer <= 0) this.newToy(cat);
-                    else if (this.move(cat, cat.target, 27, dt)) cat.target = this.wanderPoint(cat);
+                    else if (this.move(cat, cat.target, cat.hunter ? 74 : 27, dt)) cat.target = this.wanderPoint(cat);
                     break;
                 case 'coin':
                 case 'dragon': {
                     const target = cat.mood === 'dragon' ? dragon : coins.find((c) => this.distance(c, cat.target) < 1);
-                    if (!target || !this.meadow.contains(target.x, target.y) || cat.timer <= 0) {
+                    const area = cat.hunter && cat.mood === 'dragon' ? this.opts.bounds() : this.meadow;
+                    if (!target || !area.contains(target.x, target.y) || cat.timer <= 0) {
                         cat.cooldown = 5;
                         this.stroll(cat);
                         break;
                     }
                     const near = this.distance(cat, target);
-                    this.move(cat, target, cat.mood === 'dragon' ? 76 : 48, dt);
+                    this.move(cat, target, cat.mood === 'dragon' ? (cat.hunter ? 98 : 76) : 48, dt);
                     if (near < 30 && cat.jump <= 0) cat.jump = 0.65;
                     break;
                 }
+            }
+            if (cat.mood !== 'chat' && cat.talk <= 0 && this.clock >= cat.jokeAt && this.opts.disco(cat.x, cat.y)) {
+                this.say(cat, DISCO_JOKES[cat.joke++ % DISCO_JOKES.length]);
+                cat.jokeAt = this.clock + 9;
             }
         }
         this.updateVisitors(dt);
@@ -396,7 +432,8 @@ export class Kittens {
                 const line = Math.min(2, Math.floor((6 - visitor.timer) / 2));
                 if (line !== visitor.line) {
                     visitor.line = line;
-                    visitor.bubble.setTexture(this.bubble(lines[line])).setVisible(true);
+                    const text = line === 0 && this.opts.disco(s.x, s.y) ? 'DISCO INFERNO? WHO INVITED THE DRAGON?' : lines[line];
+                    visitor.bubble.setTexture(this.bubble(text)).setVisible(true);
                     this.say(cat, replies[line]);
                     cat.talk = 2;
                 }
@@ -424,8 +461,8 @@ export class Kittens {
             } else s.stop().setFrame('side-0');
             s.setDepth(s.y);
             person.shadow.setPosition(s.x, s.y);
-            person.label?.setPosition(s.x, s.y - 26);
-            visitor.bubble.setPosition(s.x, s.y - 29).setDepth(s.y + 1000);
+            person.label?.setPosition(s.x, s.y - s.displayHeight - 4);
+            visitor.bubble.setPosition(s.x, s.y - s.displayHeight - 7).setDepth(s.y + 1000);
         }
     }
 
@@ -434,12 +471,14 @@ export class Kittens {
         const hop = cat.jump > 0 ? Math.sin((1 - cat.jump / 0.65) * Math.PI) * 25
             : playing ? Math.max(0, Math.sin(this.clock * 8 + cat.phase)) * 5 : 0;
         const carried = cat.mood === 'carried';
+        const dancing = !carried && this.opts.disco(cat.x, cat.y);
         const step = ['toy', 'escape', 'wander', 'dragon', 'coin'].includes(cat.mood)
             ? Math.abs(Math.sin(this.clock * 15 + cat.phase)) * 2 : 0;
         const facing = cat.mood === 'dragon' ? this.opts.dragon() : cat.target;
         if (facing) cat.sprite.setFlipX(facing.x < cat.x);
         cat.sprite.setPosition(Math.round(cat.x), Math.round(cat.y - hop - step - (carried ? 18 : 0)))
             .setDepth(cat.y + (carried ? 2 : 0))
+            .setAngle(dancing ? Math.sin(this.clock * 8 + cat.phase) * 8 : 0)
             .setScale(carried ? 0.9 : 1, playing ? 0.95 + Math.sin(this.clock * 8 + cat.phase) * 0.05 : 1);
         cat.shadow.setPosition(cat.x, cat.y).setVisible(!carried).setScale(1 - hop / 65);
         cat.bubble.setPosition(cat.x, cat.sprite.y - 22).setDepth(cat.y + 1000).setVisible(cat.talk > 0 && !carried);
