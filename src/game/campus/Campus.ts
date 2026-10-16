@@ -1,4 +1,5 @@
 import Phaser from 'phaser';
+import type { Rider } from '../ocean/riders';
 import { PixelCanvas, addPixels, characterSheet, hash, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, treeArt, type Color } from '../kit';
 
 /**
@@ -144,6 +145,7 @@ function busStopArt() {
 interface Walker { sprite: Phaser.GameObjects.Sprite; shadow: Phaser.GameObjects.Image; dir: number; speed: number }
 
 export class Campus {
+    surfing = false;
     private readonly parts: Phaser.GameObjects.Image[] = [];
     private readonly walkers: Walker[] = [];
     private readonly box: Phaser.Geom.Rectangle;
@@ -250,12 +252,17 @@ export class Campus {
         return new Phaser.Geom.Rectangle(this.box.x, this.box.y, this.box.width, this.box.height);
     }
 
+    surfRiders(): Rider[] {
+        return this.walkers.map(w => ({ sprite: w.sprite, hide: [w.shadow] }));
+    }
+
     private place(key: string, pc: PixelCanvas, x: number, base: number) {
         addPixels(this.scene, key, pc);
         this.parts.push(this.scene.add.image(x, base, key).setOrigin(0.5, 1).setDepth(base));
     }
 
     private tick(_time: number, deltaMs: number) {
+        if (this.surfing) return;
         const dt = Math.min(0.1, deltaMs / 1000);
         for (const w of this.walkers) {
             w.sprite.x += w.dir * w.speed * dt;

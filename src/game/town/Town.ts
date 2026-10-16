@@ -126,6 +126,7 @@ function roadArt(w: number, h: number, ox: number, oy: number, rects: { x: numbe
 // --- the town ------------------------------------------------------------------------------------
 
 export class Town {
+    surfing = false;
     private cars: Car[] = [];
     private houses: House[] = [];
     private puffs: Puff[] = [];
@@ -351,6 +352,7 @@ export class Town {
     }
 
     private tick(_time: number, deltaMs: number) {
+        if (this.surfing) return;
         const dt = Math.min(0.1, deltaMs / 1000);
         this.clock += dt;
         const burning = this.houses.filter((h) => h.burning);

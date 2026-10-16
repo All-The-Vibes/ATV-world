@@ -34,6 +34,7 @@ import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
 import { Pool } from '../pool/Pool';
 import { Terrain } from '../terrain/Terrain';
+import { Ocean } from '../ocean/Ocean';
 import { Tokens } from '../tokens/Tokens';
 import { TugOfWar } from '../tugOfWar/TugOfWar';
 import { Town } from '../town/Town';
@@ -87,6 +88,7 @@ export class Preview extends Phaser.Scene {
     private ufo?: UFO;
     private incidents?: Incidents;
     private ambience?: Ambience;
+    private ocean?: Ocean;
     private ground?: Phaser.GameObjects.TileSprite;
     /** The painted town ground: meadow, plaza, lanes, pond (see ../terrain). */
     private terrain?: Terrain;
@@ -122,6 +124,7 @@ export class Preview extends Phaser.Scene {
     private rocketing = false;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
+    private opened = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
     private entrance?: Phaser.Math.Vector2;
     private libraryFoot?: Phaser.Geom.Rectangle;
@@ -162,7 +165,32 @@ export class Preview extends Phaser.Scene {
         this.load.spritesheet('steph-walk', stephWalkUrl, { frameWidth: 64, frameHeight: 88 });
     }
 
+    private resetWorld() {
+        // Phaser reuses the Scene instance on restart, but destroys its old display list.
+        const found = this.vibes.map(v => v.found);
+        if (found.length && found.every(Boolean)) {
+            // A pending next-round timer was removed by shutdown. Keep the score and start that round.
+            this.vibeRound++;
+            this.vibeCollected = this.vibeStreak = 0;
+            found.fill(false);
+        }
+        this.walkers = [];
+        this.vibes = [];
+        this.solids.length = 0;
+        this.contentBounds = undefined;
+        this.player = undefined;
+        this.hq = undefined;
+        this.view = undefined;
+        this.ocean = undefined;
+        return found;
+    }
+
     create() {
+        const wasInsideHQ = this.insideHQ;
+        const first = !this.opened;
+        this.opened = true;
+        this.insideHQ = false;
+        const found = this.resetWorld();
         this.grass();
         this.terrain = new Terrain(this, { bounds: () => this.worldBounds });
         const buildings = [
@@ -278,8 +306,11 @@ export class Preview extends Phaser.Scene {
             },
             onCollect: (by) => by.player && addToken(),
         });
-        this.createVibes();
-        this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
+        this.createVibes(found);
+        this.view = new WorldView(this, {
+            bounds: () => this.worldBounds, player: this.player?.sprite,
+            playerPosition: () => this.player && (this.ocean?.position(this.player.sprite) ?? this.player.sprite),
+        });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
         this.atmosphere = new Atmosphere(this, { bounds: () => this.worldBounds, player: this.player?.sprite, vibes: () => this.vibes.map((v) => v.sprite), hq: this.hq });
         this.kittens = new Kittens(this, {
@@ -328,21 +359,42 @@ export class Preview extends Phaser.Scene {
                 ...(this.roamers?.people() ?? []),
             ],
         });
-        this.events.on('wake', () => {
+        let surfAt = 0;
+        this.ocean = new Ocean(this, {
+            bounds: () => this.worldBounds,
+            riders: () => [
+                ...(this.player ? [{ sprite: this.player.sprite, hide: [this.player.shadow, this.player.marker] }] : []),
+                ...this.walkers.map(w => ({ sprite: w.sprite, hide: [w.shadow], carry: w.label ? [w.label] : [] })),
+                ...(this.hq?.surfRiders() ?? []),
+                ...(this.campus?.surfRiders() ?? []),
+            ],
+            setSurfing: value => {
+                if (this.hq) this.hq.surfing = value;
+                if (this.campus) this.campus.surfing = value;
+                if (this.town) this.town.surfing = value;
+                if (value) surfAt = this.time.now;
+                else {
+                    const held = this.time.now - surfAt;
+                    this.rushUntil += held;
+                    this.lastVibeAt += held;
+                }
+            },
+        });
+        const wake = (_sys: unknown, data?: { from?: string }) => {
+            if (data?.from === 'mars') this.landFromMars();
             this.input.keyboard?.resetKeys();
             this.syncVibes(true);
-        });
-        this.events.on('sleep', () => this.syncVibes(false));
-        this.events.on('wake', (_sys: unknown, data?: { from?: string }) => {
-            if (data?.from === 'mars') this.landFromMars();
-        });
+        };
+        const sleep = () => this.syncVibes(false);
+        this.events.on('wake', wake);
+        this.events.on('sleep', sleep);
 
         // Go into HQ by walking into it or clicking the building. Inside, the call panel shows who's there;
         // a fresh press of down or sideways (or the panel's Step out) walks you back out. A window listener, so
         // quick taps count and the key you walked in on (now auto-repeating) doesn't. It sits out while this
         // scene sleeps under the library.
         const onKey = (e: KeyboardEvent) => {
-            if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive()) return;
+            if (e.ctrlKey || e.metaKey || e.altKey || isTyping() || !this.sys.isActive() || this.ocean?.active) return;
             if (this.insideHQ && !e.repeat && ['ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) this.leaveHQ();
             else if (!e.repeat && e.key.toLowerCase() === 'e') this.rollIdea();
             else if (!e.repeat && e.key.toLowerCase() === 'c' && this.player
@@ -356,6 +408,10 @@ export class Preview extends Phaser.Scene {
         window.addEventListener('keydown', onKey);
         const stop = () => {
             off();
+            this.events.off('wake', wake);
+            this.events.off('sleep', sleep);
+            this.events.off('shutdown', stop);
+            this.events.off('destroy', stop);
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
             this.syncVibes(false);
@@ -374,13 +430,13 @@ export class Preview extends Phaser.Scene {
                 this.view.trackPlayer();
             }
         }
-        if (q.has('teams') || q.has('hq') || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
+        if (wasInsideHQ || (first && (q.has('teams') || q.has('hq'))) || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
         else if (q.has('mars')) this.time.delayedCall(0, () => this.blastOff(true));
     }
 
     /** Climb into the rocket and fly to Mars (`instantly` skips the countdown and liftoff). */
     private blastOff(instantly = false) {
-        if (!this.player || !this.launchPad || this.rocketing || this.insideHQ) return;
+        if (!this.player || !this.launchPad || this.rocketing || this.insideHQ || this.ocean?.active) return;
         this.rocketing = true;
         const { sprite, shadow, marker } = this.player;
         sprite.stop();
@@ -429,7 +485,7 @@ export class Preview extends Phaser.Scene {
 
     /** Go inside HQ: the player steps through the door, the camera frames the building, the call panel opens. */
     private enterHQ() {
-        if (!this.hq || !this.player || this.rocketing) return;
+        if (!this.hq || !this.player || this.rocketing || this.ocean?.active) return;
         if (!this.insideHQ) {
             this.insideHQ = true;
             setFactoryOpen(false);
@@ -445,7 +501,7 @@ export class Preview extends Phaser.Scene {
 
     /** Walk back out the front door onto the sidewalk. */
     private leaveHQ() {
-        if (!this.hq || !this.player || !this.insideHQ) return;
+        if (!this.hq || !this.player || !this.insideHQ || this.ocean?.active) return;
         this.insideHQ = false;
         const { sprite, shadow, marker } = this.player;
         const at = this.hq.doorway.outside;
@@ -459,6 +515,9 @@ export class Preview extends Phaser.Scene {
     }
 
     update(_t: number, dtMs: number) {
+        const riding = this.ocean?.active;
+        this.ocean?.update(dtMs);
+        if (riding || this.ocean?.active) return;
         const dt = dtMs / 1000;
 
         const walkerLeft = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
@@ -1044,7 +1103,7 @@ export class Preview extends Phaser.Scene {
         ]);
     }
 
-    private createVibes() {
+    private createVibes(found: readonly boolean[] = []) {
         const art = new PixelCanvas(15, 17);
         art.ascii(0, 0, [
             '.......g.......',
@@ -1093,7 +1152,9 @@ export class Preview extends Phaser.Scene {
                 .setDepth(y - 1);
             const sprite = this.add.image(x, y, 'preview-vibe').setDepth(y + 2);
             sprite.setAlpha(0.9 + index % 2 * 0.1);
-            return { sprite, glow, homeY: y, found: false };
+            const collected = found[index] ?? false;
+            for (const part of [sprite, glow]) part.setVisible(!collected).setActive(!collected);
+            return { sprite, glow, homeY: y, found: collected };
         });
         this.syncVibes(true, 'Find all six. Fast pickups build a combo.');
     }
@@ -1276,7 +1337,7 @@ export class Preview extends Phaser.Scene {
             .setSize(Math.max(2048, this.worldBounds.width + 512), Math.max(2048, this.worldBounds.height + 512));
         // HQ lost floors: bring back a player who was standing in the sky it left behind.
         const p = this.player;
-        if (p && !this.insideHQ) {
+        if (p && !this.insideHQ && !this.ocean?.active) {
             const x = Phaser.Math.Clamp(p.sprite.x, this.worldBounds.left + 12, this.worldBounds.right - 12);
             const y = Phaser.Math.Clamp(p.sprite.y, this.worldBounds.top + 12, this.worldBounds.bottom - 12);
             if (x !== p.sprite.x || y !== p.sprite.y) {

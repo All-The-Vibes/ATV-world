@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { call, type Caller } from '../../call';
+import type { Rider } from '../ocean/riders';
 import { addCreatorNametag, addPixels, characterSheet, hashString, shadowTexture, type Facing } from '../kit';
 import {
     BAYS, DESK_W, HQ_SPOTS, HQ_W, beaconArt, bubbleArt, callerLook, coderSheet, deskDarkArt, deskSpot, hqBodyHeight,
@@ -50,6 +51,8 @@ function tickerText(people: readonly Caller[]): string {
  * walk in the front door and their lights flick on; leavers' lights go off as they head home.
  */
 export class HQ {
+    surfing = false;
+    private onFoot = new Map<Phaser.GameObjects.Sprite, { id: string; shadow: Phaser.GameObjects.Image }>();
     private floors = 0;
     private desks: Desk[] = [];
     private byId = new Map<string, Desk>();
@@ -99,13 +102,21 @@ export class HQ {
         this.settled = scene.time.now + SETTLE_MS;
         this.unsubscribe = call.subscribe(() => this.sync());
         scene.events.on('update', this.tick, this);
-        scene.events.once('shutdown', () => this.destroy());
-        scene.events.once('destroy', () => this.destroy());
+        scene.events.once('shutdown', this.destroy, this);
+        scene.events.once('destroy', this.destroy, this);
         this.sync();
     }
 
     get left(): number {
         return this.x - HQ_W / 2;
+    }
+
+    /** Use the real avatars and name plates, including people still walking through the door. */
+    surfRiders(): Rider[] {
+        return [
+            ...this.desks.flatMap(d => d.caller && d.coder ? [{ sprite: d.coder, carry: d.plate ? [d.plate] : [] }] : []),
+            ...Array.from(this.onFoot, ([sprite, { shadow }]) => ({ sprite, hide: [shadow] })),
+        ];
     }
 
     /** The whole building, roof sign included. */
@@ -128,6 +139,8 @@ export class HQ {
     destroy() {
         this.unsubscribe();
         this.scene.events.off('update', this.tick, this);
+        this.scene.events.off('shutdown', this.destroy, this);
+        this.scene.events.off('destroy', this.destroy, this);
         this.onResize = undefined;
         this.onClick = undefined;
     }
@@ -137,7 +150,7 @@ export class HQ {
      * connecting, and just after it connects (everyone already on the call shows up at once).
      */
     private get quiet(): boolean {
-        return this.scene.time.now < this.settled || call.status.kind === 'connecting';
+        return this.surfing || this.scene.time.now < this.settled || call.status.kind === 'connecting';
     }
 
     /**
@@ -258,6 +271,27 @@ export class HQ {
         this.byId.delete(c.id);
         const gen = ++desk.gen;
         desk.caller = null;
+        if (this.surfing) {
+            desk.walking?.();
+            desk.walking = undefined;
+            for (const [sprite, { id, shadow }] of this.onFoot) {
+                if (id !== c.id) continue;
+                this.scene.tweens.killTweensOf([sprite, shadow]);
+                sprite.destroy();
+                shadow.destroy();
+            }
+            for (const part of [desk.coder, desk.plate]) {
+                if (!part) continue;
+                this.scene.tweens.killTweensOf(part);
+                part.destroy();
+            }
+            desk.coder = undefined;
+            desk.plate = undefined;
+            this.endGoodbye(desk);
+            desk.dark.setAlpha(1);
+            this.shrink();
+            return;
+        }
         if (desk.walking) {
             // Never made it to their desk.
             desk.walking();
@@ -314,6 +348,8 @@ export class HQ {
         addCreatorNametag(sprite, callerLook(c.id));
         this.track(sprite, key, (['down', 'up', 'side'] as const).map((f) => `${key}-${f}`));
         const shadow = scene.add.image(route[0].x, route[0].y, shadowTexture(scene, 10)).setAlpha(0).setDepth(-1e8);
+        this.onFoot.set(sprite, { id: c.id, shadow });
+        sprite.once('destroy', () => this.onFoot.delete(sprite));
         const follow = () => {
             sprite.setDepth(sprite.y);
             shadow.setPosition(sprite.x, sprite.y);
@@ -351,6 +387,12 @@ export class HQ {
         });
         return () => {
             chain.stop();
+            if (this.surfing) {
+                scene.tweens.killTweensOf([sprite, shadow]);
+                sprite.destroy();
+                shadow.destroy();
+                return;
+            }
             sprite.stop();
             vanish(300);
         };

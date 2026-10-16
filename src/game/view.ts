@@ -22,6 +22,8 @@ export interface ViewOptions {
     bounds: () => Phaser.Geom.Rectangle;
     /** The camera follows it once it moves while zoomed in. Reloads put it back where it was. */
     player?: { x: number; y: number };
+    /** Presentation-only rides must not move the camera or save a temporary player position. */
+    playerPosition?: () => { x: number; y: number } | undefined;
 }
 
 const clamp = (v: number, lo: number, hi: number) => Math.min(hi, Math.max(lo, v));
@@ -132,6 +134,9 @@ export class WorldView {
         const stop = () => {
             if (done) return;
             done = true;
+            this.save();
+            scene.events.off('shutdown', stop);
+            scene.events.off('destroy', stop);
             off.forEach((f) => f());
             window.removeEventListener('keydown', onKey);
             input.off('wheel', onWheel);
@@ -161,7 +166,7 @@ export class WorldView {
 
     /** The player was just moved by code (into a building, say): don't take it as walking off. */
     trackPlayer() {
-        const p = this.opts.player;
+        const p = this.opts.playerPosition?.() ?? this.opts.player;
         if (p) this.playerAt = { x: p.x, y: p.y };
     }
 
@@ -223,7 +228,7 @@ export class WorldView {
         // A panel opened, closed, or grew while something was framed: frame it again beside the panel.
         if (this.showing && insetsKey() !== this.shownInsets) this.show(this.shownArea);
         const fit = this.fitZoom();
-        const p = this.opts.player;
+        const p = this.opts.playerPosition?.() ?? this.opts.player;
         if (p) {
             const moved = Math.abs(p.x - this.playerAt.x) > 0.01 || Math.abs(p.y - this.playerAt.y) > 0.01;
             if (moved && this.mode === 'free' && Number.isFinite(this.playerAt.x)) this.mode = 'follow';
@@ -252,7 +257,7 @@ export class WorldView {
 
     private save(now = performance.now()) {
         this.lastSave = now;
-        const p = this.opts.player;
+        const p = this.opts.playerPosition?.() ?? this.opts.player;
         const saved: Saved = { mode: this.mode, cx: this.cx, cy: this.cy, zoom: this.zoomLevel, player: p && { x: p.x, y: p.y } };
         try {
             sessionStorage.setItem(SAVE, JSON.stringify(saved));
