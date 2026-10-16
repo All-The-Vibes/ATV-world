@@ -58,10 +58,10 @@ try {
         const bounds = sprite.getBounds();
         return { calls, width: bounds.width, height: bounds.height, x: sprite.x, y: sprite.y };
     });
-    assert.equal(opened.width, 76);
-    assert.equal(opened.height, 140);
-    assert.equal(opened.x, 60);
-    assert.equal(opened.y, 170);
+    assert.equal(Math.round(opened.width), 53);
+    assert.equal(Math.round(opened.height), 98);
+    assert.equal(opened.x, 81);
+    assert.equal(opened.y, 190);
     assert.equal(opened.calls[0][0], 'https://github.com/All-The-Vibes/ATV-world/actions');
     assert.equal(opened.calls[0][2], 'noopener,noreferrer');
     assert.deepEqual(errors, [], 'No runtime errors');

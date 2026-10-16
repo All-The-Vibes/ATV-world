@@ -3,6 +3,8 @@ import { PixelCanvas, addPixels, miniText, miniTextWidth, shadowTexture, type Co
 
 type State = 'green' | 'yellow' | 'red' | 'unknown';
 const states: State[] = ['green', 'yellow', 'red', 'unknown'];
+/** Drawn at 76x140, shown smaller so it doesn't loom over the plaza. */
+const SCALE = 0.7;
 const messages = ['MAIN IS HEALTHY', 'CHECKS FAILING', 'MAIN IS BROKEN', 'AWAITING CI', 'CHECKS RUNNING', 'CI UNAVAILABLE'];
 
 export class TrafficLight {
@@ -38,8 +40,8 @@ export class TrafficLight {
             miniText(pc, 4, 4, message, 'white');
             addPixels(scene, `ci-label-${message}`, pc);
         }
-        scene.add.image(x, y, shadowTexture(scene, 66)).setAlpha(0.35).setDepth(-1e8);
-        this.sprite = scene.add.image(x, y, 'ci-light-unknown').setOrigin(0.5, 1).setDepth(y);
+        scene.add.image(x, y, shadowTexture(scene, Math.round(66 * SCALE))).setAlpha(0.35).setDepth(-1e8);
+        this.sprite = scene.add.image(x, y, 'ci-light-unknown').setOrigin(0.5, 1).setScale(SCALE).setDepth(y);
         this.label = scene.add.image(x, y + 9, 'ci-label-AWAITING CI').setDepth(y + 1);
         this.sprite.setInteractive({ useHandCursor: true }).on('pointerdown', () => {
             window.open('https://github.com/All-The-Vibes/ATV-world/actions', '_blank', 'noopener,noreferrer');
