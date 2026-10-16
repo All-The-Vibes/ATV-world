@@ -6,6 +6,7 @@ import {
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { BikeGang } from '../bikes/BikeGang';
 import { Disco } from '../disco/Disco';
 import { Catchers } from '../catchers/Catchers';
 import { Gremlins } from '../gremlins/Gremlins';
@@ -52,6 +53,8 @@ export class Preview extends Phaser.Scene {
     private catchers?: Catchers;
     /** Friendly visitors who scare gremlins off and chat with the player (see ../roamers). */
     private roamers?: Roamers;
+    /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
+    private bikeGang?: BikeGang;
     private ollama?: Ollama;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
@@ -182,8 +185,12 @@ export class Preview extends Phaser.Scene {
         this.createIdeaMachine(-85, 170);
         for (let i = 0; i < 6; i++) this.walker(i);
         this.walker(6, 'Abdallah');
-        this.walker(7, 'Shahab');
         this.walker(8, 'Ahmed', -180);
+        this.bikeGang = new BikeGang(this, () => {
+            const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
+            const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
+            return new Phaser.Geom.Rectangle(left, this.worldBounds.top, Math.max(260, right - left), this.worldBounds.height);
+        });
         this.createHell();
         this.createSteph();
         this.createPlayer();
@@ -350,6 +357,7 @@ export class Preview extends Phaser.Scene {
         this.gremlins?.update(dt);
         this.catchers?.update(dt);
         this.roamers?.update(dt);
+        this.bikeGang?.update(dt);
         this.ollama?.update(dt);
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
@@ -360,6 +368,7 @@ export class Preview extends Phaser.Scene {
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
+            ...(this.bikeGang?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
         ]);
         this.kittens?.update(dt);
         this.updateVibes();
@@ -765,6 +774,7 @@ export class Preview extends Phaser.Scene {
             headroom: w.label ? w.sprite.displayHeight + 16 : 24,
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
+        if (this.bikeGang) out.push(...this.bikeGang.burnables());
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
         if (this.disco) out.push(...this.disco.burnables());
         out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []));
