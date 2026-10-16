@@ -12,7 +12,6 @@ const LOOK = randomLook('mark-b', {
 });
 
 const QUOTES = [
-    'BACKPROPAGATION: BLAMING EVERY LAYER, ONE AT A TIME.',
     'MY CONTEXT WINDOW IS HUGE. YOURS IS A POST-IT.',
     'I FINE-TUNED A MODEL TO FINE-TUNE MODELS.',
     'GRADIENT DESCENT IS JUST HIKING IN REVERSE.',
@@ -55,6 +54,8 @@ const STOPS: Stop[] = NEAR.map(([x, y], i): Stop[] =>
 
 const ALTITUDE = 50;
 const SPEED = 70;
+/** Long trips speed up so no flight lasts much longer than this many seconds, keeping the chatter regular. */
+const MAX_LEG = 5;
 /** Mark is drawn at character size, then blown up so he reads from the fit view. */
 const SIZE = 4;
 const TALK = 3.6;
@@ -164,7 +165,7 @@ export class MarkB {
 
         if (this.mode === 'fly') {
             const dx = target.x - this.x, dy = target.y - this.y;
-            const dist = Math.hypot(dx, dy), step = SPEED * dt;
+            const dist = Math.hypot(dx, dy), step = Math.max(SPEED, dist / MAX_LEG) * dt;
             if (Math.abs(dx) > 0.5) this.sprite.setFlipX(dx < 0);
             if (dist <= step) {
                 this.x = target.x;
