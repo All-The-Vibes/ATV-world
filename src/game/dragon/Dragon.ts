@@ -93,6 +93,11 @@ export class Dragon {
         scene.events.once('shutdown', () => this.destroy());
     }
 
+    /** Ground position of the visible dragon, for curious kittens (not burn targets). */
+    plaything(): { x: number; y: number } | undefined {
+        return this.sprite.active && this.sprite.visible ? { x: this.x, y: this.y } : undefined;
+    }
+
     update(dt: number) {
         dt = Math.min(dt, 0.1);
         this.clock += dt;
