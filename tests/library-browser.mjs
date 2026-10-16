@@ -199,6 +199,9 @@ try {
     await turn(() => page.keyboard.press('ArrowLeft'), 'the left arrow', /^Pages? \d/);
     await shot('reader');
     await turn(() => page.getByRole('button', { name: 'Contents', exact: true }).click(), 'the Contents button', /Contents/);
+    const contentsPosition = await spoken();
+    await page.getByRole('button', { name: 'Contents', exact: true }).press('ArrowRight');
+    assert.equal(await spoken(), contentsPosition, 'reader shortcuts do not fire from a focused control');
 
     await page.locator('.type-toggle').click();
     await page.getByRole('button', { name: 'Large', exact: true }).click();

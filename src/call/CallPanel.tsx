@@ -147,7 +147,7 @@ function Panel() {
                             Step out
                         </button>
                     </div>
-                    {hint && <p className="callpanel-hint">{hint}</p>}
+                    <p className="callpanel-hint" role="status" aria-live="polite">{hint}</p>
                 </div>
             )}
         </section>

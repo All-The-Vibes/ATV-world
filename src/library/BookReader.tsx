@@ -360,8 +360,7 @@ export function BookReader({ source, backLabel, onBack, onClose }: Props) {
         }
         if (!ready || event.altKey || event.ctrlKey || event.metaKey) return;
         const target = event.target as HTMLElement;
-        if (target.closest('input, select, textarea')) return;
-        const control = target.closest('button, a');
+        if (target.closest('button, a, input, select, textarea')) return;
         switch (event.key) {
             case 'ArrowRight':
             case 'PageDown':
@@ -372,7 +371,6 @@ export function BookReader({ source, backLabel, onBack, onClose }: Props) {
                 prev();
                 break;
             case ' ':
-                if (control) return;
                 if (event.shiftKey) prev();
                 else next();
                 break;

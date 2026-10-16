@@ -222,6 +222,11 @@
     border-color: #fbe46f;
 }
 
+.callpanel-actions button.primary:focus-visible {
+    outline: 3px solid var(--cream);
+    outline-offset: 2px;
+}
+
 .callpanel-actions button:disabled {
     opacity: 0.55;
     cursor: progress;
@@ -232,6 +237,10 @@
     font-size: 19px;
     line-height: 1.05;
     color: #e8c48a;
+}
+
+.callpanel-hint:empty {
+    margin: 0;
 }
 
 /* Below the banner where they'd overlap; along the bottom on phones and in the Teams side panel. */
