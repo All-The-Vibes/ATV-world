@@ -4,9 +4,11 @@ import {
     HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, setInsideHQ } from '../commands';
+import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
 import { Disco } from '../disco/Disco';
+import { Gremlins } from '../gremlins/Gremlins';
 import { Dragon, type Burnable } from '../dragon/Dragon';
+import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
@@ -34,6 +36,10 @@ export class Preview extends Phaser.Scene {
     }[] = [];
     /** The dragon that circles town toasting people (see ../dragon). */
     private dragon?: Dragon;
+    /** The sorting hat on its stool: walk up to it to be sorted into a house (see ../hat). */
+    private sortingHat?: SortingHat;
+    /** Gremlins that run around stealing tokens (see ../gremlins). */
+    private gremlins?: Gremlins;
     private ollama?: Ollama;
     private ufo?: UFO;
     private incidents?: Incidents;
@@ -119,6 +125,10 @@ export class Preview extends Phaser.Scene {
         this.prop('lamp', 116, 148);
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
+        this.sortingHat = new SortingHat(this, -110, 30, () => this.player, () => !this.insideHQ);
+        this.includeInWorld(this.sortingHat.stool);
+        this.includeInWorld(this.sortingHat.hat);
+        [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', x, y));
         this.disco = new Disco(this, -250, 334);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
         try {
@@ -162,6 +172,14 @@ export class Preview extends Phaser.Scene {
                 sprite: w.sprite, shadow: w.shadow, label: w.label, anim: w.anim,
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
+        });
+        this.gremlins = new Gremlins(this, {
+            bounds: () => this.worldBounds,
+            victims: () => [
+                ...(this.player && !this.insideHQ && tokenCount() > 0 ? [{ sprite: this.player.sprite, player: true }] : []),
+                ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
+            ],
+            stealFromPlayer: () => removeToken(),
         });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
@@ -272,7 +290,10 @@ export class Preview extends Phaser.Scene {
         this.movePlayer(dt);
         this.incidents?.update(dt);
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
+        this.sortingHat?.update(dt);
+        this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.dragon?.update(dt);
+        this.gremlins?.update(dt);
         this.ollama?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
