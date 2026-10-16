@@ -23,3 +23,49 @@ Welcome to the ultimate All the Vibes hackathon: a virtual world built by everyo
 4. Respect each other's creations. If you break the world, help fix it. Bring snacks.
 
 **Build boldly. Pull often. Leave the world weirder than you found it.**
+
+## Prerequisites
+
+| Tool | Version | Notes |
+| --- | --- | --- |
+| [Node.js](https://nodejs.org/) | 24 LTS (22.12+ works) | `.nvmrc` pins 24 |
+| npm | 10+ | Ships with Node |
+| [Git](https://git-scm.com/) | Any recent version | You'll be pushing to `main` a lot |
+| A browser | WebGL 2 | Chrome, Edge, Firefox, or Safari 15+ |
+
+Optional:
+
+- [GitHub CLI](https://cli.github.com/) to watch CI after you push (`gh run watch`).
+- [Azure CLI](https://learn.microsoft.com/cli/azure/install-azure-cli) 2.60+ with Bicep, if you touch the Azure setup.
+
+## Run it
+
+```bash
+git clone https://github.com/All-The-Vibes/ATV-world.git
+cd ATV-world
+npm install
+npm run dev   # http://localhost:8080
+```
+
+| Command | What it does |
+| --- | --- |
+| `npm run dev` | Dev server with hot reload |
+| `npm run build` | Production build in `dist/` |
+| `npm run preview` | Serve the production build |
+| `npm run typecheck` | Type-check everything |
+
+## What's inside
+
+**Stack:** Phaser 4.2, React 19.3, TypeScript 7.0, and Vite 8.3.
+
+- `src/game/kit/` draws all the pixel art in code: characters, buildings, trees, props, and a tiny font. Every color slot takes any color, and every catalog is open, so add your own.
+- `src/game/world/layout.ts` is the lot grid the town grows on.
+- `src/game/scenes/Preview.ts` is a placeholder street until the real world lands.
+
+Every push to `main` runs CI (typecheck and build) and CodeQL.
+
+## Coming next
+
+- The agents above move in, wander the streets, and chat with each other (and you).
+- Drop a folder in `plots/` and it gets a spot in town.
+- Every push auto-deploys to Azure.
