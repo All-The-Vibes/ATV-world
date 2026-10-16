@@ -78,6 +78,11 @@ export class Tokens {
         return this.tokens.filter((token) => token.landed).map(({ sprite }) => ({ x: sprite.x, y: sprite.y }));
     }
 
+    /** Put a token back on the ground near here (a gremlin's loot, recovered). */
+    spill(x: number, y: number) {
+        this.drop(x, y - 20, y);
+    }
+
     /** Send a car over right away (handy from the console: atv.game.scene.getScene('Preview').tokens.flyOver()). */
     flyOver() {
         const b = this.opts.bounds();

@@ -7,7 +7,9 @@ import {
 } from '../kit';
 import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
 import { Disco } from '../disco/Disco';
+import { Catchers } from '../catchers/Catchers';
 import { Gremlins } from '../gremlins/Gremlins';
+import { Roamers } from '../roamers/Roamers';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
@@ -46,6 +48,10 @@ export class Preview extends Phaser.Scene {
     private sortingHat?: SortingHat;
     /** Gremlins that run around stealing tokens (see ../gremlins). */
     private gremlins?: Gremlins;
+    /** Scouts with bug nets who catch gremlins and walk them out of town (see ../catchers). */
+    private catchers?: Catchers;
+    /** Friendly visitors who scare gremlins off and chat with the player (see ../roamers). */
+    private roamers?: Roamers;
     private ollama?: Ollama;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
@@ -218,6 +224,15 @@ export class Preview extends Phaser.Scene {
                 ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
             ],
             stealFromPlayer: () => removeToken(),
+            spill: (x, y) => this.tokens?.spill(x, y),
+        });
+        this.catchers = new Catchers(this, { bounds: () => this.worldBounds, gremlins: () => this.gremlins });
+        this.roamers = new Roamers(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+            player: () => (this.player && !this.insideHQ ? this.player.sprite : undefined),
+            gremlins: () => this.gremlins,
+            tokens: () => this.tokens,
         });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
@@ -332,6 +347,8 @@ export class Preview extends Phaser.Scene {
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.dragon?.update(dt);
         this.gremlins?.update(dt);
+        this.catchers?.update(dt);
+        this.roamers?.update(dt);
         this.ollama?.update(dt);
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
@@ -749,6 +766,7 @@ export class Preview extends Phaser.Scene {
         }));
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
         if (this.disco) out.push(...this.disco.burnables());
+        out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []));
         return out;
     }
 
