@@ -9,6 +9,7 @@ import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
 import { Ollama } from '../llama/Ollama';
 import { Tokens } from '../tokens/Tokens';
+import { UFO } from '../ufo/UFO';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
 
@@ -29,6 +30,7 @@ export class Preview extends Phaser.Scene {
     /** The dragon that circles town toasting people (see ../dragon). */
     private dragon?: Dragon;
     private ollama?: Ollama;
+    private ufo?: UFO;
     private ground?: Phaser.GameObjects.TileSprite;
     private player?: {
         sprite: Phaser.GameObjects.Sprite;
@@ -103,6 +105,7 @@ export class Preview extends Phaser.Scene {
         this.createHell();
         this.createPlayer();
         this.ollama = new Ollama(this);
+        this.ufo = new UFO(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
             open: (x, y) => {
@@ -220,6 +223,7 @@ export class Preview extends Phaser.Scene {
         this.movePlayer(dt);
         this.dragon?.update(dt);
         this.ollama?.update(dt);
+        this.ufo?.update(dt);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),

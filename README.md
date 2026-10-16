@@ -46,6 +46,7 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/game/scenes/Preview.ts` is the world on the live screen. Find all six glowing vibes, chain quick pickups for a combo, and clear a round for a temporary speed rush. Press Space for a short-range Vibe Pulse that grabs nearby shards and makes the locals hop.
 - `src/game/llama/Ollama.ts` runs a fluffy pixel-art llama around the plaza. It says "Hi, I'm Ollama!" followed by "I run local. Mostly in circles." on a repeating speech-bubble loop.
 - Abdallah walks around town with a pixel-art nameplate.
+- A flying saucer circles above town with a little alien pilot, chasing lights, and a hovering shadow.
 - `src/game/view.ts` is the camera: F fits the whole world, +/- or the mouse wheel zooms, dragging looks around, and the view survives reloads.
 - `src/live.ts` is the LIVE badge in the bottom left. It shows the commit that's live and reloads the page when a newer push deploys.
 - `src/music/` is the background music: an 80s arcade loop made with Gemini. The speaker button or M turns it off and on.
