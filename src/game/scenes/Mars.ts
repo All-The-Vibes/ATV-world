@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { walkInput } from '../commands';
 import { PLAYER_LOOK, addCreatorNametag, addPixels, shadowTexture, speechArt, type Facing } from '../kit';
 import { marsTextures } from '../mars/art';
+import { cabinetTexture } from '../mars/blasterArt';
 import { Martians } from '../mars/Martians';
 import { Rocket } from '../mars/Rocket';
 
@@ -10,6 +11,8 @@ const AREA = new Phaser.Geom.Rectangle(-360, -240, 720, 480);
 /** Where the rocket lands, and where the player steps out of it. */
 const PAD = { x: 0, y: 20 };
 const EXIT = { x: PAD.x + 26, y: PAD.y + 18 };
+/** The MARS BLASTER arcade cabinet; walk up to it to play. */
+const ARCADE = { x: 130, y: -24 };
 
 /** Mars: the rocket lands, you walk around the red dirt, and walking back into the rocket flies you home. */
 export class Mars extends Phaser.Scene {
@@ -23,6 +26,9 @@ export class Mars extends Phaser.Scene {
     private roverDir = 1;
     martians!: Martians;
     private dust: { image: Phaser.GameObjects.Image; speed: number }[] = [];
+    private arcadeHint!: Phaser.GameObjects.Image;
+    /** At the cabinet's controls; step away and back to play again. */
+    private atArcade = false;
     /** Aboard the rocket (landing or taking off), so the player can't walk. */
     private flying = true;
 
@@ -32,6 +38,7 @@ export class Mars extends Phaser.Scene {
 
     create() {
         this.flying = true;
+        this.atArcade = false;
         this.facing = 'down';
         this.roverDir = 1;
         this.dust = [];
@@ -49,11 +56,21 @@ export class Mars extends Phaser.Scene {
         this.add.image(-200, -70, 'mars-dome').setOrigin(0.5, 1).setDepth(-70);
         this.add.image(42, 22, 'mars-flag').setOrigin(0.5, 1).setDepth(22);
         this.add.image(PAD.x, PAD.y + 40, 'mars-sign').setDepth(PAD.y + 40);
+        cabinetTexture(this);
+        this.add.image(ARCADE.x, ARCADE.y, shadowTexture(this, 26)).setAlpha(0.3).setDepth(-1e8);
+        this.add.sprite(ARCADE.x, ARCADE.y, 'mars-arcade', 0).setOrigin(0.5, 1).setDepth(ARCADE.y).play('mars-arcade')
+            .setInteractive({ useHandCursor: true })
+            .on('pointerup', (p: Phaser.Input.Pointer) => p.getDistance() < 6 && !this.flying && this.playBlaster());
+        this.arcadeHint = this.add.image(ARCADE.x, ARCADE.y - 48, addPixels(this, 'mars-arcade-hint', speechArt('Step up to play MARS BLASTER!')))
+            .setOrigin(0.5, 1)
+            .setDepth(1e5)
+            .setVisible(false);
         this.rover = this.add.sprite(-80, 150, 'mars-rover', 0).setOrigin(0.5, 1).setDepth(150).play('mars-rover');
 
         this.martians = new Martians(this, AREA, [
             new Phaser.Geom.Rectangle(PAD.x - 50, PAD.y - 40, 110, 100),
             new Phaser.Geom.Rectangle(-245, -80, 90, 30),
+            new Phaser.Geom.Rectangle(ARCADE.x - 24, ARCADE.y - 20, 48, 40),
         ]);
 
         this.rocket = new Rocket(this, PAD.x, PAD.y);
@@ -83,6 +100,7 @@ export class Mars extends Phaser.Scene {
             this.flying = false;
             this.player.setVisible(true);
             this.shadow.setVisible(true);
+            if (new URLSearchParams(location.search).has('blaster')) this.playBlaster();
         });
     }
 
@@ -115,6 +133,23 @@ export class Mars extends Phaser.Scene {
         const { x, y } = this.player;
         this.hint.setVisible(Phaser.Math.Distance.Between(x, y, PAD.x, PAD.y) < 64);
         if (this.rocket.foot().contains(x, y)) this.flyHome();
+
+        const arcade = Phaser.Math.Distance.Between(x, y, ARCADE.x, ARCADE.y);
+        this.arcadeHint.setVisible(arcade < 60 && arcade >= 14);
+        const atArcade = Math.abs(x - ARCADE.x) < 14 && y > ARCADE.y && y < ARCADE.y + 12;
+        if (atArcade && !this.atArcade) this.playBlaster();
+        this.atArcade = atArcade;
+    }
+
+    /** Step up to the cabinet: Mars waits while MARS BLASTER runs on top. */
+    playBlaster() {
+        if (this.scene.isActive('Blaster')) return;
+        this.atArcade = true;
+        this.player.stop().setFrame('up-0');
+        this.facing = 'up';
+        this.arcadeHint.setVisible(false);
+        this.scene.launch('Blaster');
+        this.scene.sleep();
     }
 
     private place() {

@@ -17,8 +17,8 @@ import { ChatBox } from './multiplayer/ChatBox';
 import { useTouch } from './touch/device';
 import { TouchControls } from './touch/TouchControls';
 
-/** Scenes with a player to walk around. */
-const WALKABLE = new Set(['Preview', 'Library', 'Mars', 'Wonderland']);
+/** Scenes with a player to walk around (or, in Blaster, a ship to steer). */
+const WALKABLE = new Set(['Preview', 'Library', 'Mars', 'Wonderland', 'Blaster']);
 
 const buttons: [label: string, command: Command, title: string][] = [
     ['-', 'zoomOut', 'Zoom out (-)'],

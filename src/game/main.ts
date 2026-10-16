@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { Preview } from './scenes/Preview';
 import { Library } from './scenes/Library';
 import { Mars } from './scenes/Mars';
+import { Blaster } from './scenes/Blaster';
 import { StarShow } from './scenes/StarShow';
 import { Wonderland } from './scenes/Wonderland';
 import { LibraryBridge } from '../library/bridge';
@@ -18,7 +19,7 @@ export function createGame(parent: HTMLElement, bridge: LibraryBridge): Phaser.G
         scale: { mode: Phaser.Scale.RESIZE, width: parent.clientWidth || 800, height: parent.clientHeight || 600 },
         // Two fingers, so phones can pinch to zoom (view.ts).
         input: { activePointers: 2 },
-        scene: [new Preview(bridge), new Library(bridge), new Mars(), new StarShow(), new Wonderland()],
+        scene: [new Preview(bridge), new Library(bridge), new Mars(), new Blaster(), new StarShow(), new Wonderland()],
     });
 
     // Tell the UI which scene is on top, so the touch controls only show where there's someone to walk.
