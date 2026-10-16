@@ -59,6 +59,11 @@ export class Preview extends Phaser.Scene {
     private lastRushTrail = -Infinity;
     private rushTrailColor = 0;
     private lastVibePulse = -Infinity;
+    private inHell = false;
+    private portalReadyAt = 0;
+    private surfacePortal?: Phaser.GameObjects.Sprite;
+    private hellPortal?: Phaser.GameObjects.Sprite;
+    private hellDecor: (Phaser.GameObjects.Image | Phaser.GameObjects.Sprite)[] = [];
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -91,6 +96,7 @@ export class Preview extends Phaser.Scene {
         this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
         this.prop('bench', 74, 230);
         for (let i = 0; i < 6; i++) this.walker(i);
+        this.createHell();
         this.createPlayer();
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
@@ -134,6 +140,15 @@ export class Preview extends Phaser.Scene {
         // Teams (and ?hq) open inside, and so does a reload while you were inside.
         const q = new URLSearchParams(location.search);
         const p = this.player?.sprite;
+        if (q.has('hell')) {
+            this.setHellTheme(true);
+            const to = this.hellPortal;
+            if (to && p) {
+                p.setPosition(to.x, to.y + 28);
+                this.player?.shadow.setPosition(p.x, p.y);
+                this.view.trackPlayer();
+            }
+        }
         if (q.has('teams') || q.has('hq') || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
     }
 
@@ -220,6 +235,208 @@ export class Preview extends Phaser.Scene {
         for (let i = 0; i < 40; i++) pc.set((i * 37) % 64, (i * 23) % 64, 'lime');
         addPixels(this, 'preview-grass', pc);
         this.ground = this.add.tileSprite(0, 0, 2048, 2048, 'preview-grass').setDepth(-1e9);
+    }
+
+    private createHell() {
+        const ground = new PixelCanvas(64, 64);
+        for (let y = 0; y < 64; y++) {
+            for (let x = 0; x < 64; x++) {
+                const n = fbm(x, y, 14, 4);
+                if (n > 0.84) ground.mix(x, y, 'red', 'orange', (n - 0.84) * 8);
+                else if (n > 0.79) ground.set(x, y, 'wine');
+                else ground.mix(x, y, 'ink', 'bark', n * 0.9 - 0.15);
+            }
+        }
+        for (let i = 0; i < 10; i++) {
+            const x = (i * 29 + 7) % 64;
+            const y = (i * 43 + 11) % 64;
+            ground.set(x, y, i % 3 ? 'red' : 'orange');
+        }
+        addPixels(this, 'preview-hell-ground', ground);
+
+        const portal = new PixelCanvas(96, 24);
+        for (let frame = 0; frame < 4; frame++) {
+            const ox = frame * 24;
+            portal.ellipse(ox + 12, 13, 11, 7, 'ink');
+            portal.ellipse(ox + 12, 13, 9, 5, (_x, _y, nx, ny) => {
+                const edge = nx * nx + ny * ny;
+                if (edge > 0.62) return (frame + Math.round(nx * 3) + Math.round(ny * 2)) % 2 ? 'orange' : 'gold';
+                return edge > 0.25 ? 'red' : 'wine';
+            });
+            portal.ellipse(ox + 12, 13, 4, 2, frame % 2 ? 'plum' : 'ink');
+            portal.set(ox + 5 + frame, 5, 'yellow').set(ox + 18 - frame, 6, 'orange');
+        }
+        addPixels(this, 'preview-hell-portal', portal, stripFrames(4, 24, 24));
+        if (!this.anims.exists('preview-hell-portal')) {
+            this.anims.create({
+                key: 'preview-hell-portal',
+                frames: Array.from({ length: 4 }, (_, frame) => ({ key: 'preview-hell-portal', frame })),
+                frameRate: 7,
+                repeat: -1,
+            });
+        }
+
+        this.surfacePortal = this.add.sprite(258, 79, 'preview-hell-portal', 0)
+            .setDepth(-1e7)
+            .play('preview-hell-portal');
+        this.hellPortal = this.add.sprite(-258, 210, 'preview-hell-portal', 0)
+            .setDepth(-1e7)
+            .setFlipX(true)
+            .setVisible(false)
+            .play('preview-hell-portal');
+
+        const fissure = new PixelCanvas(48, 22);
+        fissure.line(2, 11, 12, 8, 'red')
+            .line(12, 8, 20, 13, 'orange')
+            .line(20, 13, 28, 7, 'yellow')
+            .line(28, 7, 37, 12, 'orange')
+            .line(37, 12, 46, 9, 'red')
+            .line(20, 13, 17, 19, 'red')
+            .line(28, 7, 31, 2, 'gold');
+        addPixels(this, 'preview-hell-fissure', fissure);
+        [
+            [-326, -22, 0.8], [-170, 166, 1.1], [18, 54, 0.75],
+            [170, 214, 1], [324, 20, 0.9], [90, -94, 0.7],
+        ].forEach(([x, y, scale], i) => {
+            const image = this.add.image(x, y, 'preview-hell-fissure')
+                .setDepth(-1e7)
+                .setScale(scale)
+                .setFlipX(i % 2 === 0)
+                .setVisible(false);
+            this.hellDecor.push(image);
+            this.tweens.add({
+                targets: image,
+                alpha: { from: 0.55, to: 1 },
+                duration: 480 + i * 70,
+                yoyo: true,
+                repeat: -1,
+            });
+        });
+
+        // Bonfires: four flickering frames of flame over charred logs.
+        const fire = new PixelCanvas(64, 24);
+        for (let f = 0; f < 4; f++) {
+            const ox = f * 16;
+            fire.rect(ox + 2, 20, 12, 2, 'bark').line(ox + 1, 22, ox + 14, 19, 'earth').line(ox + 1, 19, ox + 14, 22, 'bark');
+            const sway = [0, 1, 0, -1][f];
+            fire.ellipse(ox + 8, 15, 6, 6, 'red');
+            fire.ellipse(ox + 8 + sway, 11, 4, 7, 'orange');
+            fire.ellipse(ox + 8 - sway, 13, 2, 4, 'gold');
+            fire.set(ox + 8 + sway * 2, 2 + (f % 2), 'orange').set(ox + 5 - sway, 6, 'red').set(ox + 11 + sway, 5 + (f % 2), 'red');
+            fire.set(ox + 8, 15, 'yellow').set(ox + 8, 16, 'yellow');
+        }
+        addPixels(this, 'preview-hell-fire', fire, stripFrames(4, 16, 24));
+        if (!this.anims.exists('preview-hell-fire')) {
+            this.anims.create({
+                key: 'preview-hell-fire',
+                frames: Array.from({ length: 4 }, (_, frame) => ({ key: 'preview-hell-fire', frame })),
+                frameRate: 10,
+                repeat: -1,
+            });
+        }
+        const glowArt = new PixelCanvas(40, 16);
+        glowArt.ellipse(20, 8, 19, 7, 'red').ellipse(20, 8, 12, 4, 'orange');
+        addPixels(this, 'preview-hell-glow', glowArt);
+        [[-230, 60], [-60, -40], [130, 40], [240, 170], [-330, 150], [60, 270], [330, -60]].forEach(([x, y], i) => {
+            const glow = this.add.image(x, y - 1, 'preview-hell-glow').setAlpha(0.35).setDepth(-1e7).setVisible(false);
+            this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.5 }, scale: { from: 0.9, to: 1.15 }, duration: 300 + i * 40, yoyo: true, repeat: -1 });
+            const flame = this.add.sprite(x, y, 'preview-hell-fire', i % 4).setOrigin(0.5, 1).setDepth(y).setVisible(false);
+            flame.play({ key: 'preview-hell-fire', startFrame: i % 4 });
+            this.hellDecor.push(glow, flame);
+        });
+
+        // Skulls and bones scattered on the ash.
+        const skull = new PixelCanvas(9, 9);
+        skull.ellipse(4.5, 3.5, 4, 3.5, 'cloud').rect(2, 6, 5, 2, 'cloud')
+            .rect(2, 3, 2, 2, 'ink').rect(5, 3, 2, 2, 'ink').set(4, 5, 'ink')
+            .set(3, 7, 'ink').set(5, 7, 'ink').outline('ink');
+        addPixels(this, 'preview-hell-skull', skull);
+        const bone = new PixelCanvas(11, 5);
+        bone.line(2, 2, 8, 2, 'cloud').rect(0, 0, 2, 2, 'cloud').rect(0, 3, 2, 2, 'cloud').rect(9, 0, 2, 2, 'cloud').rect(9, 3, 2, 2, 'cloud').outline('ink');
+        addPixels(this, 'preview-hell-bone', bone);
+        [[-280, 10], [-100, 90], [200, 110], [-20, 200], [300, 260], [-200, 260], [120, -20], [-360, -80]].forEach(([x, y], i) => {
+            const img = this.add.image(x, y, i % 2 ? 'preview-hell-bone' : 'preview-hell-skull')
+                .setOrigin(0.5, 1).setDepth(y).setFlipX(i % 3 === 0).setAngle(i % 2 ? (i * 37) % 60 - 30 : 0).setVisible(false);
+            this.hellDecor.push(img);
+        });
+
+        // Obsidian spikes jutting from the ground.
+        const spike = new PixelCanvas(14, 22);
+        spike.line(3, 21, 6, 2, 'night').line(4, 21, 7, 4, 'plum').line(7, 21, 7, 4, 'night')
+            .line(8, 21, 11, 10, 'night').line(9, 21, 11, 12, 'violet')
+            .rect(2, 20, 11, 2, 'ink').outline('ink');
+        for (let y = 4; y < 21; y++) for (let x = 3; x < 12; x++) if (spike.filled(x - 1, y) && spike.filled(x + 1, y) && !spike.filled(x, y)) spike.set(x, y, 'night');
+        addPixels(this, 'preview-hell-spike', spike);
+        [[-150, -20], [40, 120], [260, -10], [-300, 220], [180, 280], [-40, -90]].forEach(([x, y], i) => {
+            this.hellDecor.push(this.add.image(x, y, 'preview-hell-spike').setOrigin(0.5, 1).setDepth(y).setFlipX(i % 2 === 1).setScale(1 + (i % 3) * 0.25).setVisible(false));
+        });
+
+        // Embers drifting up through the whole world.
+        const ember = new PixelCanvas(2, 2);
+        ember.rect(0, 0, 2, 2, 'orange').set(0, 0, 'yellow');
+        addPixels(this, 'preview-hell-ember', ember);
+        for (let i = 0; i < 70; i++) {
+            const e = this.add.image(0, 0, 'preview-hell-ember').setDepth(1e6).setVisible(false);
+            this.hellDecor.push(e);
+            const launch = () => {
+                const b = this.worldBounds;
+                e.setPosition(Phaser.Math.Between(b.left, b.right), Phaser.Math.Between(b.top + b.height * 0.3, b.bottom))
+                    .setAlpha(1).setScale(Phaser.Math.FloatBetween(0.6, 1.5));
+                this.tweens.add({
+                    targets: e,
+                    y: e.y - Phaser.Math.Between(80, 200),
+                    x: e.x + Phaser.Math.Between(-30, 30),
+                    alpha: 0,
+                    duration: Phaser.Math.Between(2200, 4200),
+                    delay: Phaser.Math.Between(0, 2000),
+                    onComplete: launch,
+                });
+            };
+            launch();
+        }
+    }
+
+    private setHellTheme(active: boolean) {
+        this.inHell = active;
+        this.ground?.setTexture(active ? 'preview-hell-ground' : 'preview-grass');
+        this.cameras.main.setBackgroundColor(active ? '#1a0306' : '#14101e');
+        this.surfacePortal?.setVisible(!active);
+        this.hellPortal?.setVisible(active);
+        this.hellDecor.forEach((object) => object.setVisible(active));
+
+        const exempt = new Set<Phaser.GameObjects.GameObject>([
+            ...this.hellDecor,
+            ...(this.surfacePortal ? [this.surfacePortal] : []),
+            ...(this.hellPortal ? [this.hellPortal] : []),
+            ...(this.player ? [this.player.sprite, this.player.shadow, this.player.marker] : []),
+        ]);
+        this.children.list.forEach((object) => {
+            if (exempt.has(object) || object === this.ground) return;
+            if ('setTint' in object && typeof object.setTint === 'function') {
+                if (active) object.setTint(0xe04a30);
+                else if ('clearTint' in object && typeof object.clearTint === 'function') object.clearTint();
+            }
+        });
+    }
+
+    private usePortal() {
+        if (!this.player || this.time.now < this.portalReadyAt) return;
+        const from = this.inHell ? this.hellPortal : this.surfacePortal;
+        if (!from || !from.visible) return;
+        const { sprite, shadow, marker } = this.player;
+        if (Phaser.Math.Distance.Between(sprite.x, sprite.y, from.x, from.y) > 17) return;
+
+        this.setHellTheme(!this.inHell);
+        const to = this.inHell ? this.hellPortal : this.surfacePortal;
+        if (!to) return;
+        const y = to.y + 28;
+        sprite.setPosition(to.x, y).setDepth(y);
+        shadow.setPosition(to.x, y).setDepth(y - 1);
+        marker.setPosition(to.x, y - 34).setDepth(y + 1);
+        this.portalReadyAt = this.time.now + 700;
+        this.view?.trackPlayer();
+        this.cameras.main.flash(220, this.inHell ? 255 : 255, this.inHell ? 55 : 220, this.inHell ? 20 : 150);
+        this.cameras.main.shake(180, 0.004);
     }
 
     private building(x: number, y: number, spec: BuildingSpec) {
@@ -676,5 +893,6 @@ export class Preview extends Phaser.Scene {
         sprite.setDepth(sprite.y);
         // Walked into HQ (through the door, or any wall, since nothing here is solid): go in.
         if (moving && this.hq?.contains(sprite.x, sprite.y)) this.enterHQ();
+        if (moving) this.usePortal();
     }
 }
