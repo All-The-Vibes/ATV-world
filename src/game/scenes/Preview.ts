@@ -30,6 +30,7 @@ import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
 import { Ambience } from '../life/Ambience';
 import { Ollama } from '../llama/Ollama';
+import { RubberDuck } from '../rubberDuck/RubberDuck';
 import { LaunchPad } from '../mars/Rocket';
 import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
@@ -78,6 +79,7 @@ export class Preview extends Phaser.Scene {
     /** Day/night lighting, clouds, fireflies (see ../fx/Atmosphere.ts). */
     atmosphere?: Atmosphere;
     private ollama?: Ollama;
+    private rubberDuck?: RubberDuck;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
     private giant?: Giant;
@@ -268,6 +270,7 @@ export class Preview extends Phaser.Scene {
         this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
         this.fitWorld();
         this.ollama = new Ollama(this);
+        this.rubberDuck = new RubberDuck(this);
         this.talkingMoles = new TalkingMoles(this);
         this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
@@ -508,6 +511,7 @@ export class Preview extends Phaser.Scene {
         this.bikeGang?.update(dt);
         this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
+        this.rubberDuck?.update(dt);
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
         this.pool?.update(dt);
