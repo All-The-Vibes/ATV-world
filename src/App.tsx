@@ -6,7 +6,7 @@ export default function App() {
             <PhaserGame />
             <div className="banner">
                 <h1>ATV WORLD</h1>
-                <p>Under construction. Push to main and build something.</p>
+                <p>Arrow keys move. Mouse wheel or +/- zooms.</p>
             </div>
         </>
     );
