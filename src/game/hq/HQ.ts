@@ -114,9 +114,16 @@ export class HQ {
     /** Use the real avatars and name plates, including people still walking through the door. */
     surfRiders(): Rider[] {
         return [
-            ...this.desks.flatMap(d => d.caller && d.coder ? [{ sprite: d.coder, carry: d.plate ? [d.plate] : [] }] : []),
+            ...this.desks.flatMap(d => d.caller && d.coder ? [{
+                sprite: d.coder, carry: d.plate ? [d.plate] : [], anchor: { x: this.x, y: this.bottom },
+            }] : []),
             ...Array.from(this.onFoot, ([sprite, { shadow }]) => ({ sprite, hide: [shadow] })),
         ];
+    }
+
+    surfScenery(): Rider[] {
+        return [this.facade, this.glass, this.sign, this.beacon, this.ticker, ...this.desks.map(d => d.dark)]
+            .map(sprite => ({ sprite, anchor: { x: this.x, y: this.bottom }, reveal: false }));
     }
 
     /** The whole building, roof sign included. */
@@ -178,6 +185,8 @@ export class HQ {
 
     /** Match the desks to whoever's on the call now. */
     private sync() {
+        // Roster changes must edit the real building, not save a temporary wave offset as its new home.
+        if (this.surfing) this.scene.events.emit('surf:rebase');
         // Connecting to a call brings in everyone already on it at once: seat them without the parade.
         const kind = call.status.kind;
         if (kind !== this.statusKind && (kind === 'connecting' || kind === 'live')) this.settled = this.scene.time.now + SETTLE_MS;

@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { SurfClock } from '../src/game/ocean/cycle.ts';
 import { Riders, type Rider } from '../src/game/ocean/riders.ts';
+import { swellAt, waveAt } from '../src/game/ocean/wave.ts';
 
 function advance(clock: SurfClock, ms: number) {
     for (; ms > 0; ms -= 100) clock.update(Math.min(ms, 100));
@@ -105,4 +106,61 @@ test('joins ride immediately, departed/destroyed avatars are never resurrected',
     assert.equal(joiner.x, 42);
     assert.equal(joiner.y, 84);
     assert.equal(leaver.active, false);
+});
+
+test('scenery without animations rides as an assembly and keeps hidden parts hidden', () => {
+    const cast = new Riders();
+    const house = { ...actor(120, 80), anims: undefined };
+    const sign = actor(140, 20, false);
+    const original = { x: house.x, y: house.y, depth: house.depth, visible: house.visible, alpha: house.alpha };
+    cast.sync([{ sprite: house, carry: [sign], reveal: false } as unknown as Rider]);
+    cast.pose((x, y) => ({ x: x - 40, y: y - 90, wet: true }));
+    assert.equal(house.x, 80);
+    assert.equal(house.y, -10);
+    assert.equal(sign.x, 100);
+    assert.equal(sign.visible, false, 'hidden scenery is not resurrected');
+    cast.pose((x, y) => ({ x, y, wet: false }));
+    for (const key of Object.keys(original) as (keyof typeof original)[]) assert.equal(house[key], original[key]);
+    cast.restore();
+});
+
+test('dry avatars stay indoors until their local wave arrives; anchors keep assemblies together', () => {
+    const cast = new Riders();
+    const person = actor(140, 20, false);
+    cast.sync([rider(person, { anchor: { x: 100, y: 80 } })]);
+    cast.pose((x, y) => {
+        assert.equal(x, 100);
+        assert.equal(y, 80);
+        return { x: 60, y: -10, wet: true };
+    });
+    assert.equal(person.x, 100);
+    assert.equal(person.y, -70);
+    assert.equal(person.visible, true);
+    cast.pose((x, y) => ({ x, y, wet: false }));
+    assert.equal(person.visible, false);
+    assert.equal(person.x, 140);
+    assert.equal(person.y, 20);
+    cast.restore();
+});
+
+test('a right-to-left travelling crest lifts every location and drains locally within four seconds', () => {
+    const left = -2200, right = 3100;
+    let previous = Infinity;
+    for (let t = 0; t <= 20; t += 0.1) {
+        const wave = waveAt(t, left, right);
+        assert.ok(wave.front < previous);
+        previous = wave.front;
+    }
+    for (const x of [left, -1000, 0, 1000, right]) {
+        const wetTimes = [];
+        let peak = 0;
+        for (let t = 0; t <= 20; t += 0.05) {
+            const lift = swellAt(x, waveAt(t, left, right));
+            if (lift > 0.001) wetTimes.push(t);
+            peak = Math.max(peak, lift);
+        }
+        assert.ok(peak > 0.98, `full lift at ${x}`);
+        assert.ok(wetTimes.at(-1)! - wetTimes[0] < 4, `short wake at ${x}`);
+        assert.equal(swellAt(x, waveAt(20, left, right)), 0);
+    }
 });

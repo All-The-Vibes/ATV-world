@@ -1,7 +1,8 @@
-// Real Phaser + React integration. Only this OS-assigned dev server and these browser contexts close.
+// Real Phaser integration, using the repository's existing Playwright + Vite dependencies.
 import assert from 'node:assert/strict';
 import { mkdirSync, realpathSync } from 'node:fs';
 import { join } from 'node:path';
+import { setTimeout as sleep } from 'node:timers/promises';
 import { chromium } from 'playwright';
 import { createServer } from 'vite';
 
@@ -13,62 +14,251 @@ const server = await createServer({ server: {
 } });
 let browser;
 const errors = [];
-const snapshot = page => page.evaluate(() => {
-    const s = window.atv.game.scene.getScene('Preview');
-    const parts = [s.player.sprite, s.player.shadow, s.player.marker, ...s.walkers.flatMap(w => [w.sprite, w.shadow, ...(w.label ? [w.label] : [])]),
-        ...s.hq.surfRiders().flatMap(r => [r.sprite, ...(r.carry ?? []), ...(r.hide ?? [])]),
-        ...(s.campus?.surfRiders().flatMap(r => [r.sprite, ...(r.hide ?? [])]) ?? [])];
-    return {
-        parts: parts.map(o => ({
-            x: o.x, y: o.y, depth: o.depth, visible: o.visible, alpha: o.alpha,
-            texture: o.texture.key, frame: o.frame.name, flipX: o.flipX,
-            paused: o.anims?.isPaused, playing: o.anims?.isPlaying,
-        })),
-        indoor: s.insideHQ, score: s.vibeScore, count: s.vibeCollected, round: s.vibeRound,
-        tokens: localStorage.getItem('atv-tokens'),
-        grass: s.textures.get('preview-grass').getSourceImage().toDataURL(),
-    };
-});
-const effectCount = page => page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list.filter(o => o.name.startsWith('surf-')).length);
-const stepOcean = (page, ms) => page.evaluate(ms => {
-    const ocean = window.atv.game.scene.getScene('Preview').ocean;
-    for (; ms > 0; ms -= 100) ocean.update(Math.min(ms, 100));
+const step = (page, ms) => page.evaluate(ms => {
+    const o = window.atv.game.scene.getScene('Preview').ocean;
+    for (; ms > 0; ms -= 100) o.update(Math.min(100, ms));
 }, ms);
-const endWave = page => page.evaluate(() => {
-    const ocean = window.atv.game.scene.getScene('Preview').ocean;
-    for (let i = 0; i < 201 && ocean.active; i++) ocean.update(100);
+const end = page => page.evaluate(() => {
+    const o = window.atv.game.scene.getScene('Preview').ocean;
+    for (let i = 0; i < 201 && o.active; i++) o.update(100);
 });
+const effects = page => page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list.filter(p => p.name.startsWith('surf-')).length);
 const shot = async (page, name) => {
     if (!shots) return;
     await page.evaluate(() => {
-        const game = window.atv.game;
-        const scene = game.scene.getScene('Preview');
-        scene.events.emit('postupdate', scene.time.now, 0);
-        game.renderer.preRender();
-        game.scene.render(game.renderer);
-        game.renderer.postRender();
+        const g = window.atv.game, s = g.scene.getScene('Preview');
+        s.events.emit('postupdate', s.time.now, 0);
+        g.renderer.preRender(); g.scene.render(g.renderer); g.renderer.postRender();
     });
     await page.screenshot({ path: join(shots, `${name}.png`) });
 };
-
-async function open(query = '', reducedMotion = 'no-preference') {
-    const context = await browser.newContext({ viewport: { width: 1440, height: 1000 }, reducedMotion });
+const snapshot = page => page.evaluate(() => {
+    const s = window.atv.game.scene.getScene('Preview');
+    return {
+        parts: window.surfParts.map(p => ({
+            x: p.x, y: p.y, depth: p.depth, visible: p.visible, alpha: p.alpha,
+            texture: p.texture.key, frame: p.frame.name, flipX: p.flipX,
+            paused: p.anims?.isPaused, playing: p.anims?.isPlaying,
+        })),
+        indoor: s.insideHQ, score: s.vibeScore, collected: s.vibeCollected,
+        tokens: localStorage.getItem('atv-tokens'), backpack: localStorage.getItem('atv-backpack'),
+        tags: s.children.list.filter(p => p.name === 'creator-nametag').map(p => p.text).sort(),
+        grass: s.textures.get('preview-grass').getSourceImage().toDataURL(),
+    };
+});
+async function open(query = '', reducedMotion = 'no-preference', width = 1440) {
+    const context = await browser.newContext({ viewport: { width, height: 1000 }, reducedMotion });
     const page = await context.newPage();
     page.on('pageerror', e => errors.push(e.message));
     page.on('console', m => { if (m.type() === 'error' && !m.text().includes('favicon')) errors.push(m.text()); });
     await page.clock.install();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 60_000));
     await page.goto(`${server.resolvedUrls.local[0]}${query}`);
-    await page.waitForFunction(() => window.atv?.game?.scene.getScene('Preview')?.ocean);
+    let ready = false;
+    for (let i = 0; i < 400 && !ready; i++) {
+        await page.clock.runFor(50);
+        ready = await page.evaluate(() => !!window.atv?.game?.scene.getScene('Preview')?.ocean);
+        if (!ready) await sleep(25);
+    }
+    assert.ok(ready, 'world initialized');
     await page.evaluate(() => document.fonts.ready);
-    await page.clock.pauseAt(await page.evaluate(() => Date.now() + 10_000));
-    // Keep the baseline deterministic; attacks are explicitly tested during the ride.
+    await page.clock.runFor(100);
     await page.evaluate(() => { window.atv.game.scene.getScene('Preview').dragon.timer = 1e6; });
     return { context, page };
 }
-
+async function remember(page) {
+    await page.evaluate(() => {
+        const s = window.atv.game.scene.getScene('Preview');
+        window.surfParts = s.children.list.filter(p => p.texture && p.depth > -1e8 && p.depth < 2e6
+            && p.type !== 'Text');
+        window.surfHomes = new Map(window.surfParts.map(p => [p, { x: p.x, y: p.y, visible: p.visible }]));
+    });
+    return snapshot(page);
+}
 try {
     await server.listen();
     browser = await chromium.launch({ channel: process.platform === 'win32' ? 'msedge' : undefined });
+    for (const [mode, query] of [['normal', '?call=Ana,Ben,Cy'], ['hq', '?hq&call=Ana,Ben,Cy'], ['crowd', '?hq&call=crowd']]) {
+        const { context, page } = await open(query);
+        if (mode === 'crowd') {
+            await page.evaluate(async () => {
+                const { call } = await import('/src/call/roster.ts');
+                call.list().forEach(p => call.join({ ...p, source: 'console' }));
+                (await import('/src/call/demo.ts')).endDemo();
+                for (let i = call.size; i < 48; i++) window.atv.call.join(`Surf Guest ${i}`);
+            });
+            assert.equal(await page.evaluate(() => window.atv.call.list().length), 48);
+        }
+        await page.keyboard.press('f');
+        await page.clock.runFor(100);
+        await shot(page, `${mode}-before`);
+        const before = await remember(page);
+        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger()), true);
+        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger()), false);
+        await page.evaluate(() => { window.surfLifted = new Set(); window.surfX = []; });
+        for (let second = 1; second <= 20; second++) {
+            await page.evaluate(() => {
+                const s = window.atv.game.scene.getScene('Preview');
+                for (let i = 0; i < 10; i++) {
+                    s.ocean.update(100);
+                    for (const [p, home] of window.surfHomes) {
+                        if (p.x < home.x - 10 && p.y < home.y - 20) window.surfLifted.add(p);
+                    }
+                }
+                const surfer = s.children.getByName('surf-surfer');
+                if (surfer) window.surfX.push(surfer.x);
+            });
+            if ([7, 10, 13].includes(second)) await shot(page, `${mode}-wave-${second}`);
+            if (second === 10) {
+                const status = await page.evaluate(() => {
+                    const s = window.atv.game.scene.getScene('Preview');
+                    s.view.save();
+                    return { timers: s.time.timeScale === 0 && s.tweens.timeScale === 0,
+                        entry: !s.hq.facade.input.enabled, indoor: s.insideHQ,
+                        stored: JSON.parse(sessionStorage.getItem('atv:view')).player,
+                        tags: s.children.list.filter(p => p.name === 'creator-nametag').map(p => p.text).sort(),
+                        home: window.surfHomes.get(s.player.sprite) };
+                });
+                assert.ok(status.timers && status.entry);
+                assert.equal(status.indoor, before.indoor);
+                assert.deepEqual(status.tags, before.tags, 'creator identities survive the wave unchanged');
+                assert.equal(status.stored.x, status.home.x);
+                assert.equal(status.stored.y, status.home.y);
+                await page.evaluate(() => {
+                    const s = window.atv.game.scene.getScene('Preview'), indoor = s.insideHQ;
+                    s.enterHQ(); s.leaveHQ(); s.blastOff(); s.enterWonderland(); s.enterPlanetarium();
+                    if (s.insideHQ !== indoor || s.rocketing || s.tumbling) throw Error('entry during wave');
+                });
+                if (mode === 'normal') {
+                    await page.evaluate(() => {
+                        const s = window.atv.game.scene.getScene('Preview'), p = s.children.getByName('surf-surfer');
+                        s.view.show({ x: p.x - 380, y: p.y - 210, width: 950, height: 800 });
+                    });
+                    await shot(page, 'crest-detail');
+                    await page.evaluate(() => window.atv.game.scene.getScene('Preview').view.fit());
+                }
+            }
+        }
+        const lifted = await page.evaluate(() => {
+            const s = window.atv.game.scene.getScene('Preview'), all = [...window.surfHomes.keys()];
+            const check = p => window.surfLifted.has(p);
+            return {
+                rightToLeft: window.surfX.every((x, i, a) => !i || x < a[i - 1]),
+                houses: all.filter(p => /^(preview-building|town-house)/.test(p.texture.key)).map(check),
+                billboard: all.filter(p => p.texture.key.startsWith('billboard-frame')).map(check),
+                rocket: all.filter(p => p.texture.key === 'rocket').map(check),
+                people: [...new Set([...s.ocean.opts.riders().map(r => r.sprite),
+                    ...all.filter(p => p.type === 'Sprite' && p.active && window.surfHomes.get(p).visible)])].map(check),
+                sceneryCount: window.surfLifted.size,
+            };
+        });
+        assert.ok(lifted.rightToLeft, 'screen-space travel is strictly right to left');
+        for (const kind of ['houses', 'billboard', 'rocket', 'people']) {
+            assert.ok(lifted[kind].length && lifted[kind].every(Boolean), `all ${kind} visibly rise and move left: ${JSON.stringify(lifted)}`);
+        }
+        assert.equal(await effects(page), 0);
+        assert.deepEqual(await snapshot(page), before, 'exact restoration of scenery, people, frames and game state');
+        await shot(page, `${mode}-restored-grass`);
+        await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger());
+        await step(page, 9000);
+        assert.equal(await effects(page), 6);
+        await end(page);
+        assert.deepEqual(await snapshot(page), before, 'second cycle is drift-free');
+        assert.equal(await effects(page), 0);
+        console.log(`${mode}: direction, ${lifted.sceneryCount} lifted objects, all avatars, two cycles and exact restoration PASS`);
+        // Exercise real keyboard/camera controls and resumed play after deterministic checks.
+        const x = await page.evaluate(() => window.atv.game.scene.getScene('Preview').player.sprite.x);
+        await page.keyboard.down('ArrowRight'); await page.clock.runFor(250); await page.keyboard.up('ArrowRight');
+        assert.notEqual(await page.evaluate(() => window.atv.game.scene.getScene('Preview').player.sprite.x), x, 'movement resumes');
+        await context.close();
+    }
+
+    const { context, page } = await open('?hq&call=Ana,Ben');
+    await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger());
+    await step(page, 9000);
+    const rebase = await page.evaluate(async () => {
+        const s = window.atv.game.scene.getScene('Preview');
+        const { HQ_SPOTS } = await import('/src/game/hq/art.ts');
+        const old = s.hq.byId.get('name:ana').coder;
+        window.atv.call.leave('Ana');
+        for (let i = 0; i < 24; i++) window.atv.call.join(`Late Surfer ${i}`);
+        s.ocean.update(100);
+        return { departed: !old.active && !old.scene, signHome: s.hq.bounds().top + HQ_SPOTS.sign.y };
+    });
+    assert.ok(rebase.departed);
+    await end(page);
+    assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').hq.sign.y), rebase.signHome, 'HQ expansion is restored to its new correct roof');
+    assert.equal(await page.evaluate(() => window.atv.call.list().includes('Ana')), false);
+    // Expanded horizontal bounds are included in the next right-to-left sweep.
+    await page.evaluate(() => {
+        const s = window.atv.game.scene.getScene('Preview');
+        s.prop('bench', s.worldBounds.right + 900, 850);
+        window.expandedBench = s.children.list.filter(p => p.texture?.key === 'preview-prop-bench').sort((a, b) => b.x - a.x)[0];
+        s.view.fit();
+    });
+    await page.clock.runFor(50);
+    await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger());
+    assert.ok(await page.evaluate(() => {
+        const s = window.atv.game.scene.getScene('Preview'), p = window.expandedBench, homeY = p.y;
+        let lifted = false;
+        for (let i = 0; i < 200 && !lifted; i++) {
+            s.ocean.update(100);
+            lifted ||= p.y < homeY - 20;
+        }
+        return lifted;
+    }), 'scenery beyond the original horizontal bounds also rides');
+    await shot(page, 'expanded-world');
+    assert.ok(await page.evaluate(() => {
+        const s = window.atv.game.scene.getScene('Preview'), p = s.children.getByName('surf-surfer'), x = p.x;
+        s.view.show({ x: -800, y: -500, width: 900, height: 800 });
+        s.ocean.update(0);
+        return x === p.x;
+    }), 'camera changes do not move or reverse the wave at the same elapsed time');
+    const zoom = await page.evaluate(() => window.atv.game.scene.getScene('Preview').cameras.main.zoom);
+    await page.keyboard.press('+'); await page.clock.runFor(100);
+    assert.ok(await page.evaluate(z => window.atv.game.scene.getScene('Preview').cameras.main.zoom > z, zoom));
+    assert.ok(await page.evaluate(async () => {
+        const s = window.atv.game.scene.getScene('Preview'), { send } = await import('/src/game/commands.ts');
+        send('toggleStranger');
+        s.ocean.update(0);
+        return s.inHell && !s.surfacePortal.visible && s.hellPortal.visible
+            && s.terrain.things.every(p => !p.visible);
+    }), 'overlay theme changes remain usable during the wave');
+    await page.evaluate(async () => {
+        const s = window.atv.game.scene.getScene('Preview'), { send } = await import('/src/game/commands.ts');
+        send('toggleStranger'); s.ocean.update(0);
+    });
+    await page.evaluate(() => { window.atv.game.scene.getScene('Preview').scene.sleep(); });
+    await page.clock.runFor(100);
+    assert.equal(await effects(page), 0, 'sleep cleans up');
+    await page.clock.fastForward(300000);
+    await page.evaluate(() => { window.atv.game.scene.wake('Preview'); });
+    await page.clock.runFor(100);
+    assert.equal(await effects(page), 0, 'wake never replays missed events');
+    assert.ok(await page.evaluate(() => {
+        const o = window.atv.game.scene.getScene('Preview').ocean, before = o.clock.elapsed;
+        Object.defineProperty(document, 'hidden', { configurable: true, value: true });
+        for (let i = 0; i < 2000; i++) o.update(100);
+        delete document.hidden;
+        return before === o.clock.elapsed;
+    }));
+    for (let i = 0; i < 3; i++) {
+        await page.evaluate(() => {
+            const s = window.atv.game.scene.getScene('Preview');
+            s.ocean.trigger(); s.scene.restart();
+        });
+        await page.clock.runFor(100);
+        assert.equal(await effects(page), 0);
+        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').events.listenerCount('surf:rebase')), 1);
+    }
+    await step(page, 119000);
+    assert.equal(await effects(page), 0);
+    await step(page, 1000);
+    assert.equal(await effects(page), 6, 'natural 120s cadence');
+    await end(page);
+    await context.close();
+    console.log('live HQ joins/leaves/resize, expanded world, zoom, sleep/wake/hidden time, three restarts, natural cadence PASS');
+
     const arrival = await open('?hq&call=Ana,Ben');
     await arrival.page.clock.runFor(2600);
     await arrival.page.evaluate(() => { window.atv.call.join('Last Minute Surfer'); });
@@ -80,204 +270,35 @@ try {
             return !!hq.byId.get('name:last minute surfer')?.coder && hq.onFoot.size > 0;
         });
     }
-    assert.ok(overlapping, 'exercise the real 200ms walking-to-seated overlap');
+    assert.ok(overlapping, 'exercise the real walking-to-seated overlap');
     assert.equal(await arrival.page.evaluate(() => {
         const s = window.atv.game.scene.getScene('Preview');
         s.ocean.trigger();
         window.atv.call.leave('Last Minute Surfer');
         return s.hq.surfRiders().filter(r => r.sprite.texture.key.startsWith('hq-walker-')).length;
-    }), 0, 'departure also removes the fading walk-in copy during a wave');
-    await endWave(arrival.page);
+    }), 0, 'departure removes the fading walk-in copy during a wave');
+    await end(arrival.page);
     await arrival.page.clock.runFor(500);
     assert.deepEqual(await arrival.page.evaluate(() => window.atv.call.list()), ['Ana', 'Ben']);
     await arrival.context.close();
     console.log('HQ departure during arrival-to-seat fade PASS');
-    for (const [mode, query] of [['normal', '?call=Ana,Ben,Cy'], ['hq', '?hq&call=Ana,Ben,Cy'], ['crowd', '?hq&call=crowd']]) {
-        const { context, page } = await open(query);
-        // Pin the crowd's existing identities before stopping churn, then fill its last six seats.
-        if (mode === 'crowd') {
-            await page.evaluate(async () => {
-                const { call } = await import('/src/call/roster.ts');
-                call.list().forEach(person => call.join({ ...person, source: 'console' }));
-                (await import('/src/call/demo.ts')).endDemo();
-                for (let i = call.size; i < 48; i++) window.atv.call.join(`Crowd Surfer ${i + 1}`);
-            });
-            assert.equal(await page.evaluate(() => window.atv.call.list().length), 48);
-            assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').hq.surfRiders().length), 48);
-        }
-        await page.keyboard.press('f');
-        await page.clock.runFor(100);
-        await shot(page, `${mode}-before`);
-        const before = await snapshot(page);
-        const tagsBefore = await page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list
-            .filter(o => o.name === 'creator-nametag').map(o => o.text).sort());
-        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger()), true);
-        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger()), false, 'no overlapping dev trigger');
-        await page.clock.runFor(6800);
-        await shot(page, `${mode}-crest-surfer`);
-        if (mode === 'normal' && shots) {
-            await page.evaluate(() => {
-                const s = window.atv.game.scene.getScene('Preview');
-                const surfer = s.children.getByName('surf-surfer');
-                s.view.show({ x: surfer.x - 260, y: surfer.y - 160, width: 520, height: 380 });
-            });
-            await shot(page, 'crest-detail');
-            await page.evaluate(() => { window.atv.game.scene.getScene('Preview').view.fit(); });
-            await shot(page, `${mode}-crest-surfer`);
-        }
-        const during = await page.evaluate(() => {
-            const s = window.atv.game.scene.getScene('Preview');
-            const riders = [s.player.sprite, ...s.walkers.map(w => w.sprite), ...s.hq.surfRiders().map(r => r.sprite),
-                ...(s.campus?.surfRiders().map(r => r.sprite) ?? [])];
-            return {
-                everyoneUp: riders.every(r => r.visible && r.depth > 2e6),
-                surfer: s.children.getByName('surf-surfer').visible,
-                barrel: s.children.getByName('surf-barrel').visible,
-                timersPaused: s.time.timeScale === 0 && s.tweens.timeScale === 0,
-                entryDisabled: !s.hq.facade.input.enabled,
-                townPaused: !s.town || s.town.surfing,
-                tagTexts: s.children.list.filter(o => o.name === 'creator-nametag').map(o => o.text).sort(),
-                stored: JSON.parse(sessionStorage.getItem('atv:view')).player,
-                x: s.player.sprite.x, y: s.player.sprite.y,
-            };
-        });
-        assert.ok(during.everyoneUp && during.surfer && during.barrel && during.timersPaused && during.entryDisabled && during.townPaused);
-        assert.deepEqual(during.tagTexts, tagsBefore, 'existing creator labels survive unchanged');
-        assert.equal(during.stored.x, before.parts[0].x, 'camera saves the home position, not the ride');
-        const z = await page.evaluate(() => window.atv.game.scene.getScene('Preview').cameras.main.zoom);
-        await page.keyboard.press('+');
-        await page.clock.runFor(100);
-        assert.ok(await page.evaluate(z => window.atv.game.scene.getScene('Preview').cameras.main.zoom > z, z), 'zoom remains usable');
-        await page.keyboard.press('f');
-        await page.evaluate(() => {
-            const s = window.atv.game.scene.getScene('Preview');
-            const indoor = s.insideHQ;
-            s.enterHQ(); s.leaveHQ();
-            if (s.insideHQ !== indoor) throw Error('HQ entry changed during surf');
-            s.dragon.timer = 0; // A competing attack must not run.
-        });
-        await page.keyboard.down('ArrowRight');
-        await page.clock.runFor(250);
-        await page.keyboard.up('ArrowRight');
-        await stepOcean(page, 9000);
-        await shot(page, `${mode}-draining`);
-        await endWave(page);
-        assert.equal(await effectCount(page), 0);
-        assert.deepEqual(await snapshot(page), before, `${mode}: exact restoration before normal movement resumes`);
-        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').hq.facade.input.enabled), true);
-        await shot(page, `${mode}-restored-grass`);
-        // A second complete event must reuse textures, restore identically, and leave no effects.
-        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger()), true);
-        await stepOcean(page, 7000);
-        assert.equal(await effectCount(page), 6);
-        await endWave(page);
-        assert.deepEqual(await snapshot(page), before, `${mode}: second cycle restoration`);
-        assert.equal(await effectCount(page), 0);
-        console.log(`${mode}: two cycles, surfer/crest, controls, indoor/score/token/identity restoration PASS`);
-        await context.close();
-    }
 
-    const { context, page } = await open('?hq&call=Ana,Ben');
-    await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger());
-    await stepOcean(page, 6000);
-    await page.evaluate(() => {
-        const s = window.atv.game.scene.getScene('Preview');
-        const departed = s.hq.byId.get('name:ana').coder;
-        window.atv.call.leave('Ana');
-        window.atv.call.join('Late Surfer');
-        if (departed.active || departed.scene) throw Error('departed avatar survived');
-        // Expand the world while the ocean is active.
-        s.prop('bench', 1400, 850);
-    });
-    await page.clock.runFor(200);
-    assert.equal(await page.evaluate(() => {
-        const s = window.atv.game.scene.getScene('Preview');
-        return s.hq.byId.get('name:late surfer').coder.depth > 2e6;
-    }), true, 'late joiner is carried immediately');
-    await shot(page, 'expanded-world');
-    await endWave(page);
-    assert.deepEqual(await page.evaluate(() => window.atv.call.list()), ['Ben', 'Late Surfer']);
-    await page.clock.runFor(2000);
-    assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').hq.byId.has('name:ana')), false, 'no delayed resurrection');
-
-    // Cadence is driven through the actual scene-owned ocean, without waiting two real minutes.
-    await page.evaluate(() => {
-        const s = window.atv.game.scene.getScene('Preview');
-        s.ocean.trigger();
-        s.scene.sleep();
-    });
-    await page.clock.runFor(100); // ScenePlugin operations take effect on the next game step.
-    assert.equal(await effectCount(page), 0, 'sleep cancels and restores');
-    await page.clock.fastForward(300_000);
-    await page.evaluate(() => { window.atv.game.scene.wake('Preview'); });
-    await page.clock.runFor(100);
-    assert.equal(await effectCount(page), 0, 'wake does not replay missed waves');
-    const hidden = await page.evaluate(() => {
-        const o = window.atv.game.scene.getScene('Preview').ocean;
-        const now = o.clock.elapsed;
-        Object.defineProperty(document, 'hidden', { configurable: true, value: true });
-        for (let i = 0; i < 2000; i++) o.update(100);
-        const unchanged = now === o.clock.elapsed;
-        delete document.hidden;
-        return unchanged;
-    });
-    assert.ok(hidden, 'hidden documents do not accrue active world time');
-    await stepOcean(page, 120_000);
-    assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.active), true, 'natural cadence starts after active time');
-    await endWave(page);
-    await page.evaluate(() => {
-        const s = window.atv.game.scene.getScene('Preview');
-        s.leaveHQ();
-        s.player.sprite.setPosition(-330, 164);
-    });
-    await page.clock.runFor(100);
-    const progress = await page.evaluate(() => {
-        const s = window.atv.game.scene.getScene('Preview');
-        return { score: s.vibeScore, collected: s.vibeCollected, found: s.vibes.map(v => v.found), indoor: s.insideHQ };
-    });
-    assert.ok(progress.score > 0, 'restart test has real earned progress to preserve');
-    const counts = await page.evaluate(() => {
-        const s = window.atv.game.scene.getScene('Preview');
-        return ['sleep', 'shutdown', 'destroy'].map(e => s.events.listeners(e).filter(fn => fn === s.ocean.cancel || fn === s.ocean.destroy).length);
-    });
-    const walkerCount = await page.evaluate(() => window.atv.game.scene.getScene('Preview').walkers.length);
-    for (let i = 0; i < 3; i++) {
-        await page.evaluate(() => {
-            const s = window.atv.game.scene.getScene('Preview');
-            s.ocean.trigger();
-            s.scene.restart();
-        });
-        await page.clock.runFor(100);
-        assert.equal(await effectCount(page), 0);
-        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').walkers.length), walkerCount);
-        assert.deepEqual(await page.evaluate(() => {
-            const s = window.atv.game.scene.getScene('Preview');
-            return { score: s.vibeScore, collected: s.vibeCollected, found: s.vibes.map(v => v.found), indoor: s.insideHQ };
-        }), progress, 'restarts preserve score, collected identities, and indoor state');
-        assert.deepEqual(await page.evaluate(() => {
-            const s = window.atv.game.scene.getScene('Preview');
-            return ['sleep', 'shutdown', 'destroy'].map(e => s.events.listeners(e).filter(fn => fn === s.ocean.cancel || fn === s.ocean.destroy).length);
-        }), counts, 'restarts do not accumulate scene listeners');
-        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger()), true);
-        assert.equal(await effectCount(page), 6, 'restart has one effect, not duplicate owners');
-        await endWave(page);
-    }
-    console.log('joins/leaves, expanded bounds, hidden time, sleep/wake and three restarts PASS');
-    await context.close();
-
-    const reduced = await open('?hq&call=Ana,Ben', 'reduce');
-    const before = await snapshot(reduced.page);
+    const reduced = await open('?hq&call=Ana,Ben', 'reduce', 390);
+    const before = await remember(reduced.page);
     await reduced.page.evaluate(() => window.atv.game.scene.getScene('Preview').ocean.trigger());
-    await stepOcean(reduced.page, 7000);
-    const after = await snapshot(reduced.page);
-    assert.deepEqual(after.parts.map(p => [p.x, p.y]), before.parts.map(p => [p.x, p.y]), 'reduced motion has no avatar displacement');
+    await step(reduced.page, 10000);
+    const during = await snapshot(reduced.page);
+    assert.deepEqual(during.parts.map(p => [p.x, p.y]), before.parts.map(p => [p.x, p.y]), 'reduced motion: no displacement');
     assert.equal(await reduced.page.evaluate(() => window.atv.game.scene.getScene('Preview').children.getByName('surf-surfer').angle), 0);
-    await shot(reduced.page, 'reduced-motion');
-    await endWave(reduced.page);
+    const stillX = await reduced.page.evaluate(() => window.atv.game.scene.getScene('Preview').children.getByName('surf-surfer').x);
+    await step(reduced.page, 1000);
+    assert.equal(await reduced.page.evaluate(() => window.atv.game.scene.getScene('Preview').children.getByName('surf-surfer').x), stillX, 'reduced motion has no screen-wide travel');
+    await shot(reduced.page, 'mobile-reduced-motion');
+    await end(reduced.page);
     assert.deepEqual(await snapshot(reduced.page), before);
     await reduced.context.close();
-    assert.deepEqual(errors, [], 'no browser errors or swallowed game-frame exceptions');
-    console.log('reduced motion and browser error checks PASS');
+    assert.deepEqual(errors, [], 'no browser or swallowed frame exceptions');
+    console.log('mobile reduced motion and browser errors PASS');
 } finally {
     await browser?.close();
     await server.close();

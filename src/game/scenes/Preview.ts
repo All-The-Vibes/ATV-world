@@ -447,6 +447,7 @@ export class Preview extends Phaser.Scene {
         let surfAt = 0;
         this.ocean = new Ocean(this, {
             bounds: () => this.worldBounds,
+            scenery: () => this.hq?.surfScenery() ?? [],
             riders: () => [
                 ...(this.player ? [{ sprite: this.player.sprite, hide: [this.player.shadow, this.player.marker] }] : []),
                 ...this.walkers.map(w => ({ sprite: w.sprite, hide: [w.shadow], carry: w.label ? [w.label] : [] })),
@@ -561,7 +562,7 @@ export class Preview extends Phaser.Scene {
     /** Follow the White Rabbit: the player shrinks into the swirl in the big tree and falls into Wonderland. */
     private enterWonderland(instantly = false) {
         const tree = this.rabbitTree;
-        if (!this.player || !tree || this.tumbling || this.rocketing || this.insideHQ || !this.sys.isActive()) return;
+        if (!this.player || !tree || this.tumbling || this.rocketing || this.insideHQ || this.ocean?.active || !this.sys.isActive()) return;
         this.tumbling = true;
         setFactoryOpen(false);
         const { sprite, shadow, marker } = this.player;
@@ -629,7 +630,7 @@ export class Preview extends Phaser.Scene {
     /** Step into the planetarium for the star show, and come back out at the foot of its steps. */
     private enterPlanetarium() {
         const p = this.player?.sprite;
-        if (!p || !this.planetarium || this.insideHQ || this.rocketing || !this.sys.isActive()) return;
+        if (!p || !this.planetarium || this.insideHQ || this.rocketing || this.ocean?.active || !this.sys.isActive()) return;
         const { exit } = this.planetarium;
         p.setPosition(exit.x, exit.y).setDepth(exit.y).stop();
         this.player?.shadow.setPosition(exit.x, exit.y);
@@ -1109,6 +1110,7 @@ export class Preview extends Phaser.Scene {
     }
 
     private setHellTheme(active: boolean) {
+        if (this.ocean?.active) this.events.emit('surf:rebase');
         this.inHell = active;
         setViewModes({ stranger: active });
         this.ground?.setTexture(active ? 'preview-hell-ground' : 'preview-grass');

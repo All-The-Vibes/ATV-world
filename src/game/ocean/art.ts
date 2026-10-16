@@ -2,10 +2,10 @@ import { PixelCanvas, miniText } from '../kit';
 
 export const WATER = { deep: 0x163f79, blue: 0x2467ae, teal: 0x159eaf, turquoise: 0x39cbbc, foam: 0xf4f4ef, ice: 0xc8f1fb };
 
-export function breakerArt() {
+export function breakerArt(frame = 0) {
     const p = new PixelCanvas(224, 144);
     for (let x = 0; x < 224; x++) {
-        const top = 132 - 110 * Math.exp(-(((x - 129) / 67) ** 2));
+        const top = 132 - 110 * Math.exp(-(((x - 129) / 67) ** 2)) + Math.sin(x / 18 + frame * Math.PI / 2) * 2;
         for (let y = Math.floor(top); y < 144; y++) {
             p.set(x, y, y < top + 9 ? WATER.turquoise : y < top + 23 ? WATER.teal : y < top + 48 ? 'blue' : 'navy');
         }
@@ -14,18 +14,23 @@ export function breakerArt() {
         .ellipse(151, 82, 32, 38, WATER.deep)
         .ellipse(153, 91, 25, 26, 'navy');
     for (let i = 0; i <= 70; i++) {
-        const a = -Math.PI * 0.93 + i / 70 * Math.PI * 1.47;
+        const a = -Math.PI * 0.93 + i / 70 * Math.PI * 1.47 + frame * 0.015;
         const x = Math.round(146 + Math.cos(a) * 44);
         const y = Math.round(69 + Math.sin(a) * 46);
-        p.rect(x - 4, y - 3, 10, 8, i % 7 < 3 ? 'white' : 'ice');
-        if (i % 5 === 0) p.rect(x - 7, y - 7, 6, 5, 'white');
+        p.rect(x - 4, y - 3, 10, 8, (i + frame * 2) % 7 < 3 ? 'white' : 'ice');
+        if ((i + frame) % 5 === 0) p.rect(x - 7, y - 7, 6, 5, 'white');
     }
     for (let i = 0; i < 26; i++) {
-        const x = (i * 29) % 216;
+        const x = (i * 29 + frame * 8) % 216;
         const y = 121 + i % 5 * 4;
         p.rect(x, y, 11 + i % 4, 3, i % 3 ? 'ice' : 'white');
     }
-    for (let i = 0; i < 18; i++) p.rect(170 + i % 6 * 7, 72 + Math.floor(i / 6) * 12, 3 + i % 3, 4, 'white');
+    for (let i = 0; i < 18; i++) p.rect(170 + i % 6 * 7 + frame * 2, 72 + Math.floor(i / 6) * 12 + (frame * 5 + i) % 9, 3 + i % 3, 4, 'white');
+    for (let i = 0; i < 24; i++) {
+        const x = 22 + i * 7;
+        const y = 129 - 78 * Math.exp(-(((x - 116) / 60) ** 2)) + (frame * 6 + i * 13) % 24;
+        p.rect(x, y, 3, 9, i % 3 ? WATER.teal : WATER.turquoise);
+    }
     return p;
 }
 
