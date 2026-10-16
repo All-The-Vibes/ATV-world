@@ -14,6 +14,7 @@ import { TrafficLight } from '../health/TrafficLight';
 import { Kittens } from '../kittens';
 import { Ollama } from '../llama/Ollama';
 import { Moles } from '../moles/Moles';
+import { TalkingMoles } from '../talkingMoles/TalkingMoles';
 import { Pool } from '../pool/Pool';
 import { Tokens } from '../tokens/Tokens';
 import { Town } from '../town/Town';
@@ -42,6 +43,7 @@ export class Preview extends Phaser.Scene {
     /** Gremlins that run around stealing tokens (see ../gremlins). */
     private gremlins?: Gremlins;
     private ollama?: Ollama;
+    private talkingMoles?: TalkingMoles;
     /** The swimming pool, where people queue for the high dive (see ../pool). */
     private pool?: Pool;
     private ufo?: UFO;
@@ -160,6 +162,7 @@ export class Preview extends Phaser.Scene {
         this.createHell();
         this.createPlayer();
         this.ollama = new Ollama(this);
+        this.talkingMoles = new TalkingMoles(this);
         this.ufo = new UFO(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
@@ -301,6 +304,7 @@ export class Preview extends Phaser.Scene {
         this.dragon?.update(dt);
         this.gremlins?.update(dt);
         this.ollama?.update(dt);
+        this.talkingMoles?.update(dt);
         this.pool?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
