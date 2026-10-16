@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, toHexNumber, type Color } from '../kit';
+import { addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, toHexNumber, type Color } from '../kit';
 import type { Burnable } from '../dragon/Dragon';
 import { ROAMERS } from './specs';
 import type { RoamerHandle, RoamerSpec, RoamerWorld } from './types';
@@ -55,6 +55,16 @@ export class Roamers {
         const spec = ROAMERS.find((s) => s.id === id) ?? Phaser.Utils.Array.GetRandom(ROAMERS);
         if (this.active.has(spec.id)) return;
         this.add(spec);
+    }
+
+    /** Every visitor there is, in town or not (for the character search). */
+    catalog() {
+        return ROAMERS.map((s) => ({ id: s.id, name: s.name }));
+    }
+
+    /** A visitor's sprite while they're in town. */
+    spriteOf(id: string): Phaser.GameObjects.Sprite | undefined {
+        return this.active.get(id)?.sprite;
     }
 
     /** Visitors who could be pulled into a group activity (a workout class) right now. */
@@ -114,6 +124,7 @@ export class Roamers {
             life: Phaser.Math.FloatBetween(...spec.stay), rest: 0, foilCd: 2, greetCd: 3, fx: 0.5,
         } as Roamer;
         r.handle = this.handleFor(r);
+        addCreatorNametag(sprite, look, { speech: () => r.bubble });
         const prop = spec.prop;
         if (prop) {
             const tex = ensurePixels(this.scene, prop.key, prop.make);

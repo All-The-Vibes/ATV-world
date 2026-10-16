@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import type { Rider } from '../ocean/riders';
-import { PixelCanvas, addPixels, characterSheet, hash, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, treeArt, type Color } from '../kit';
+import { PixelCanvas, addCreatorNametag, addPixels, characterSheet, hash, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, treeArt, type Color } from '../kit';
 
 /**
  * Microsoft's Redmond campus, west of the plaza: glass office buildings (Building 99 and Building 92, the visitor
@@ -208,7 +208,7 @@ export class Campus {
 
         // People walking between buildings.
         [36, 44, 40, 227, 33].forEach((y, i) => {
-            const look = randomLook(`campus-${i}`);
+            const look = randomLook(`campus-${i}`, { githubUsername: 'Bakar404' });
             const key = lookKey(look);
             const sheet = characterSheet(look);
             addPixels(scene, key, sheet.canvas, sheet.frames);
@@ -218,6 +218,7 @@ export class Campus {
             }
             const x = at(20 + hash(i, 1, 9) * (W - 40));
             const sprite = scene.add.sprite(x, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
+            addCreatorNametag(sprite, look);
             const shadow = scene.add.image(x, y, shadowTexture(scene, 12)).setAlpha(0.3).setDepth(-1e8);
             this.walkers.push({ sprite, shadow, dir: i % 2 ? -1 : 1, speed: 18 + hash(i, 2, 9) * 14 });
         });

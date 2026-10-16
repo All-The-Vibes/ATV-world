@@ -62,6 +62,9 @@ export class WorldView {
     private shown = false;
     private shownArea = { x: 0, y: 0, width: 1, height: 1 };
     private shownInsets = '';
+    /** Someone the camera is locked onto (the character search), and the zoom it glides to. */
+    private focusOn?: () => { x: number; y: number } | undefined;
+    private focusZoom = 4;
 
     constructor(private readonly scene: Phaser.Scene, private readonly opts: ViewOptions) {
         const saved = load();
@@ -111,6 +114,7 @@ export class WorldView {
             this.cy -= dy / this.zoomLevel;
             this.mode = 'free';
             this.shown = false;
+            this.focusOn = undefined;
         };
         const onUp = () => {
             this.drag = null;
@@ -157,6 +161,25 @@ export class WorldView {
     fit() {
         this.mode = 'fit';
         this.shown = false;
+        this.focusOn = undefined;
+    }
+
+    /**
+     * Glide in on someone and stay on them as they move, until the view is zoomed, dragged, fitted,
+     * or the player walks. Returns false if they aren't in town right now.
+     */
+    focus(locate: () => { x: number; y: number } | undefined, zoom = 4): boolean {
+        if (!locate()) return false;
+        const cam = this.scene.cameras.main;
+        this.cx = cam.midPoint.x;
+        this.cy = cam.midPoint.y;
+        this.zoomLevel = cam.zoom;
+        this.focusOn = locate;
+        this.focusZoom = clamp(Math.max(zoom, this.fitZoom()), 0.1, 8);
+        this.mode = 'free';
+        this.shown = false;
+        this.trackPlayer();
+        return true;
     }
 
     /** Whether the view is still on whatever show() last framed. */
@@ -175,6 +198,7 @@ export class WorldView {
      * while UI panels come and go, until someone zooms, drags, or walks.
      */
     show(area: { x: number; y: number; width: number; height: number }) {
+        this.focusOn = undefined;
         const cam = this.scene.cameras.main;
         const left = MARGIN.side + insets.left, right = MARGIN.side + insets.right;
         const top = MARGIN.top + insets.top, bottom = MARGIN.bottom + insets.bottom;
@@ -195,6 +219,7 @@ export class WorldView {
 
     /** Step along the zoom ladder, keeping screen point (sx, sy) still (the middle if omitted). */
     zoom(dir: 1 | -1, sx?: number, sy?: number) {
+        this.focusOn = undefined;
         const z = this.zoomLevel;
         const next = dir > 0 ? LADDER.find((l) => l > z + 1e-3) : [...LADDER].reverse().find((l) => l < z - 1e-3);
         if (next === undefined || next < this.fitZoom() - 1e-3) {
@@ -231,6 +256,7 @@ export class WorldView {
         const p = this.opts.playerPosition?.() ?? this.opts.player;
         if (p) {
             const moved = Math.abs(p.x - this.playerAt.x) > 0.01 || Math.abs(p.y - this.playerAt.y) > 0.01;
+            if (moved && this.focusOn) this.focusOn = undefined;
             if (moved && this.mode === 'free' && Number.isFinite(this.playerAt.x)) this.mode = 'follow';
             this.playerAt = { x: p.x, y: p.y };
         }
@@ -241,7 +267,16 @@ export class WorldView {
             this.cx = b.centerX - (insets.left - insets.right) / 2 / fit;
             this.cy = b.centerY - (MARGIN.top + insets.top - MARGIN.bottom - insets.bottom) / 2 / fit;
         } else {
-            if (this.mode === 'follow' && p) {
+            const target = this.focusOn?.();
+            if (this.focusOn && !target) this.focusOn = undefined;
+            if (target) {
+                // Glide in: ease the zoom to the focus zoom and the centre onto them.
+                const k = delta > 0 ? 1 - Math.exp(-delta / 140) : 1;
+                this.zoomLevel += (this.focusZoom - this.zoomLevel) * k;
+                if (Math.abs(this.focusZoom - this.zoomLevel) < 0.02) this.zoomLevel = this.focusZoom;
+                this.cx += (target.x - this.cx) * k;
+                this.cy += (target.y - this.cy) * k;
+            } else if (this.mode === 'follow' && p) {
                 const k = delta > 0 ? 1 - Math.exp(-delta / 120) : 1;
                 this.cx += (p.x - this.cx) * k;
                 this.cy += (p.y - this.cy) * k;

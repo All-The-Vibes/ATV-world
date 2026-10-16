@@ -58,6 +58,11 @@ export class Gremlins {
         return this.list.length;
     }
 
+    /** One gremlin to point at (the character search), if any are about. */
+    first(): Phaser.GameObjects.Sprite | undefined {
+        return this.list[0]?.sprite;
+    }
+
     /** Send one in right now (atv.game.scene.getScene('Preview').gremlins.spawn()). */
     spawn() {
         const b = this.opts.bounds();
@@ -155,17 +160,20 @@ export class Gremlins {
 
     private pick(victims: Victim[]): Victim | undefined {
         const taken = new Set(this.list.map((g) => g.target?.sprite));
-        const pool = victims.filter((v) => !taken.has(v.sprite) && v.sprite.visible);
+        const pool = victims.filter((v) => !taken.has(v.sprite) && v.sprite.visible &&
+            (v.player || (v.sprite.getData('tokenCount') ?? 0) > 0));
         return pool.length ? Phaser.Utils.Array.GetRandom(pool) : undefined;
     }
 
     private steal(g: Gremlin, b: Phaser.Geom.Rectangle) {
         const v = g.target!;
         g.target = undefined;
-        if (v.player && !this.opts.stealFromPlayer()) {
+        const count = v.sprite.getData('tokenCount') ?? 0;
+        if (v.player ? !this.opts.stealFromPlayer() : count <= 0) {
             this.startFlee(g, b);
             return;
         }
+        if (!v.player) v.sprite.setData('tokenCount', count - 1);
         const x = v.sprite.x;
         const y = v.sprite.y - 32;
         const loss = this.scene.add.image(x, y, 'gremlin-loss').setOrigin(0.5, 1).setDepth(1e6 + 2);

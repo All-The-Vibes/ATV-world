@@ -45,6 +45,7 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/game/world/layout.ts` is the lot grid the town grows on.
 - `src/game/scenes/Preview.ts` is the world on the live screen. Find all six glowing vibes, chain quick pickups for a combo, and clear a round for a temporary speed rush. Press Space for a short-range Vibe Pulse that grabs nearby shards and makes the locals hop.
 - `src/game/llama/Ollama.ts` runs a fluffy pixel-art llama around the plaza. It says "Hi, I'm Ollama!" followed by "I run local. Mostly in circles." on a repeating speech-bubble loop.
+- `src/game/rubberDuck/` adds a large, glossy yellow Rubber Duck waddling around the plaza on little orange legs and webbed feet. Its first words are "Hi I'm Rubber Duck", followed by very polite offers to review code, ideas, edge cases, and tests; every third comment is a witty reminder that it can do more than review code ("On my days off I play tennis..."). Every 8 seconds lightning strikes it and it teleports to the quietest open spot near the middle of the map (fewest things crowding its patch). Click the duck to advance its dialogue, or let it chat automatically. These are in-world conversation prompts, not an external code-review service. Run `node tests/rubber-duck-browser.mjs` to check its art, movement, and dialogue.
 - `src/game/talkingMoles/` runs three staggered lawn burrows, separate from the Whack-a-Mole game. Pixel-art moles pop out, share eight rotating jokes about AI agents, vibe coding, and token bills, then disappear underground. Each joke stays up for 5.5 seconds before its mole burrows away; no clicks needed. `node tests/moles-browser.mjs` checks the full cycle in a real browser.
 - `src/game/pool/` is a swimming pool with a high dive next to ATV HQ. Swimmers queue up, climb the ladder, bounce on the board, and dive, flip, cannonball, or belly flop in, saying something silly when they splash down.
 - **📺 Digital AI Billboard:** A giant electronic LED advertising board stands by the road into Town. It auto-rotates through eight humorous parody ads selling absurd AI products (Vibe Insurance, Prompt-O-Matic 9000, Organic Tokens, GPU Space Heater, AGI Soon™, AI Apologizer Pro, Quantum Guesser, and Autonomous Loop Agent) with animated marquee chase lights and CRT scanline transitions. Click the billboard to skip to the next ad and pop up a witty quip.
@@ -67,6 +68,10 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.
 
 ## Character creator nametags
+
+The **@** button beside **− / FIT / +**, at the bottom right, turns all GitHub
+creator labels on or off for the session. It works in every scene and applies to
+characters spawned later. Character names, role plates, token counts and speech stay visible.
 
 Set `githubUsername` (without `@`, preserving casing) on the character's look:
 
@@ -96,6 +101,15 @@ checked October 16, 2026):
 | Disco dancers | `markbriggs-ms` | `c5fedcc91e9cd741957049bda145811b8a768dc4` |
 | Dragon | `markbriggs-ms` | `b13d64dd83a60f510e921dfeed1eb3d8bf8e4400` |
 | Kitten playground's project manager | `DeaderestPool` | `bee168535494ad2ed5f4eef73dcfdfd2da2e8be0` |
+| Kittens | `DeaderestPool` | `bee1685` |
+| Steph / Daenerys | `stephschofield` | `2c3ea0c` / `2736f55` |
+| Ahmed / campus walkers | `Bakar404` | `2f93583` / `0431fbe` |
+| Bike gang / Locke siblings | `ShahabName` | `e205f51` / `fba5687` |
+| Wednesday | `ShahabName` | `3226433` |
+| Repair crew / factory role templates / saucer pilot | `aifateen` | `e59d0a2` / `861331c` / `155f1b7` |
+| Pool swimmers / tug-of-war pullers | `markbriggs-ms` | `0da492f` / `1030554` |
+| Ollama / giant / talking lawn moles | `markbriggs-ms` | `132c652` / `39ba278` / `ea467d3` |
+| Rubber Duck / Mark B | `markbriggs-ms` | `5c15913` / `3d8e918` |
 | HQ seated coders and arriving/departing avatars (`callerLook`) | **Unresolved; unlabeled** | `3ccda30b460936980682095775fdcd746f1b5f75` |
 
 The HQ commit names Veda Vundela but has no linked GitHub author account. Confirm
@@ -103,10 +117,12 @@ the creator's account before adding `githubUsername` to `callerLook` in
 `src/game/hq/art.ts`; both seated and walking sprites already support it. Existing
 HQ desk plates still identify call participants, separately from creator tags.
 
-Concurrent additions outside this backfill remain unverified and unlabeled:
-Shahab, Steph's supplied sprite, pool swimmers, repair crew, and custom creatures
-(kittens, llama, gremlins, giant, moles and the saucer pilot). Do not apply
-the shared pixel-kit author's username to them; confirm each creation separately.
+Remaining account mappings are unverified: Veda Vundela (HQ, sorting hat,
+Whack-a-Mole and lake fish) and Christian Presley (20 roamers, catchers, gremlins
+and the workout class; introduction commits `bbd3095`, `5f9f885`, `d7ad2ab`, `7bfc035`). Their creation
+commits have no linked GitHub author account. Roamer specs now support tags
+through `look.githubUsername`; leave it absent until the account is confirmed.
+Ambient scenery and effects are not character labels.
 
 Run `node tests/nametags-browser.mjs` for focused real-Phaser regression checks at
 desktop and mobile widths. It uses an OS-assigned local port and closes only its

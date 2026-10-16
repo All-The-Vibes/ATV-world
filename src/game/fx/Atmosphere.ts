@@ -138,6 +138,7 @@ export class Atmosphere {
     private readonly seen = new WeakSet<object>();
     private readonly treeSpots: { x: number; y: number }[] = [];
     private readonly frozen = frozenTime();
+    private forcedTime?: number;
     private offset = 0;
     private offsetTarget = 0;
     private hell = false;
@@ -242,6 +243,7 @@ export class Atmosphere {
 
     /** Time of day, 0..1 (0 dawn, ~0.33 day, ~0.62 sunset, ~0.84 night). */
     get time(): number {
+        if (this.forcedTime !== undefined) return this.forcedTime;
         const base = this.frozen ?? (Date.now() / 1000 / DAY_LOOP_SECONDS);
         return (((base + this.offset) % 1) + 1) % 1;
     }
@@ -251,8 +253,23 @@ export class Atmosphere {
         return this.nightness;
     }
 
+    /** True when Night View lock is toggled on. */
+    get nightMode(): boolean {
+        return this.forcedTime === 0.84;
+    }
+
+    /** Toggle or set locked Night View (0.84 deep night) vs normal day/night cycle. */
+    setNightMode(active: boolean) {
+        this.forcedTime = active ? 0.84 : undefined;
+        if (!active) {
+            // Ensure when turning night view off we return to bright daylight (0.33).
+            this.setTime(0.33);
+        }
+    }
+
     /** Jump to a time of day (0..1). */
     setTime(t: number) {
+        this.forcedTime = undefined;
         const base = this.frozen ?? (Date.now() / 1000 / DAY_LOOP_SECONDS);
         this.offset = this.offsetTarget = t - base;
     }

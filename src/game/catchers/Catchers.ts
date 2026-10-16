@@ -81,6 +81,11 @@ export class Catchers {
         }));
     }
 
+    /** One catcher to point at (the character search), if any are out. */
+    first(): Phaser.GameObjects.Sprite | undefined {
+        return this.list[0]?.sprite;
+    }
+
     update(dt: number) {
         dt = Math.min(dt, 0.1);
         const gremlins = this.opts.gremlins();

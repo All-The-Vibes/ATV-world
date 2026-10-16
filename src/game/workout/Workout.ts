@@ -116,9 +116,14 @@ export class Workout {
         this.sayCd = 0;
     }
 
-    /** Whether the dragon may toast the instructor (he only gets sooty). */
+    /** Who the dragon can toast. */
     burnables(): Burnable[] {
         return this.sprite ? [{ sprite: this.sprite, headroom: 40, hold: () => undefined }] : [];
+    }
+
+    /** The instructor, while he's in town. */
+    get body(): Phaser.GameObjects.Sprite | undefined {
+        return this.sprite;
     }
 
     update(dt: number) {

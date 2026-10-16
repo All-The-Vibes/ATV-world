@@ -131,3 +131,73 @@ export function wakeArt() {
     for (let a = 0; a < Math.PI * 2; a += 0.1) pc.set(8 + Math.cos(a) * 7, 2 + Math.sin(a) * 2, a > 0.3 && a < Math.PI - 0.3 ? 'white' : 'ice');
     return pc;
 }
+
+/** Wednesday Addams standing sprite with twin braided pigtails, pale skin, white pointed collar, and black dress. */
+export function wednesdayArt() {
+    const pc = new PixelCanvas(16, 22);
+    const p = (x: number, y: number, c: 'ink' | 'night' | 'slate' | 'steel' | 'cloud' | 'white' | 'red' | 'wine') => pc.set(x, y + 1, c);
+    const row = (y: number, x0: number, x1: number, c: 'ink' | 'night' | 'slate' | 'steel' | 'cloud' | 'white' | 'red' | 'wine') => {
+        for (let x = x0; x <= x1; x++) p(x, y, c);
+    };
+    // Pale face
+    row(2, 5, 10, 'cloud');
+    row(3, 4, 11, 'cloud');
+    for (let y = 4; y <= 9; y++) row(y, 4, 11, 'cloud');
+    row(10, 5, 10, 'cloud');
+    // Deadpan dark eyes & subtle dark lip
+    p(5, 7, 'ink'); p(6, 7, 'ink'); p(5, 8, 'ink');
+    p(9, 7, 'ink'); p(10, 7, 'ink'); p(10, 8, 'ink');
+    row(9, 7, 8, 'wine');
+    // Parted black hair + twin long braids hanging down both sides
+    row(1, 5, 10, 'ink');
+    row(2, 4, 11, 'ink');
+    row(3, 3, 12, 'ink');
+    row(4, 3, 6, 'ink'); row(4, 9, 12, 'ink');
+    p(7, 2, 'slate'); // center part highlight
+    for (let y = 5; y <= 15; y++) {
+        const bx = y % 2 === 0 ? 3 : 2;
+        const rx = y % 2 === 0 ? 12 : 13;
+        p(bx, y, 'ink'); p(bx + 1, y, y % 2 ? 'night' : 'ink');
+        p(rx, y, 'ink'); p(rx - 1, y, y % 2 ? 'night' : 'ink');
+    }
+    p(3, 16, 'white'); p(12, 16, 'white'); // braid ties
+    // Iconic sharp white Peter Pan collar over black dress
+    for (let y = 11; y <= 17; y++) row(y, 4, 11, 'ink');
+    p(6, 11, 'white'); p(5, 12, 'white'); p(6, 12, 'white');
+    p(9, 11, 'white'); p(9, 12, 'white'); p(10, 12, 'white');
+    p(7, 13, 'slate'); p(7, 15, 'slate'); // dress buttons
+    // Pale hands at sides (holding a tiny piranha bag)
+    p(3, 14, 'cloud'); p(12, 14, 'cloud');
+    // Legs & black Mary Jane shoes
+    row(18, 5, 6, 'cloud'); row(18, 9, 10, 'cloud');
+    row(19, 4, 6, 'ink'); row(19, 9, 11, 'ink');
+    return pc.outline('ink');
+}
+
+/** 2-frame snapping piranha sprite (silver/slate body, red belly, dorsal fin, and sharp white teeth). */
+export function piranhaArt() {
+    const W = 12, H = 8, F = 2;
+    const pc = new PixelCanvas(W * F, H);
+    for (let f = 0; f < F; f++) {
+        const ox = f * W;
+        const p = (x: number, y: number, c: 'ink' | 'night' | 'slate' | 'steel' | 'mist' | 'white' | 'red' | 'orange') => pc.set(ox + x, y, c);
+        // Tail fin (left)
+        p(1, 2 + f, 'slate'); p(1, 5 - f, 'slate');
+        p(2, 3, 'steel'); p(2, 4, 'steel');
+        // Body
+        for (let y = 2; y <= 5; y++) {
+            for (let x = 3; x <= 9; x++) p(x, y, y >= 4 ? 'red' : y === 2 ? 'slate' : 'steel');
+        }
+        // Dorsal fin
+        p(5, 1, 'slate'); p(6, 1, 'slate');
+        // Glowing red/white eye
+        p(8, 2, 'white'); p(9, 2, 'ink');
+        // Snapping jaw with sharp white teeth
+        p(10, 3, 'steel');
+        p(10, 4 + f, 'red');
+        p(9, 4, 'white'); p(10, 4, 'white');
+    }
+    pc.outline('ink');
+    return { canvas: pc, frames: stripFrames(F, W, H) };
+}
+

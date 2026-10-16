@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import {
-    PixelCanvas, addPixels, characterSheet, discoGlowArt, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
+    PixelCanvas, addCreatorNametag, addPixels, characterSheet, discoGlowArt, lookKey, miniText, miniTextWidth, randomLook, shadowTexture, speechArt,
     type Facing,
 } from '../kit';
 import { MAX_AGENTS, roleById, type Role, type RoleId } from '../../factory/roles';
@@ -148,6 +148,7 @@ export class Factory {
             info, role, key, sprite, shadow, tag, bubble, facing: 'down', speed: Phaser.Math.Between(20, 30), wait: 0,
             arriving: 0.9, sayIn: Phaser.Math.FloatBetween(4, 9), bubbleLeft: 0, replyIn: 0, replyLine: '', leaving: false,
         };
+        addCreatorNametag(sprite, look, { gap: 16, speech: () => agent.bubble });
         this.agents.push(agent);
         this.scene.tweens.add({ targets: [sprite, tag], alpha: 1, duration: 300 });
         this.scene.tweens.add({ targets: sprite, y: py, duration: 450, ease: 'Bounce.easeOut' });

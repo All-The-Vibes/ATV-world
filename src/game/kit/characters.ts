@@ -193,9 +193,12 @@ function drawFrame(pc: PixelCanvas, ox: number, facing: Facing, frame: number, l
 }
 
 /** A 9-frame sheet: down/up/side × stand/step/step (frames named e.g. 'down-0'). */
-export function characterSheet(look: FullLook): { canvas: PixelCanvas; frames: { name: string; x: number; y: number; w: number; h: number }[] } {
-    return drawSheet(look, []);
+export function characterSheet(look: FullLook, accessory?: Accessory): { canvas: PixelCanvas; frames: { name: string; x: number; y: number; w: number; h: number }[] } {
+    return drawSheet(look, [], accessory);
 }
+
+/** Paints extra gear (a backpack, say) onto a frame at (ox, 0) after the body, before the sheet is outlined. */
+export type Accessory = (pc: PixelCanvas, ox: number, facing: Facing, frame: number) => void;
 
 /** Front-facing dance poses: 'cheer-0/1/2' (both arms up, standing/stepping) and 'point-l'/'point-r' (one arm up). */
 const DANCE_POSES: { name: string; arms: Arms; step: number }[] = [
@@ -211,13 +214,14 @@ export function dancerSheet(look: FullLook): { canvas: PixelCanvas; frames: { na
     return drawSheet(look, DANCE_POSES);
 }
 
-function drawSheet(look: FullLook, poses: typeof DANCE_POSES) {
+function drawSheet(look: FullLook, poses: typeof DANCE_POSES, accessory?: Accessory) {
     const pc = new PixelCanvas(FRAME_W * (9 + poses.length), FRAME_H);
     const frames: { name: string; x: number; y: number; w: number; h: number }[] = [];
     FACINGS.forEach((facing, fi) => {
         for (let f = 0; f < 3; f++) {
             const x = (fi * 3 + f) * FRAME_W;
             drawFrame(pc, x, facing, f, look);
+            accessory?.(pc, x, facing, f);
             frames.push({ name: `${facing}-${f}`, x, y: 0, w: FRAME_W, h: FRAME_H });
         }
     });

@@ -1,0 +1,175 @@
+.char-search {
+    --row: 34px;
+    position: fixed;
+    left: 16px;
+    bottom: 64px;
+    width: 268px;
+    max-width: calc(100vw - 32px);
+    color: var(--cream);
+    background: rgb(20 16 30 / 92%);
+    border: 3px solid var(--night);
+    box-shadow: 0 0 0 3px var(--ink), 6px 6px 0 rgb(20 16 30 / 35%);
+}
+
+.char-toggle {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 7px 10px;
+    font: inherit;
+    font-size: 18px;
+    color: inherit;
+    text-align: left;
+    background: transparent;
+    border: 0;
+    cursor: pointer;
+}
+
+.char-toggle:hover .char-title {
+    color: #ffda87;
+}
+
+.char-title {
+    flex: 1;
+    font: 10px 'Press Start 2P', monospace;
+    color: var(--gold);
+}
+
+.char-count {
+    font-size: 17px;
+    opacity: 0.8;
+}
+
+.char-filter {
+    display: block;
+    width: calc(100% - 16px);
+    margin: 0 8px 6px;
+    padding: 4px 8px;
+    font: 20px 'VT323', ui-monospace, monospace;
+    color: var(--cream);
+    background: var(--ink);
+    border: 2px solid var(--night);
+    outline: none;
+}
+
+.char-filter:focus {
+    border-color: var(--gold);
+}
+
+.char-filter::placeholder {
+    color: rgb(246 230 184 / 45%);
+}
+
+.char-list {
+    height: calc(var(--row) * 5 + 4px);
+    max-height: calc(var(--row) * 5 + 4px);
+    margin: 0 8px;
+    padding: 0;
+    overflow-y: scroll;
+    list-style: none;
+    background: var(--ink);
+    border: 2px solid var(--night);
+    scrollbar-width: thin;
+    scrollbar-color: var(--gold) var(--night);
+}
+
+.char-list::-webkit-scrollbar {
+    width: 12px;
+}
+
+.char-list::-webkit-scrollbar-track {
+    background: var(--night);
+}
+
+.char-list::-webkit-scrollbar-thumb {
+    background: var(--gold);
+    border: 2px solid var(--night);
+}
+
+.char-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    height: var(--row);
+    padding: 0 6px;
+    border-bottom: 1px solid var(--night);
+}
+
+.char-row[data-away] {
+    opacity: 0.5;
+}
+
+.char-dot {
+    flex: none;
+    width: 8px;
+    height: 8px;
+    background: #6cbf4b;
+    border: 1px solid var(--ink);
+}
+
+.char-row[data-away] .char-dot {
+    background: #5d6b85;
+}
+
+.char-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    font-size: 19px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+
+.char-kind {
+    flex: none;
+    font-size: 14px;
+    text-transform: uppercase;
+    color: #94a3b8;
+}
+
+.char-focus {
+    flex: none;
+    padding: 2px 6px;
+    font: 8px 'Press Start 2P', monospace;
+    color: var(--ink);
+    background: var(--gold);
+    border: 2px solid var(--ink);
+    cursor: pointer;
+}
+
+.char-focus:hover:not(:disabled) {
+    background: #ffda87;
+}
+
+.char-focus:disabled {
+    color: #5d6b85;
+    background: var(--night);
+    cursor: not-allowed;
+}
+
+.char-empty {
+    padding: 10px;
+    font-size: 19px;
+    text-align: center;
+    opacity: 0.7;
+}
+
+.char-foot {
+    display: flex;
+    justify-content: space-between;
+    padding: 4px 10px 6px;
+    font-size: 16px;
+    opacity: 0.8;
+}
+
+.char-foot [data-paused] {
+    color: var(--gold);
+}
+
+@media (max-width: 600px) {
+    .char-search {
+        bottom: 176px;
+        left: 12px;
+    }
+}

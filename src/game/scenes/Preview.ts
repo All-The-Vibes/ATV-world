@@ -1,11 +1,13 @@
 import Phaser from 'phaser';
 import stephWalkUrl from '../../../assets/steph-walk.png';
 import { LibraryBridge } from '../../library/bridge';
+import { collectItem, ITEMS } from '../../backpack/inventory';
 import {
     HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, setViewModes, tokenCount } from '../commands';
+import { Directory, spotOf, spriteOf } from '../directory';
 import { BikeGang } from '../bikes/BikeGang';
 import { LockAndKey } from '../keyhouse/LockAndKey';
 import { Disco } from '../disco/Disco';
@@ -13,6 +15,7 @@ import { Catchers } from '../catchers/Catchers';
 import { setFactoryOpen } from '../../factory/bridge';
 import { Factory } from '../factory/Factory';
 import { Billboard } from '../billboard/Billboard';
+import { UsaBillboard } from '../billboard/UsaBillboard';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Roamers } from '../roamers/Roamers';
 import { Workout } from '../workout/Workout';
@@ -29,6 +32,7 @@ import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
 import { Ambience } from '../life/Ambience';
 import { Ollama } from '../llama/Ollama';
+import { RubberDuck } from '../rubberDuck/RubberDuck';
 import { LaunchPad } from '../mars/Rocket';
 import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
@@ -37,8 +41,10 @@ import { Terrain } from '../terrain/Terrain';
 import { Ocean } from '../ocean/Ocean';
 import { Tokens } from '../tokens/Tokens';
 import { TugOfWar } from '../tugOfWar/TugOfWar';
+import { Tarot } from '../tarot/Tarot';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
+import { MarkB } from '../markb/MarkB';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
 
@@ -69,6 +75,8 @@ export class Preview extends Phaser.Scene {
     private roamers?: Roamers;
     /** Christian, who gathers a crowd for a workout class (see ../workout). */
     private workout?: Workout;
+    /** Everyone the character search can list and zoom in on (see ../directory). */
+    private directory?: Directory;
     /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
     private bikeGang?: BikeGang;
     /** The "Lock & Key" room (Keyhouse Manor) with lots of magical doors/windows and the 3 Locke siblings. */
@@ -78,6 +86,7 @@ export class Preview extends Phaser.Scene {
     /** Day/night lighting, clouds, fireflies (see ../fx/Atmosphere.ts). */
     atmosphere?: Atmosphere;
     private ollama?: Ollama;
+    private rubberDuck?: RubberDuck;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
     private giant?: Giant;
@@ -86,6 +95,8 @@ export class Preview extends Phaser.Scene {
     /** A tug of war that never ends, with people shouting about it (see ../tugOfWar). */
     private tugOfWar?: TugOfWar;
     private ufo?: UFO;
+    /** Mark B, jetpacking round the whole map and saying nerdy AI things (see ../markb). */
+    private markB?: MarkB;
     private incidents?: Incidents;
     private ambience?: Ambience;
     private ocean?: Ocean;
@@ -114,6 +125,8 @@ export class Preview extends Phaser.Scene {
     private disco?: Disco;
     /** The digital AI advertising board: rotates humorous AI ads (see ../billboard). */
     private billboard?: Billboard;
+    /** USA Super Intelligence welcome billboard towards the right corner (see ../billboard/UsaBillboard). */
+    private usaBillboard?: UsaBillboard;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
     private moles?: Moles;
     /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
@@ -133,6 +146,7 @@ export class Preview extends Phaser.Scene {
     /** Flying cars that drop free tokens for anyone to pick up (see ../tokens). */
     private tokens?: Tokens;
     private kittens?: Kittens;
+    private tarot?: Tarot;
     private vibes: Vibe[] = [];
     private vibeScore = 0;
     private vibeStreak = 0;
@@ -272,6 +286,10 @@ export class Preview extends Phaser.Scene {
         this.billboard = new Billboard(this, 368, 415);
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.billboard.bounds());
+        const rightEdge = Math.max(this.town?.bounds().right ?? 420, 420);
+        this.usaBillboard = new UsaBillboard(this, rightEdge - 75, -165);
+        this.usaBillboard.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.usaBillboard.footprint);
         const trafficLight = new TrafficLight(this, 60, 170);
         this.solids.push(trafficLight.sprite.getBounds());
         this.includeInWorld(trafficLight.sprite);
@@ -280,8 +298,8 @@ export class Preview extends Phaser.Scene {
         // Introduction commits: 9c37211 (six originals), 3c1fb9c (Abdallah).
         for (let i = 0; i < 6; i++) this.walker(i, undefined, undefined, undefined, 'Bakar404');
         this.walker(6, 'Abdallah', undefined, undefined, 'aifateen');
-        this.walker(7, 'Daenerys', -240, daenerysSheet());
-        this.walker(8, 'Ahmed', -180);
+        this.walker(7, 'Daenerys', -240, daenerysSheet(), 'stephschofield');
+        this.walker(8, 'Ahmed', -180, undefined, 'Bakar404');
         this.bikeGang = new BikeGang(this, () => {
             const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
             const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
@@ -295,16 +313,33 @@ export class Preview extends Phaser.Scene {
         this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
         this.fitWorld();
         this.ollama = new Ollama(this);
+        this.rubberDuck = new RubberDuck(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+        });
         this.talkingMoles = new TalkingMoles(this);
         this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
+        this.markB = new MarkB(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
             open: (x, y) => {
                 const hq = this.hq?.bounds();
                 return !(hq && Phaser.Geom.Rectangle.Contains(hq, x, y - 10)) && !this.solids.some((r) => r.contains(x, y));
             },
-            onCollect: (by) => by.player && addToken(),
+            onCollect: (by, kind) => {
+                if (by.player) {
+                    if (kind === 'token') addToken();
+                    else collectItem(kind);
+                }
+            },
+        });
+        ITEMS.forEach((item, i) => {
+            const x = [-70, 65, 80, -65][i], y = [125, 100, 200, 240][i];
+            // A new landmark may occupy a starter spot; try farther along the plaza.
+            for (let shift = 0; shift <= 192; shift += 64) {
+                if (this.tokens!.drop(x - shift, y - 40, y, item.id)) break;
+            }
         });
         this.createVibes(found);
         this.view = new WorldView(this, {
@@ -325,6 +360,9 @@ export class Preview extends Phaser.Scene {
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
         });
+        this.tarot = new Tarot(this, -240, 660);
+        this.tarot.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.tarot.area);
         this.gremlins = new Gremlins(this, {
             bounds: () => this.worldBounds,
             victims: () => [
@@ -404,7 +442,24 @@ export class Preview extends Phaser.Scene {
                 this.vibePulse();
             }
         };
+        this.registerCharacters();
+        const offFocus = onFocusCharacter((id) => {
+            const directory = this.directory;
+            if (!this.sys.isActive() || !directory?.locate(id)) return;
+            if (this.view?.focus(() => directory.locate(id))) directory.ping(id);
+        });
         const off = on('leaveHQ', () => this.leaveHQ());
+        const offNight = on('toggleNight', () => {
+            if (!this.atmosphere) return;
+            const next = !this.atmosphere.nightMode;
+            this.atmosphere.setNightMode(next);
+            setViewModes({ night: next });
+        });
+        const offStranger = on('toggleStranger', () => {
+            this.setHellTheme(!this.inHell);
+            this.cameras.main.flash(220, this.inHell ? 200 : 255, this.inHell ? 30 : 220, this.inHell ? 50 : 150);
+            this.cameras.main.shake(180, 0.004);
+        });
         window.addEventListener('keydown', onKey);
         const stop = () => {
             off();
@@ -412,9 +467,14 @@ export class Preview extends Phaser.Scene {
             this.events.off('sleep', sleep);
             this.events.off('shutdown', stop);
             this.events.off('destroy', stop);
+            offFocus();
+            offNight();
+            offStranger();
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
+            setViewModes({ night: false, stranger: false });
             this.syncVibes(false);
+            this.tokens?.destroy();
         };
         this.events.once('shutdown', stop);
         this.events.once('destroy', stop);
@@ -432,6 +492,23 @@ export class Preview extends Phaser.Scene {
         }
         if (wasInsideHQ || (first && (q.has('teams') || q.has('hq'))) || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
         else if (q.has('mars')) this.time.delayedCall(0, () => this.blastOff(true));
+    }
+
+    /** List everyone worth finding in the character search. */
+    private registerCharacters() {
+        const dir = new Directory(this);
+        this.directory = dir;
+        const at = (get: () => Phaser.GameObjects.Sprite | undefined) => () => spotOf(get());
+        dir.add({ id: 'you', name: 'You', kind: 'player', locate: () => (this.insideHQ ? undefined : spotOf(this.player?.sprite)) });
+        this.walkers.forEach((w, i) => dir.add({ id: `walker-${i}`, name: w.sprite.name || `Townsperson ${i + 1}`, kind: 'local', locate: () => spotOf(w.sprite) }));
+        dir.add({ id: 'christian', name: 'Christian', kind: 'coach', locate: at(() => this.workout?.body) });
+        dir.add({ id: 'catcher', name: 'Gremlin Catcher', kind: 'scout', locate: at(() => this.catchers?.first()) });
+        dir.add({ id: 'gremlin', name: 'Gremlin', kind: 'thief', locate: at(() => this.gremlins?.first()) });
+        dir.add({ id: 'dragon', name: 'Dragon', kind: 'beast', locate: at(() => spriteOf(this.dragon)) });
+        dir.add({ id: 'ollama', name: 'Ollama', kind: 'llama', locate: at(() => spriteOf(this.ollama)) });
+        dir.add({ id: 'giant', name: 'The Giant', kind: 'giant', locate: at(() => spriteOf(this.giant)) });
+        dir.add({ id: 'ufo', name: 'Flying Saucer', kind: 'alien', locate: at(() => spriteOf(this.ufo)) });
+        this.roamers?.catalog().forEach(({ id, name }) => dir.add({ id: `visitor-${id}`, name, kind: 'visitor', locate: at(() => this.roamers?.spriteOf(id)) }));
     }
 
     /** Climb into the rocket and fly to Mars (`instantly` skips the countdown and liftoff). */
@@ -550,14 +627,17 @@ export class Preview extends Phaser.Scene {
         this.catchers?.update(dt);
         this.roamers?.update(dt);
         this.workout?.update(dt);
+        this.directory?.update(dt);
         this.bikeGang?.update(dt);
         this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
+        this.rubberDuck?.update(dt);
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
         this.pool?.update(dt);
         this.tugOfWar?.update(dt);
         this.ufo?.update(dt);
+        this.markB?.update(dt);
         this.disco?.update(dt);
         this.lake?.update(dt, this.player && !this.insideHQ && !this.inHell ? this.player : undefined);
         this.billboard?.update(dt);
@@ -571,6 +651,7 @@ export class Preview extends Phaser.Scene {
             ...(this.lockAndKey?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
         ]);
         this.kittens?.update(dt);
+        this.tarot?.update(dt);
         this.updateVibes();
         // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
         const p = this.player?.sprite;
@@ -871,6 +952,7 @@ export class Preview extends Phaser.Scene {
 
     private setHellTheme(active: boolean) {
         this.inHell = active;
+        setViewModes({ stranger: active });
         this.ground?.setTexture(active ? 'preview-hell-ground' : 'preview-grass');
         this.cameras.main.setBackgroundColor(active ? '#0a0d18' : '#14101e');
         this.surfacePortal?.setVisible(!active);
@@ -1036,7 +1118,8 @@ export class Preview extends Phaser.Scene {
         addPixels(this, 'steph-label', nameplate);
         const label = this.add.image(x, y - 48, 'steph-label')
             .setName('Steph-label').setOrigin(0.5, 1).setDepth(y + 1);
-        this.walkers.push({ sprite, shadow, label, anim: key, dir: 1, speed: 26, rest: 0 });
+        const nametag = addCreatorNametag(sprite, { githubUsername: 'stephschofield' }, { gap: 16 });
+        this.walkers.push({ sprite, shadow, label, nametag, anim: key, dir: 1, speed: 26, rest: 0 });
     }
 
     /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
