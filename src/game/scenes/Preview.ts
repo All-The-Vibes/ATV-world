@@ -30,6 +30,7 @@ import { LaunchPad } from '../mars/Rocket';
 import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
 import { Pool } from '../pool/Pool';
+import { Terrain } from '../terrain/Terrain';
 import { Tokens } from '../tokens/Tokens';
 import { TugOfWar } from '../tugOfWar/TugOfWar';
 import { Town } from '../town/Town';
@@ -79,6 +80,8 @@ export class Preview extends Phaser.Scene {
     private ufo?: UFO;
     private incidents?: Incidents;
     private ground?: Phaser.GameObjects.TileSprite;
+    /** The painted town ground: meadow, plaza, lanes, pond (see ../terrain). */
+    private terrain?: Terrain;
     private player?: {
         sprite: Phaser.GameObjects.Sprite;
         shadow: Phaser.GameObjects.Image;
@@ -153,6 +156,7 @@ export class Preview extends Phaser.Scene {
 
     create() {
         this.grass();
+        this.terrain = new Terrain(this, { bounds: () => this.worldBounds });
         const buildings = [
             { x: -305, y: -76, spec: { w: 6, h: 5, style: 'house', roof: 'red', wall: 'cream', seed: 2 } },
         ] satisfies { x: number; y: number; spec: BuildingSpec }[];
@@ -787,6 +791,7 @@ export class Preview extends Phaser.Scene {
         this.surfacePortal?.setVisible(!active);
         this.hellPortal?.setVisible(active);
         this.hellDecor.forEach((object) => object.setVisible(active));
+        this.terrain?.setVisible(!active);
 
         const exempt = new Set<Phaser.GameObjects.GameObject>([
             ...this.hellDecor,
