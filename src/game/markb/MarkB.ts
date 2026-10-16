@@ -4,6 +4,7 @@ import {
     stripFrames,
     type Accessory,
 } from '../kit';
+import { sp } from '../spread';
 
 /** Mark B: orange hair, a jetpack, and a slow lap of the whole map, stopping to say something nerdy about AI. */
 const LOOK = randomLook('mark-b', {
@@ -21,11 +22,11 @@ const QUOTES = [
 ];
 
 /** Where the action is: the plaza, ATV HQ and the shops around it (world pixels). */
-const MIDDLE = { x: 0, y: 125 };
+const MIDDLE = { x: 0, y: sp(125) };
 /** Stops near the middle, as offsets from it, so he stays well away from the edge of the map. */
 const NEAR: [number, number][] = [
     [-260, -120], [-60, -150], [200, -120], [300, 20], [220, 140], [0, 170], [-220, 120], [-320, 0],
-];
+].map(([x, y]) => [sp(x), sp(y)]);
 
 const SCARED = [
     'I AM SCARED OF HEIGHTS.',

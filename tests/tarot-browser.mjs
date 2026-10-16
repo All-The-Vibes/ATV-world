@@ -48,14 +48,14 @@ try {
     for (let i = 0; i < 3; i++) await page.keyboard.press('+');
     await page.keyboard.down('ArrowLeft');
     try {
-        await page.waitForFunction(() => window.atv.game.scene.getScene('Preview').player.sprite.x <= -240,
+        await page.waitForFunction(() => window.atv.game.scene.getScene('Preview').player.sprite.x <= -324,
             undefined, { timeout: 15000, polling: 'raf' });
     } finally {
         await page.keyboard.up('ArrowLeft');
     }
     await page.keyboard.down('ArrowDown');
     try {
-        await page.waitForFunction(() => window.atv.game.scene.getScene('Preview').player.sprite.y >= 700,
+        await page.waitForFunction(() => window.atv.game.scene.getScene('Preview').player.sprite.y >= 945,
             undefined, { timeout: 20000, polling: 'raf' });
     } finally {
         await page.keyboard.up('ArrowDown');
@@ -85,8 +85,8 @@ try {
             reserved: scene.solids.includes(tarot.area),
         };
     });
-    assert.equal(geometry.area.x + geometry.area.width / 2, -240);
-    assert.equal(geometry.area.y + 125, 660);
+    assert.equal(geometry.area.x + geometry.area.width / 2, -324);
+    assert.equal(geometry.area.y + 125, 891);
     assert.ok(geometry.area.y > geometry.meadow.bottom, 'Entire tarot area is south of kitten meadow');
     assert.ok(geometry.world.bottom >= geometry.area.bottom + 64, 'Camera world includes tarot with padding');
     assert.ok(geometry.reserved, 'Token drops avoid the tarot footprint');

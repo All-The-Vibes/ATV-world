@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { addCreatorNametag, addPixels, ensurePixels, llamaSheet, shadowTexture, speechArt } from '../kit';
+import { sp } from '../spread';
 
 /** A local llama running laps of the open plaza, with a greeting and a punchline. */
 export class Ollama {
@@ -32,7 +33,7 @@ export class Ollama {
         this.clock += Math.min(dt, 0.1);
         const angle = Math.PI / 2 + this.clock * 0.75;
         const x = Math.round(Math.cos(angle) * 90);
-        const y = Math.round(90 + Math.sin(angle) * 45);
+        const y = Math.round(sp(90) + Math.sin(angle) * 45);
         this.sprite.setPosition(x, y).setDepth(y).setFlipX(Math.sin(angle) > 0);
         this.shadow.setPosition(x, y);
         const talk = this.clock % 12;

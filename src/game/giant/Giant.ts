@@ -1,5 +1,6 @@
 import type Phaser from 'phaser';
 import { addCreatorNametag, addPixels, ensurePixels, GIANT_H, giantSheet, shadowTexture, speechArt } from '../kit';
+import { sp } from '../spread';
 
 /** A giant who tramps a wide loop round the plaza, shouting that the floor is lava. */
 export class Giant {
@@ -8,7 +9,7 @@ export class Giant {
     private readonly bubble: Phaser.GameObjects.Image;
     private clock = 0;
 
-    constructor(scene: Phaser.Scene, private readonly center = { x: 0, y: 125 }) {
+    constructor(scene: Phaser.Scene, private readonly center = { x: 0, y: sp(125) }) {
         ensurePixels(scene, 'giant', giantSheet);
         addPixels(scene, 'giant-shout', speechArt('THE FLOOR IS LAVA!'));
         addPixels(scene, 'giant-shout-loud', speechArt('THE FLOOR IS LAVA!!!'));

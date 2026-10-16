@@ -31,6 +31,7 @@ import { SortingHat } from '../hat/SortingHat';
 import { Atmosphere } from '../fx/Atmosphere';
 import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
+import { sp } from '../spread';
 import { Kittens } from '../kittens';
 import { Lake } from '../lake/Lake';
 import { daenerysSheet } from '../kit/daenerys';
@@ -127,7 +128,7 @@ export class Preview extends Phaser.Scene {
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private playerFacing: Facing = 'down';
     private contentBounds?: Phaser.Geom.Rectangle;
-    private readonly worldBounds = new Phaser.Geom.Rectangle(-390, -220, 780, 540);
+    private readonly worldBounds = new Phaser.Geom.Rectangle(sp(-390), sp(-220), sp(780), sp(540));
     /** The camera: F fits the world, +/-/wheel zoom, drag looks around (see ../view.ts). */
     private view?: WorldView;
     /** ATV HQ: everyone on the call, coding (see ../hq). It grows a floor at a time. */
@@ -235,12 +236,12 @@ export class Preview extends Phaser.Scene {
         this.grass();
         this.terrain = new Terrain(this, { bounds: () => this.worldBounds });
         const buildings = [
-            { x: -305, y: -76, spec: { w: 6, h: 5, style: 'house', roof: 'red', wall: 'cream', seed: 2 } },
+            { x: sp(-305), y: sp(-76), spec: { w: 6, h: 5, style: 'house', roof: 'red', wall: 'cream', seed: 2 } },
         ] satisfies { x: number; y: number; spec: BuildingSpec }[];
         const [cottage] = buildings.map(({ x, y, spec }) => this.building(x, y, spec));
-        const library = this.library(285, 225);
+        const library = this.library(sp(285), sp(225));
         // Set well back from the plaza, seven tiles behind where the old ATV shop stood.
-        this.hq = new HQ(this, 0, -114);
+        this.hq = new HQ(this, 0, sp(-114));
         this.hq.onResize = () => {
             this.fitWorld();
             if (this.view?.showing) this.visitHQ();
@@ -248,43 +249,44 @@ export class Preview extends Phaser.Scene {
         this.hq.onClick = () => this.enterHQ();
         this.fitWorld();
         [
-            { x: -375, y: 24, kind: 'oak' },
-            { x: -190, y: -106, kind: 'cherry' },
-            { x: 190, y: -70, kind: 'autumn' },
-            { x: 370, y: 112, kind: 'pine' },
-            { x: -65, y: 195, kind: 'atv' },
+            { x: sp(-375), y: sp(24), kind: 'oak' },
+            { x: sp(-190), y: sp(-106), kind: 'cherry' },
+            { x: sp(190), y: sp(-70), kind: 'autumn' },
+            { x: sp(370), y: sp(112), kind: 'pine' },
+            { x: sp(-65), y: sp(195), kind: 'atv' },
         ].forEach(({ x, y, kind }, i) => this.tree(x, y, kind, i + 1));
-        this.prop('fountain', -150, 205);
-        this.prop('fountain', 55, 195, { colors: ['cyan', 'pink', 'gold', 'lime', 'violet', 'orange'] });
-        this.prop('lamp', -210, 133);
-        this.prop('lamp', 116, 148);
-        this.prop('flowers', -12, 245, { colors: ['pink', 'yellow', 'white'] });
-        this.prop('bench', 74, 230);
-        this.prop('popcornVolcano', -290, 219);
-        this.prop('banner', -290, 246, { text: 'FREE POPCORN', color: 'red' });
-        this.prop('bench', -228, 245);
-        this.sortingHat = new SortingHat(this, -110, 30, () => this.player, () => !this.insideHQ);
+        this.prop('fountain', sp(-150), sp(205));
+        this.prop('fountain', sp(55), sp(195), { colors: ['cyan', 'pink', 'gold', 'lime', 'violet', 'orange'] });
+        this.prop('lamp', sp(-210), sp(133));
+        this.prop('lamp', sp(116), sp(148));
+        this.prop('flowers', sp(-12), sp(245), { colors: ['pink', 'yellow', 'white'] });
+        this.prop('bench', sp(74), sp(230));
+        this.prop('popcornVolcano', sp(-290), sp(219));
+        this.prop('banner', sp(-290), sp(246), { text: 'FREE POPCORN', color: 'red' });
+        this.prop('bench', sp(-228), sp(245));
+        this.sortingHat = new SortingHat(this, sp(-110), sp(30), () => this.player, () => !this.insideHQ);
         this.includeInWorld(this.sortingHat.stool);
         this.includeInWorld(this.sortingHat.hat);
-        [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', x, y));
-        this.pool = new Pool(this, 160, -215);
+        [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', sp(x), sp(y)));
+        this.pool = new Pool(this, sp(160), sp(-215));
         this.solids.push(this.pool.deckBounds());
         this.includeInWorld(this.pool);
-        this.tugOfWar = new TugOfWar(this, 0, 400);
+        this.tugOfWar = new TugOfWar(this, sp(0), sp(400));
         this.solids.push(this.tugOfWar.getBounds());
         this.includeInWorld(this.tugOfWar);
-        this.disco = new Disco(this, -290, -250);
+        this.disco = new Disco(this, sp(-290), sp(-250));
         this.disco.parts.forEach((part) => this.includeInWorld(part));
-        this.moles = new Moles(this, 150, 335);
+        this.moles = new Moles(this, sp(150), sp(335));
         this.moles.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.moles.area);
-        this.lockAndKey = new LockAndKey(this, -195, 345);
+        // West of the kitten corral, below the campus road, so the two don't share ground.
+        this.lockAndKey = new LockAndKey(this, -570, sp(345));
         this.lockAndKey.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.lockAndKey.footprint);
-        this.launchPad = new LaunchPad(this, 644, 380);
+        this.launchPad = new LaunchPad(this, sp(644), sp(380));
         this.launchPad.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.launchPad.area);
-        this.factory = new Factory(this, 290, 20, {
+        this.factory = new Factory(this, sp(290), sp(20), {
             area: () => new Phaser.Geom.Rectangle(
                 this.worldBounds.left + 24, this.worldBounds.top + 24,
                 Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24 - (this.worldBounds.left + 24),
@@ -313,7 +315,7 @@ export class Preview extends Phaser.Scene {
             console.error('[lake]', e);
         }
         // Between the library and the town, once the town has picked its spot.
-        this.planetarium = new Planetarium(this, 580, 60);
+        this.planetarium = new Planetarium(this, sp(580), sp(60));
         this.planetarium.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.planetarium.area);
         this.planetarium.onClick = () => this.enterPlanetarium();
@@ -328,23 +330,23 @@ export class Preview extends Phaser.Scene {
             console.error('[rabbit tree]', e);
         }
         this.fitWorld();
-        this.billboard = new Billboard(this, 368, 415);
+        this.billboard = new Billboard(this, sp(368), sp(415));
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.billboard.bounds());
         const townLeft = this.town?.left ?? 756;
         this.usaBillboard = new UsaBillboard(this, townLeft - 95, -90);
         this.usaBillboard.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.usaBillboard.footprint);
-        const trafficLight = new TrafficLight(this, 60, 170);
+        const trafficLight = new TrafficLight(this, sp(60), sp(170));
         this.solids.push(trafficLight.sprite.getBounds());
         this.includeInWorld(trafficLight.sprite);
         this.includeInWorld(trafficLight.label);
-        this.createIdeaMachine(-85, 170);
+        this.createIdeaMachine(sp(-85), sp(170));
         // Introduction commits: 9c37211 (six originals), 3c1fb9c (Abdallah).
         for (let i = 0; i < 6; i++) this.walker(i, undefined, undefined, undefined, 'Bakar404');
         this.walker(6, 'Abdallah', undefined, undefined, 'aifateen');
-        this.walker(7, 'Daenerys', -240, daenerysSheet(), 'stephschofield');
-        this.walker(8, 'Ahmed', -180, undefined, 'Bakar404');
+        this.walker(7, 'Daenerys', sp(-240), daenerysSheet(), 'stephschofield');
+        this.walker(8, 'Ahmed', sp(-180), undefined, 'Bakar404');
         this.bikeGang = new BikeGang(this, {
             townLeft: this.town?.left ?? 451,
             campusRight: this.campus?.bounds().right ?? -475,
@@ -372,8 +374,9 @@ export class Preview extends Phaser.Scene {
         this.fitWorld();
         this.witch = new Witch(
             this,
-            205,
-            92,
+            // Just beside the hell portal (258, 79).
+            sp(258) - 53,
+            sp(79) + 13,
             () => this.burnables().map(({ sprite }) => ({ sprite })),
             () => !this.inHell && !this.insideHQ,
         );
@@ -384,8 +387,8 @@ export class Preview extends Phaser.Scene {
             area: () => {
                 const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity);
                 const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity);
-                const top = Math.max(this.worldBounds.top, -250);
-                const bottom = Math.min(this.worldBounds.bottom, 420);
+                const top = Math.max(this.worldBounds.top, sp(-250));
+                const bottom = Math.min(this.worldBounds.bottom, sp(420));
                 return new Phaser.Geom.Rectangle(left, top, right - left, bottom - top);
             },
             open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
@@ -408,7 +411,7 @@ export class Preview extends Phaser.Scene {
             },
         });
         ITEMS.forEach((item, i) => {
-            const x = [-70, 65, 80, -65][i], y = [125, 100, 200, 240][i];
+            const x = sp([-70, 65, 80, -65][i]), y = sp([125, 100, 200, 240][i]);
             // A new landmark may occupy a starter spot; try farther along the plaza.
             for (let shift = 0; shift <= 192; shift += 64) {
                 if (this.tokens!.drop(x - shift, y - 40, y, item.id)) break;
@@ -433,7 +436,7 @@ export class Preview extends Phaser.Scene {
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
         });
-        this.tarot = new Tarot(this, -240, 660);
+        this.tarot = new Tarot(this, sp(-240), sp(660));
         this.tarot.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.tarot.area);
         this.gremlins = new Gremlins(this, {
@@ -982,10 +985,10 @@ export class Preview extends Phaser.Scene {
             });
         }
 
-        this.surfacePortal = this.add.sprite(258, 79, 'preview-hell-portal', 0)
+        this.surfacePortal = this.add.sprite(sp(258), sp(79), 'preview-hell-portal', 0)
             .setDepth(-1e7)
             .play('preview-hell-portal');
-        this.hellPortal = this.add.sprite(-258, 210, 'preview-hell-portal', 0)
+        this.hellPortal = this.add.sprite(sp(-258), sp(210), 'preview-hell-portal', 0)
             .setDepth(-1e7)
             .setFlipX(true)
             .setVisible(false)
@@ -1011,7 +1014,7 @@ export class Preview extends Phaser.Scene {
             [-326, -22, 0.8], [-170, 166, 1.1], [18, 54, 0.75],
             [170, 214, 1], [324, 20, 0.9], [90, -94, 0.7],
             [-90, 30, 1], [250, 120, 0.85], [-240, -100, 0.9],
-        ].forEach(([x, y, scale], i) => {
+        ].map(([x, y, scale]) => [sp(x), sp(y), scale]).forEach(([x, y, scale], i) => {
             const image = this.add.image(x, y, 'preview-hell-fissure')
                 .setDepth(-1e7)
                 .setScale(scale)
@@ -1052,7 +1055,7 @@ export class Preview extends Phaser.Scene {
         const glowArt = new PixelCanvas(40, 16);
         glowArt.ellipse(20, 8, 19, 7, 'wine').ellipse(20, 8, 12, 4, 'red');
         addPixels(this, 'preview-hell-glow', glowArt);
-        [[-230, 60], [-60, -40], [130, 40], [240, 170], [-330, 150], [60, 270], [330, -60]].forEach(([x, y], i) => {
+        [[-230, 60], [-60, -40], [130, 40], [240, 170], [-330, 150], [60, 270], [330, -60]].map(([x, y]) => [sp(x), sp(y)]).forEach(([x, y], i) => {
             const glow = this.add.image(x, y - 1, 'preview-hell-glow').setAlpha(0.3).setDepth(-1e7).setVisible(false);
             this.tweens.add({ targets: glow, alpha: { from: 0.15, to: 0.4 }, scale: { from: 0.9, to: 1.1 }, duration: 1200 + i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
             const flesh = this.add.sprite(x, y, 'preview-hell-fire', i % 4).setOrigin(0.5, 1).setDepth(y).setVisible(false);
@@ -1067,7 +1070,7 @@ export class Preview extends Phaser.Scene {
         const leaves = new PixelCanvas(9, 5);
         leaves.rect(0, 2, 3, 2, 'slate').rect(4, 1, 3, 2, 'steel').rect(6, 3, 3, 2, 'slate').set(2, 0, 'mist');
         addPixels(this, 'preview-hell-skull', leaves);
-        [[-280, 10], [-100, 90], [200, 110], [-20, 200], [300, 260], [-200, 260], [120, -20], [-360, -80]].forEach(([x, y], i) => {
+        [[-280, 10], [-100, 90], [200, 110], [-20, 200], [300, 260], [-200, 260], [120, -20], [-360, -80]].map(([x, y]) => [sp(x), sp(y)]).forEach(([x, y], i) => {
             const img = this.add.image(x, y, i % 2 ? 'preview-hell-bone' : 'preview-hell-skull')
                 .setOrigin(0.5, 1).setDepth(y).setFlipX(i % 3 === 0).setVisible(false);
             this.hellDecor.push(img);
@@ -1083,7 +1086,7 @@ export class Preview extends Phaser.Scene {
             .line(4, 29, 8, 28, 'wine').line(12, 28, 17, 29, 'wine')
             .outline('ink');
         addPixels(this, 'preview-hell-spike', tree);
-        [[-150, -20], [40, 120], [260, -10], [-300, 220], [180, 280], [-40, -90], [340, 200], [-380, 40]].forEach(([x, y], i) => {
+        [[-150, -20], [40, 120], [260, -10], [-300, 220], [180, 280], [-40, -90], [340, 200], [-380, 40]].map(([x, y]) => [sp(x), sp(y)]).forEach(([x, y], i) => {
             this.hellDecor.push(this.add.image(x, y, 'preview-hell-spike').setOrigin(0.5, 1).setDepth(y).setFlipX(i % 2 === 1).setScale(1 + (i % 3) * 0.3).setVisible(false));
         });
 
@@ -1091,8 +1094,8 @@ export class Preview extends Phaser.Scene {
         const wire = new PixelCanvas(150, 12);
         for (let x = 0; x < 150; x++) wire.set(x, Math.round(2 + Math.sin((x / 149) * Math.PI) * 8), 'ink');
         addPixels(this, 'preview-hell-wire', wire);
-        const wireX = -258 - 75;
-        const wireY = 150;
+        const wireX = sp(-258) - 75;
+        const wireY = sp(210) - 60;
         this.hellDecor.push(this.add.image(wireX, wireY, 'preview-hell-wire').setOrigin(0, 0).setDepth(wireY + 20).setVisible(false));
         (['red', 'gold', 'cyan', 'lime', 'pink'] as const).forEach((color) => {
             const bulb = new PixelCanvas(3, 4);
@@ -1287,10 +1290,10 @@ export class Preview extends Phaser.Scene {
         if (!this.anims.exists(anim)) {
             this.anims.create({ key: anim, frames: ['side-1', 'side-0', 'side-2', 'side-0'].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1 });
         }
-        const lanes = [62, 124, 184, 96, 154, 42, 214, 140];
+        const lanes = [62, 124, 184, 96, 154, 42, 214, 140].map(sp);
         const y = lanes[i % lanes.length];
         const shadow = this.add.image(0, y, shadowTexture(this, 10)).setAlpha(0.25).setDepth(-1e8);
-        const startX = startAt ?? Phaser.Math.Clamp(-310 + i * 95, this.worldBounds.left + 28, this.worldBounds.right - 28);
+        const startX = startAt ?? Phaser.Math.Clamp(sp(-310 + i * 95), this.worldBounds.left + 28, this.worldBounds.right - 28);
         const sprite = this.add.sprite(startX, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
         let label: Phaser.GameObjects.Image | undefined;
         if (name) {
@@ -1314,7 +1317,7 @@ export class Preview extends Phaser.Scene {
                 key, frames: [1, 0, 3, 2].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1,
             });
         }
-        const x = -20, y = 124;
+        const x = sp(-20), y = sp(124);
         const sprite = this.add.sprite(x, y, key, 'side-0')
             .setName('Steph').setOrigin(0.5, 1).setScale(0.5).setDepth(y).play(key);
         const shadow = this.add.image(x, y, shadowTexture(this, 16)).setAlpha(0.25).setDepth(-1e8);
@@ -1391,7 +1394,7 @@ export class Preview extends Phaser.Scene {
             .outline('ink', true);
         addPixels(this, 'preview-player-marker', markerCanvas);
 
-        const x = 0, y = 158;
+        const x = 0, y = sp(158);
         const shadow = this.add.image(x, y, shadowTexture(this, 12)).setAlpha(0.35).setDepth(y - 1);
         const sprite = this.add.sprite(x, y, key, 'down-0').setOrigin(0.5, 1).setDepth(y);
         const marker = this.add.image(x, y - 34, 'preview-player-marker').setOrigin(0.5, 1).setDepth(y + 1);
@@ -1449,7 +1452,7 @@ export class Preview extends Phaser.Scene {
 
         const points = [
             [-330, 164], [-224, 34], [-104, 236], [92, 92], [180, 210], [350, 72],
-        ] as const;
+        ].map(([x, y]) => [sp(x), sp(y)] as const);
         this.vibes = points.map(([x, y], index) => {
             const glow = this.add.image(x, y + 4, 'preview-vibe-glow')
                 .setBlendMode(Phaser.BlendModes.ADD)
@@ -1633,7 +1636,7 @@ export class Preview extends Phaser.Scene {
             about: 'The first house in town, from the little street that started ATV World.' }, covering(cottage));
         place({ id: 'town-square', name: 'Town Square', by: 'Ahmed Abdelsalam, ShahabName', color: PALETTE.cyan,
             about: 'Fountains, street lamps, flowers, a bench, and the ATV fruit tree, with townsfolk strolling by all day.' },
-        () => new Phaser.Geom.Rectangle(-225, 105, 355, 150));
+        () => new Phaser.Geom.Rectangle(sp(-225), sp(105), sp(355), sp(150)));
         const town = this.town, campus = this.campus;
         place({ id: 'the-town', name: 'The Town', by: 'Ahmed Abdelsalam', color: PALETTE.orange,
             about: 'A ring road with two-way traffic, police and fire stations, and houses. When one catches fire (or you click it), the fire truck rolls out.' },

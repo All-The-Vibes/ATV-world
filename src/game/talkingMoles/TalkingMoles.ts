@@ -1,6 +1,7 @@
 import type Phaser from 'phaser';
 import { addCreatorNametag, ensurePixels, speechArt } from '../kit';
 import { burrowArt, MOLE_HEIGHT, moleSheet } from './art';
+import { sp } from '../spread';
 
 const QUIPS = [
     'My AI agent dug this. It also deleted production.',
@@ -36,7 +37,7 @@ export class TalkingMoles {
         ensurePixels(scene, 'talking-mole-hole', () => burrowArt());
         ensurePixels(scene, 'talking-mole-rim', () => burrowArt(true));
         QUIPS.forEach((line, i) => ensurePixels(scene, `talking-mole-quip-${i}`, () => speechArt(line, 24)));
-        this.burrows = [[-285, 82], [-35, 195], [165, 65]].map(([x, y]) => ({
+        this.burrows = [[-285, 82], [-35, 195], [165, 65]].map(([x, y]) => [sp(x), sp(y)]).map(([x, y]) => ({
             hole: scene.add.image(x, y, 'talking-mole-hole').setDepth(y - 2),
             mole: scene.add.image(x, y + 1, 'talking-mole', 0).setOrigin(0.5, 1).setDepth(y),
             rim: scene.add.image(x, y, 'talking-mole-rim').setDepth(y + 1),

@@ -4,6 +4,7 @@ import {
     type CharacterLook, type Color, type FullLook,
 } from '../kit';
 import type { Burnable } from '../dragon/Dragon';
+import { sp } from '../spread';
 
 const BIKE_W = 28;
 const BIKE_H = 26;
@@ -213,7 +214,7 @@ export function buildBikeRoute(townLeft: number, campusRight: number): { segment
     const campusEastX = campusRight - 30;
 
     // Central circle (PLAZA at x=0, y=90, cobble ring radius ~92 in x, ~46 in y)
-    const cx = 0, cy = 90, rx = 92, ry = 46;
+    const cx = 0, cy = sp(90), rx = 92, ry = 46;
     const circleWaypoints = (startDeg: number, endDeg: number, steps: number): Waypoint[] => {
         const pts: Waypoint[] = [];
         for (let i = 0; i <= steps; i++) {
@@ -231,22 +232,22 @@ export function buildBikeRoute(townLeft: number, campusRight: number): { segment
         { x: farRightHouseX, y: 224 },
         { x: midRightHouseX, y: 224 },
         { x: townEntryX, y: 224 },
-        { x: 420, y: 244 },
-        { x: 322, y: 240 },
-        { x: 262, y: 238 },
-        { x: 196, y: 206 },
-        { x: 140, y: 155 },
+        { x: sp(420), y: sp(244) },
+        { x: sp(322), y: sp(240) },
+        { x: sp(262), y: sp(238) },
+        { x: sp(196), y: sp(206) },
+        { x: sp(140), y: sp(155) },
 
         // 2. Full 360-degree lap around the central plaza circle (clockwise from east -> south -> west -> north -> east -> west)
         ...circleWaypoints(20, 380 + 160, 22),
 
         // 3. West along the pavement lane past the middle house (-305, -76) to Microsoft Redmond Office pavement road
-        { x: -170, y: 72 },
-        { x: -232, y: 48 },
-        { x: -284, y: 10 },
-        { x: -305, y: -56 }, // right in front of the middle-west house door
-        { x: -360, y: 30 },
-        { x: -430, y: 22 },
+        { x: sp(-170), y: sp(72) },
+        { x: sp(-232), y: sp(48) },
+        { x: sp(-284), y: sp(10) },
+        { x: sp(-305), y: sp(-56) }, // right in front of the middle-west house door
+        { x: sp(-360), y: sp(30) },
+        { x: sp(-430), y: sp(22) },
         { x: campusEastX, y: 40 },
         { x: campusMidX, y: 40 },
         { x: campusWestX, y: 40 }, // Microsoft Redmond Office Building 99 & 92 front pavement
@@ -255,17 +256,17 @@ export function buildBikeRoute(townLeft: number, campusRight: number): { segment
         { x: campusEastX, y: 226 },
 
         // 4. Return east along the pavement road back through the central circle to the far-right house
-        { x: -430, y: 22 },
-        { x: -360, y: 30 },
-        { x: -284, y: 10 },
-        { x: -232, y: 48 },
-        { x: -170, y: 72 },
+        { x: sp(-430), y: sp(22) },
+        { x: sp(-360), y: sp(30) },
+        { x: sp(-284), y: sp(10) },
+        { x: sp(-232), y: sp(48) },
+        { x: sp(-170), y: sp(72) },
         ...circleWaypoints(180, 360, 10),
-        { x: 140, y: 155 },
-        { x: 196, y: 206 },
-        { x: 262, y: 238 },
-        { x: 322, y: 240 },
-        { x: 420, y: 244 },
+        { x: sp(140), y: sp(155) },
+        { x: sp(196), y: sp(206) },
+        { x: sp(262), y: sp(238) },
+        { x: sp(322), y: sp(240) },
+        { x: sp(420), y: sp(244) },
         { x: townEntryX, y: 224 },
         { x: midRightHouseX, y: 224 },
         { x: farRightHouseX, y: 224 },

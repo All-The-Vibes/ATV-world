@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { addCreatorNametag, addPixels, characterSheet, randomLook, shadowTexture, speechArt } from './kit';
 import { corralSignArt, fenceArt, kittenArt, TOY_KINDS, toyArt, type ToyKind } from './kit/kittens';
 import type { Color } from './kit/palette';
+import { sp } from './spread';
 
 interface Point { x: number; y: number }
 type Mood = 'toy' | 'play' | 'escape' | 'wander' | 'coin' | 'dragon' | 'carried' | 'chat';
@@ -52,6 +53,9 @@ interface Options {
     disco: (x: number, y: number) => boolean;
 }
 
+/** The corral was laid out around (-215, 370); it moves as a block with the plaza's spread. */
+const DX = sp(-215) + 215, DY = sp(370) - 370;
+
 const DISCO_JOKES = [
     'DISCO INFERNO? WHO INVITED THE DRAGON?',
     'THE PM SAID DO THE HUSTLE. I TOOK A NAP.',
@@ -63,8 +67,8 @@ const DISCO_JOKES = [
 
 /** A playground full of short attention spans, and one PM who really did not sign up for this. */
 export class Kittens {
-    readonly bounds = new Phaser.Geom.Rectangle(-365, 285, 300, 170);
-    private readonly meadow = new Phaser.Geom.Rectangle(-411, 239, 392, 262);
+    readonly bounds = new Phaser.Geom.Rectangle(-365 + DX, 285 + DY, 300, 170);
+    private readonly meadow = new Phaser.Geom.Rectangle(-411 + DX, 239 + DY, 392, 262);
     private readonly cats: Kitten[] = [];
     private readonly toys: { sprite: Phaser.GameObjects.Image; x: number; y: number; kind: ToyKind }[] = [];
     private readonly manager: Phaser.GameObjects.Sprite;
@@ -415,7 +419,7 @@ export class Kittens {
             if (visitor.stage === 'idle') {
                 if (visitor.timer > 0 || this.visitors.some((v) => v.stage !== 'idle')) continue;
                 visitor.cat = this.cats.find((cat) => cat.mood !== 'carried' && cat.mood !== 'escape'
-                    && this.distance(s, cat) < 180);
+                    && this.distance(s, cat) < sp(180));
                 if (!visitor.cat) continue;
                 visitor.stage = 'approach';
                 visitor.timer = 7;

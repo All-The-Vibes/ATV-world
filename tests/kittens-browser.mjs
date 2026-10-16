@@ -136,7 +136,7 @@ try {
             visitor.bubble.setVisible(false);
         });
         scene.dragon.sprite.setVisible(false);
-        scene.tokens.drop(-215, 400, 445);
+        scene.tokens.drop(-290, 530, 575);
         scene.game.loop.wake();
     });
     await page.clock.runFor(2000);
@@ -170,18 +170,18 @@ try {
         const k = scene.kittens;
         const cat = k.cats[0];
         k.detours.delete(cat);
-        Object.assign(cat, { x: -245, y: 478, mood: 'wander', cooldown: 0, timer: 8 });
-        Object.assign(scene.dragon, { x: -210, y: 478 });
-        scene.dragon.sprite.setPosition(-210, 450).setVisible(true);
+        Object.assign(cat, { x: -320, y: 608, mood: 'wander', cooldown: 0, timer: 8 });
+        Object.assign(scene.dragon, { x: -285, y: 608 });
+        scene.dragon.sprite.setPosition(-285, 580).setVisible(true);
         k.managerRest = 30;
-        const before = Math.hypot(cat.x + 210, cat.y - 478);
+        const before = Math.hypot(cat.x + 285, cat.y - 608);
         let chasing = false, jumping = false;
         for (let i = 0; i < 90; i++) {
             k.update(1 / 60);
             chasing ||= cat.mood === 'dragon';
             jumping ||= cat.y - cat.sprite.y > 15;
         }
-        const closer = Math.hypot(cat.x + 210, cat.y - 478) < before;
+        const closer = Math.hypot(cat.x + 285, cat.y - 608) < before;
         const safe = !scene.burnables().some((target) => target.sprite === cat.sprite);
         cat.cooldown = 0;
         cat.mood = 'wander';
@@ -204,19 +204,19 @@ try {
         k.managerRest = 90;
         const cat = hunters[0];
         k.detours.delete(cat);
-        Object.assign(cat, { x: -45, y: 400, mood: 'wander', cooldown: 0, timer: 60 });
-        Object.assign(scene.dragon, { x: 210, y: 400 });
-        scene.dragon.sprite.setPosition(210, 372).setVisible(true);
+        Object.assign(cat, { x: -120, y: 530, mood: 'wander', cooldown: 0, timer: 60 });
+        Object.assign(scene.dragon, { x: 135, y: 530 });
+        scene.dragon.sprite.setPosition(135, 502).setVisible(true);
         let chasing = false, far = false, jumping = false;
         for (let frame = 0; frame < 12 * 60; frame++) {
             k.update(1 / 60);
             chasing ||= cat.mood === 'dragon';
-            far ||= cat.x > 130;
+            far ||= cat.x > 55;
             jumping ||= cat.mood === 'dragon' && cat.y - cat.sprite.y > 15;
         }
         const sustained = cat.mood === 'dragon';
         const homebody = k.cats.find((kitten) => !kitten.hunter);
-        Object.assign(homebody, { x: -45, y: 400, mood: 'wander', cooldown: 0, timer: 8 });
+        Object.assign(homebody, { x: -120, y: 530, mood: 'wander', cooldown: 0, timer: 8 });
         k.update(1 / 60);
         return { hunters: hunters.length, chasing, far, jumping, sustained, homebodyStaysLocal: homebody.mood !== 'dragon' };
     });
@@ -229,7 +229,7 @@ try {
         const scene = window.atv.game.scene.getScene('Preview');
         const k = scene.kittens;
         const cat = k.cats[0];
-        const wall = scene.solids.find((solid) => solid.contains(285, 160));
+        const wall = scene.solids.find((solid) => solid.contains(385, 239));
         if (!wall) throw new Error('Real library footprint missing');
         Object.assign(cat, { x: wall.left - 20, y: wall.centerY, mood: 'wander', timer: 60, cooldown: 0 });
         k.detours.delete(cat);

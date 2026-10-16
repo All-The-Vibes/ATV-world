@@ -38,13 +38,13 @@ try {
             portalDistance: Math.hypot(scene.witch.witch.x - scene.surfacePortal.x, scene.witch.witch.y - scene.surfacePortal.y),
         };
     });
-    assert.deepEqual({ x: witch.x, y: witch.y }, { x: 205, y: 92 });
+    assert.deepEqual({ x: witch.x, y: witch.y }, { x: 295, y: 120 });
     assert.ok(witch.portalDistance < 70, 'the witch sits beside the portal');
 
     const first = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         const player = scene.player.sprite;
-        player.setPosition(205, 112);
+        player.setPosition(295, 140);
         scene.witch.update();
         const overlay = [...scene.witch.costumed.values()].find(state => state.visiting);
         return { texture: overlay.overlay.texture.key, visible: overlay.overlay.visible };
@@ -55,11 +55,11 @@ try {
     const second = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         const player = scene.player.sprite;
-        player.setPosition(150, 180);
+        player.setPosition(240, 208);
         scene.witch.update();
         const state = scene.witch.costumed.get(player);
         const left = { visiting: state.visiting, visible: state.overlay.visible };
-        player.setPosition(205, 112);
+        player.setPosition(295, 140);
         scene.witch.update();
         return { left, texture: state.overlay.texture.key, visiting: state.visiting };
     });
@@ -70,7 +70,7 @@ try {
     const walker = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         const person = scene.walkers[0].sprite;
-        person.setPosition(204, 93);
+        person.setPosition(294, 121);
         scene.witch.update();
         const state = scene.witch.costumed.get(person);
         return { visiting: state.visiting, visible: state.overlay.visible };
@@ -81,7 +81,7 @@ try {
         const scene = window.atv.game.scene.getScene('Preview');
         scene.roamers.spawn('mothbell');
         const person = scene.roamers.burnables()[0].sprite;
-        person.setPosition(208, 96);
+        person.setPosition(298, 124);
         scene.witch.update();
         const state = scene.witch.costumed.get(person);
         return { visiting: state.visiting, visible: state.overlay.visible };
@@ -101,8 +101,8 @@ try {
     if (process.env.WITCH_SCREENSHOT) {
         await page.evaluate(() => {
             const scene = window.atv.game.scene.getScene('Preview');
-            scene.player.sprite.setPosition(171, 112);
-            scene.walkers[0].sprite.setPosition(242, 104);
+            scene.player.sprite.setPosition(261, 140);
+            scene.walkers[0].sprite.setPosition(332, 132);
             scene.witch.update();
             scene.view.show({ x: 130, y: 22, width: 170, height: 130 });
         });

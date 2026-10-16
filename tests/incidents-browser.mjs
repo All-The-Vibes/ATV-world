@@ -62,7 +62,7 @@ try {
     assert.equal((await state()).phase, 'idle', 'C does nothing far from the button');
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
-        scene.player.sprite.setPosition(-205, 115);
+        scene.player.sprite.setPosition(-306, 131);
     });
     await page.evaluate(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: 'c', repeat: true })));
     assert.equal((await state()).phase, 'idle', 'Holding C does not trigger an incident');

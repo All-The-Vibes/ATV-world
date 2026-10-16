@@ -157,14 +157,14 @@ try {
     await pause();
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
-        scene.player.sprite.setPosition(-330, 172);
+        scene.player.sprite.setPosition(-446, 229);
     });
     await page.clock.runFor(100);
     assert.equal(await page.locator('.vibe-meter-track span[data-lit]').count(), 1, 'walking into a vibe collects it');
     assert.match(await page.locator('.vibe-meter-score').innerText(), /100/);
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
-        scene.player.sprite.setPosition(-154, 42);
+        scene.player.sprite.setPosition(-232, 54);
     });
     await page.keyboard.press('Space');
     await page.clock.runFor(100);
@@ -172,10 +172,10 @@ try {
     assert.equal(await page.locator('.vibe-meter-track span[data-lit]').count(), 2, 'a Vibe Pulse collects a nearby shard');
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
-        scene.player.sprite.setPosition(0, 158);
+        scene.player.sprite.setPosition(0, 213);
         scene.view.trackPlayer();
     });
-    await hold('ArrowRight', 3080);
+    await hold('ArrowRight', 4158);
     await shot('exterior');
     await walkUntil('ArrowDown', inside, 'the library door');
     await page.clock.resume();

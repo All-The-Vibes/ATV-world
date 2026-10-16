@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
 import { isTyping } from '../commands';
+import { sp } from '../spread';
 import {
     HEX, PixelCanvas, addCreatorNametag, addPixels, characterSheet, flameArt, miniText, miniTextWidth, randomLook, shadowTexture,
 } from '../kit';
@@ -12,6 +13,8 @@ const INCIDENTS = [
 ] as const;
 type Phase = 'idle' | 'detecting' | 'responding' | 'resolving' | 'resolved' | 'returning';
 const AUTO_INTERVAL = 30;
+/** The station was laid out around (-290, 45); it moves as a block with the plaza's spread. */
+const DX = sp(-290) + 290, DY = sp(45) - 45;
 type Agent = {
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
@@ -45,18 +48,18 @@ export class Incidents {
 
     constructor(private readonly scene: Phaser.Scene, private readonly available: () => boolean) {
         this.drawArt();
-        this.station = scene.add.image(-290, 45, 'incident-station-on').setOrigin(0.5, 1).setDepth(45);
-        this.button = scene.add.image(-205, 95, 'incident-button-ready')
-            .setOrigin(0.5, 1).setDepth(95).setInteractive({ useHandCursor: true }).setName('Chaos / Incident Button');
+        this.station = scene.add.image(DX - 290, DY + 45, 'incident-station-on').setOrigin(0.5, 1).setDepth(DY + 45);
+        this.button = scene.add.image(DX - 205, DY + 95, 'incident-button-ready')
+            .setOrigin(0.5, 1).setDepth(DY + 95).setInteractive({ useHandCursor: true }).setName('Chaos / Incident Button');
         this.button.on('pointerdown', () => this.trigger());
-        this.board = scene.add.image(-245, 164, 'incident-status-idle').setDepth(165);
-        this.autoButton = scene.add.image(-245, 215, 'incident-auto-on').setDepth(216)
+        this.board = scene.add.image(DX - 245, DY + 164, 'incident-status-idle').setDepth(DY + 165);
+        this.autoButton = scene.add.image(DX - 245, DY + 215, 'incident-auto-on').setDepth(DY + 216)
             .setInteractive({ useHandCursor: true }).setName('Self-Healing Repair Crew: toggle automatic drills');
         this.autoButton.on('pointerdown', () => this.toggleAuto());
         this.parts.push(this.station, this.button, this.board, this.autoButton);
-        this.effects = scene.add.graphics().setDepth(46);
-        this.tools = scene.add.graphics().setDepth(130);
-        this.progressBar = scene.add.graphics().setDepth(166);
+        this.effects = scene.add.graphics().setPosition(DX, DY).setDepth(DY + 46);
+        this.tools = scene.add.graphics().setDepth(DY + 130);
+        this.progressBar = scene.add.graphics().setPosition(DX, DY).setDepth(DY + 166);
 
         const fire = flameArt();
         addPixels(scene, 'incident-fire', fire.canvas, fire.frames);
@@ -67,9 +70,9 @@ export class Incidents {
             });
         }
         for (let i = 0; i < 3; i++) {
-            this.flames.push(scene.add.sprite(-307 + i * 17, 0, 'incident-fire')
-                .setOrigin(0.5, 1).setScale(2).setDepth(47).play('incident-fire').setVisible(false));
-            this.aliens.push(scene.add.image(-314 + i * 24, -15, 'incident-alien').setDepth(48).setVisible(false));
+            this.flames.push(scene.add.sprite(DX - 307 + i * 17, DY, 'incident-fire')
+                .setOrigin(0.5, 1).setScale(2).setDepth(DY + 47).play('incident-fire').setVisible(false));
+            this.aliens.push(scene.add.image(DX - 314 + i * 24, DY - 15, 'incident-alien').setDepth(DY + 48).setVisible(false));
         }
         ['WATCH', 'PATCH', 'ROLLBACK'].forEach((name, i) => {
             const key = `incident-agent-${i}`;
@@ -86,14 +89,14 @@ export class Incidents {
                     frameRate: 10, repeat: -1,
                 });
             }
-            const home = new Phaser.Math.Vector2(-345 + i * 37, 110 + i % 2 * 15);
+            const home = new Phaser.Math.Vector2(DX - 345 + i * 37, DY + 110 + i % 2 * 15);
             const sprite = scene.add.sprite(home.x, home.y, key, 'down-0').setOrigin(0.5, 1).setDepth(home.y);
             addCreatorNametag(sprite, look, { gap: 18 });
             const shadow = scene.add.image(home.x, home.y, shadowTexture(scene, 10)).setAlpha(0.25).setDepth(home.y - 1);
             const labelKey = `incident-agent-label-${i}`;
             this.text(labelKey, [name]);
             const label = scene.add.image(home.x, home.y - 28, labelKey).setDepth(home.y + 1);
-            this.agents.push({ sprite, shadow, label, anim, home, work: new Phaser.Math.Vector2(-315 + i * 25, 65) });
+            this.agents.push({ sprite, shadow, label, anim, home, work: new Phaser.Math.Vector2(DX - 315 + i * 25, DY + 65) });
             this.parts.push(sprite, label);
         });
     }
@@ -200,11 +203,11 @@ export class Incidents {
                 g.lineBetween(-295, 26, -285, 38);
                 g.lineBetween(-285, 26, -295, 38);
             }
-            this.aliens.forEach((alien, i) => { alien.y = -15 + Math.round(Math.sin(this.clock * 4 + i) * 4); });
+            this.aliens.forEach((alien, i) => { alien.y = DY - 15 + Math.round(Math.sin(this.clock * 4 + i) * 4); });
             if (this.phase === 'resolving') {
                 g.lineStyle(2, this.kind === 0 ? HEX.cyan : HEX.lime, 0.8);
                 this.agents.forEach((agent, i) => {
-                    g.lineBetween(agent.sprite.x, agent.sprite.y - 10, -305 + i * 15, 10 + Math.sin(this.clock * 12 + i) * 7);
+                    g.lineBetween(agent.sprite.x - DX, agent.sprite.y - DY - 10, -305 + i * 15, 10 + Math.sin(this.clock * 12 + i) * 7);
                     const angle = -Math.PI / 2 + Math.sin(this.clock * 9 + i) * 0.7;
                     const x = agent.sprite.x + 8, y = agent.sprite.y - 11;
                     const tipX = x + Math.cos(angle) * 11, tipY = y + Math.sin(angle) * 11;
