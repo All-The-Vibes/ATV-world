@@ -7,6 +7,7 @@ import {
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
+import { Kittens } from '../kittens';
 import { Tokens } from '../tokens/Tokens';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
@@ -49,6 +50,7 @@ export class Preview extends Phaser.Scene {
     private readonly solids: Phaser.Geom.Rectangle[] = [];
     /** Flying cars that drop free tokens for anyone to pick up (see ../tokens). */
     private tokens?: Tokens;
+    private kittens?: Kittens;
     private vibes: Vibe[] = [];
     private vibeScore = 0;
     private vibeStreak = 0;
@@ -103,6 +105,16 @@ export class Preview extends Phaser.Scene {
         this.createVibes();
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
+        this.kittens = new Kittens(this, {
+            include: (object) => this.includeInWorld(object),
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+            coins: () => this.tokens?.playthings() ?? [],
+            dragon: () => this.dragon?.plaything(),
+            people: this.walkers.map((w) => ({
+                sprite: w.sprite, shadow: w.shadow, anim: w.anim,
+                hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
+            })),
+        });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
             this.syncVibes(true);
@@ -202,6 +214,7 @@ export class Preview extends Phaser.Scene {
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
         ]);
+        this.kittens?.update(dt);
         this.updateVibes();
         // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
         const p = this.player?.sprite;

@@ -73,6 +73,11 @@ export class Tokens {
         return this.tokens.length;
     }
 
+    /** Landed coins are toys too; looking never collects or moves the player's tokens. */
+    playthings(): readonly { x: number; y: number }[] {
+        return this.tokens.filter((token) => token.landed).map(({ sprite }) => ({ x: sprite.x, y: sprite.y }));
+    }
+
     /** Send a car over right away (handy from the console: atv.game.scene.getScene('Preview').tokens.flyOver()). */
     flyOver() {
         const b = this.opts.bounds();

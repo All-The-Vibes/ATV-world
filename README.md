@@ -45,6 +45,7 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/game/world/layout.ts` is the lot grid the town grows on.
 - `src/game/scenes/Preview.ts` is the world on the live screen. Find all six glowing vibes, chain quick pickups for a combo, and clear a round for a temporary speed rush. Press Space for a short-range Vibe Pulse that grabs nearby shards and makes the locals hop.
 - `src/game/view.ts` is the camera: F fits the whole world, +/- or the mouse wheel zooms, dragging looks around, and the view survives reloads.
+- `src/game/kittens.ts` runs the south-lawn cat and kitten corral: eight slippery kittens, 24 toys (yarn, balls, mice, tunnels, scratching posts and feather teasers), and a project manager trying to carry escapees home. Kittens get bored, dodge catches, bat at dropped coins without spending them, and chase and jump toward a nearby dragon. People get distracted and exchange meows: "I have to get back to work now.. err... meow, meow." Press F to fit the whole playground; `npm run test:kittens` checks their antics in a real browser.
 - `src/live.ts` is the LIVE badge in the bottom left. It shows the commit that's live and reloads the page when a newer push deploys.
 - `src/music/` is the background music: an 80s arcade loop made with Gemini. The speaker button or M turns it off and on.
 
