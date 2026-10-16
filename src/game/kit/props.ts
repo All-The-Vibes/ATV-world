@@ -297,6 +297,7 @@ const fountain: PropDef = {
     w: 40, h: 30, frames: 3, fps: 6, solid: [38, 12],
     draw(pc, f, x, y, o) {
         const water = toRamp(opt<RampLike>(o, 'water', 'sky'));
+        const colors = Array.isArray(o.colors) && o.colors.length ? (o.colors as Color[]) : null;
         const cx = x + 20;
         for (let j = 0; j < 5; j++) {
             for (let i = 0; i < 38; i++) {
@@ -308,14 +309,28 @@ const fountain: PropDef = {
         pc.ellipse(cx, y + 20, 16.5, 5.5, (_x, _y, nx, ny) => {
             const r = Math.sqrt(nx * nx + ny * ny);
             const ring = Math.abs(((r * 3 - f / 3 + 3) % 1) - 0.5) < 0.09;
+            if (colors) {
+                const angle = (Math.atan2(ny, nx) / (Math.PI * 2) + 1) % 1;
+                const idx = Math.floor((angle * colors.length + r * 2 + f) % colors.length);
+                const c = colors[idx];
+                return ring ? lighter(c) : c;
+            }
             return ring ? water[2] : ny < -0.4 ? water[0] : water[1];
         });
         pc.rect(cx - 2, y + 9, 4, 12, 'mist').rect(cx - 2, y + 9, 1, 12, 'cloud').rect(cx + 1, y + 9, 1, 12, 'steel');
         pc.ellipse(cx, y + 9, 6, 2, 'cloud');
-        pc.ellipse(cx, y + 8.5, 4, 1.2, water[1]);
-        for (let j = 0; j < 7; j++) pc.set(cx - (j % 2), y + 1 + j, j % 2 ? water[2] : 'white');
+        pc.ellipse(cx, y + 8.5, 4, 1.2, colors ? colors[f % colors.length] : water[1]);
+        for (let j = 0; j < 7; j++) {
+            const jetColor = colors ? colors[(j + f) % colors.length] : (j % 2 ? water[2] : 'white');
+            pc.set(cx - (j % 2), y + 1 + j, jetColor);
+        }
         const drops = [[-5, 3], [5, 3], [-8, 6], [8, 6], [-10, 10], [10, 10], [-11, 13], [11, 13]];
-        drops.forEach(([dx, dy], i) => { if ((i + f) % 3 !== 0) pc.set(cx + dx, y + 2 + dy, i % 2 ? water[2] : 'white'); });
+        drops.forEach(([dx, dy], i) => {
+            if ((i + f) % 3 !== 0) {
+                const dropColor = colors ? colors[(i + f) % colors.length] : (i % 2 ? water[2] : 'white');
+                pc.set(cx + dx, y + 2 + dy, dropColor);
+            }
+        });
     },
 };
 
