@@ -14,6 +14,8 @@ import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
 import { TrafficLight } from '../health/TrafficLight';
 import { Ollama } from '../llama/Ollama';
+import { Moles } from '../moles/Moles';
+import { Pool } from '../pool/Pool';
 import { Tokens } from '../tokens/Tokens';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
@@ -41,6 +43,8 @@ export class Preview extends Phaser.Scene {
     /** Gremlins that run around stealing tokens (see ../gremlins). */
     private gremlins?: Gremlins;
     private ollama?: Ollama;
+    /** The swimming pool, where people queue for the high dive (see ../pool). */
+    private pool?: Pool;
     private ufo?: UFO;
     private incidents?: Incidents;
     private ground?: Phaser.GameObjects.TileSprite;
@@ -61,6 +65,8 @@ export class Preview extends Phaser.Scene {
     private town?: Town;
     /** The disco down in the south-west corner: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
+    /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
+    private moles?: Moles;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -129,8 +135,14 @@ export class Preview extends Phaser.Scene {
         this.includeInWorld(this.sortingHat.stool);
         this.includeInWorld(this.sortingHat.hat);
         [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', x, y));
+        this.pool = new Pool(this, 160, -215);
+        this.solids.push(this.pool.deckBounds());
+        this.includeInWorld(this.pool);
         this.disco = new Disco(this, -250, 334);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
+        this.moles = new Moles(this, 150, 335);
+        this.moles.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.moles.area);
         try {
             this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
         } catch (e) {
@@ -295,8 +307,10 @@ export class Preview extends Phaser.Scene {
         this.dragon?.update(dt);
         this.gremlins?.update(dt);
         this.ollama?.update(dt);
+        this.pool?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
+        this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
