@@ -25,6 +25,7 @@ import { Lake } from '../lake/Lake';
 import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
 import { Ollama } from '../llama/Ollama';
+import { LaunchPad } from '../mars/Rocket';
 import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
 import { Pool } from '../pool/Pool';
@@ -103,6 +104,10 @@ export class Preview extends Phaser.Scene {
     private moles?: Moles;
     /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
     private lake?: Lake;
+    /** The rocket to Mars, south-east of the library: walk into it to fly there (see ../mars). */
+    private launchPad?: LaunchPad;
+    /** The player is aboard the rocket (taking off for Mars, or landing back home). */
+    private rocketing = false;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -191,6 +196,9 @@ export class Preview extends Phaser.Scene {
         this.lockAndKey = new LockAndKey(this, -195, 345);
         this.lockAndKey.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.lockAndKey.footprint);
+        this.launchPad = new LaunchPad(this, 330, 340);
+        this.launchPad.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.launchPad.area);
         this.factory = new Factory(this, 290, 20, {
             area: () => new Phaser.Geom.Rectangle(
                 this.worldBounds.left + 24, this.worldBounds.top + 24,
@@ -295,6 +303,9 @@ export class Preview extends Phaser.Scene {
             this.syncVibes(true);
         });
         this.events.on('sleep', () => this.syncVibes(false));
+        this.events.on('wake', (_sys: unknown, data?: { from?: string }) => {
+            if (data?.from === 'mars') this.landFromMars();
+        });
 
         // Go into HQ by walking into it or clicking the building. Inside, the call panel shows who's there;
         // a fresh press of down or sideways (or the panel's Step out) walks you back out. A window listener, so
@@ -334,6 +345,49 @@ export class Preview extends Phaser.Scene {
             }
         }
         if (q.has('teams') || q.has('hq') || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
+        else if (q.has('mars')) this.time.delayedCall(0, () => this.blastOff(true));
+    }
+
+    /** Climb into the rocket and fly to Mars (`instantly` skips the countdown and liftoff). */
+    private blastOff(instantly = false) {
+        if (!this.player || !this.launchPad || this.rocketing || this.insideHQ) return;
+        this.rocketing = true;
+        const { sprite, shadow, marker } = this.player;
+        sprite.stop();
+        [sprite, shadow, marker].forEach((o) => o.setVisible(false));
+        const go = () => {
+            this.scene.launch('Mars');
+            this.scene.sleep();
+        };
+        if (instantly) {
+            this.launchPad.rocket.body.setVisible(false);
+            go();
+            return;
+        }
+        this.launchPad.rocket.launch(() => {
+            const cam = this.cameras.main;
+            cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, go);
+            cam.fadeOut(300, 20, 16, 30);
+        });
+    }
+
+    /** Back from Mars: the rocket comes down onto its pad and the player steps out in front of it. */
+    private landFromMars() {
+        if (!this.player || !this.launchPad) return;
+        const { rocket } = this.launchPad;
+        const { sprite, shadow, marker } = this.player;
+        const x = rocket.x + 26, y = rocket.y + 18;
+        sprite.setPosition(x, y).setFlipX(false).setFrame('down-0').setDepth(y);
+        shadow.setPosition(x, y).setDepth(y - 1);
+        marker.setPosition(x, y - 34).setDepth(y + 1);
+        this.playerFacing = 'down';
+        this.view?.trackPlayer();
+        this.cameras.main.fadeIn(300, 20, 16, 30);
+        rocket.body.setVisible(true);
+        rocket.land(() => {
+            [sprite, shadow, marker].forEach((o) => o.setVisible(true));
+            this.rocketing = false;
+        });
     }
 
     /** Frame ATV HQ and the sidewalk out front, where people walk in. */
@@ -345,7 +399,7 @@ export class Preview extends Phaser.Scene {
 
     /** Go inside HQ: the player steps through the door, the camera frames the building, the call panel opens. */
     private enterHQ() {
-        if (!this.hq || !this.player) return;
+        if (!this.hq || !this.player || this.rocketing) return;
         if (!this.insideHQ) {
             this.insideHQ = true;
             setFactoryOpen(false);
@@ -434,6 +488,8 @@ export class Preview extends Phaser.Scene {
             setFactoryOpen(false);
             this.scene.launch('Library');
             this.scene.sleep();
+        } else if (p && !this.insideHQ && !this.rocketing && this.launchPad?.boards(p.x, p.y)) {
+            this.blastOff();
         }
     }
 
@@ -1204,7 +1260,7 @@ export class Preview extends Phaser.Scene {
         const dy = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
         const moving = dx !== 0 || dy !== 0;
 
-        if (this.insideHQ) return;
+        if (this.insideHQ || this.rocketing) return;
 
         if (moving) {
             const length = Math.hypot(dx, dy);
