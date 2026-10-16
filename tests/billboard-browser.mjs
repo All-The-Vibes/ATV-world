@@ -46,6 +46,8 @@ try {
 
         const initialAd = b.currentAd;
         const initialIndex = b.adIndex;
+        const adCount = Object.keys(scene.textures.list)
+            .filter(key => /^billboard-ad-\d+$/.test(key)).length;
 
         // Verify collision footprint is in solids
         const solidMatch = scene.solids.some(s => s.x === b.bounds().x && s.y === b.bounds().y);
@@ -58,6 +60,7 @@ try {
         return {
             initialIndex,
             initialAd,
+            adCount,
             quipVisible,
             quipKey,
             solidMatch,
@@ -67,6 +70,7 @@ try {
     assert.ok(result, 'billboard exists in scene');
     assert.equal(result.initialIndex, 0, 'starts on first ad');
     assert.equal(result.initialAd.id, 'vibe-insurance', 'first ad is Vibe Insurance');
+    assert.equal(result.adCount, 12, 'all twelve ads have screen textures');
     assert.ok(result.quipVisible, 'speech bubble quip appears on manual click');
     assert.ok(result.solidMatch, 'footing bounds are registered in solids');
 
