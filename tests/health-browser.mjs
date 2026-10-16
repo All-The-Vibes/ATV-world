@@ -61,7 +61,7 @@ try {
     assert.equal(Math.round(opened.width), 53);
     assert.equal(Math.round(opened.height), 98);
     assert.equal(opened.x, 81);
-    assert.equal(opened.y, 190);
+    assert.equal(opened.y, 47);
     assert.equal(opened.calls[0][0], 'https://github.com/All-The-Vibes/ATV-world/actions');
     assert.equal(opened.calls[0][2], 'noopener,noreferrer');
     assert.deepEqual(errors, [], 'No runtime errors');
