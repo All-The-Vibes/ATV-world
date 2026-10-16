@@ -61,6 +61,7 @@ const spec: RoamerSpec = {
     look: { githubUsername: 'vicslive', skin: '#9f62cc', hair: '#bd86e9', hairStyle: 'spiky', shirt: 'cyan', pants: 'navy', shoes: 'pink' },
     sheet: vicsSheet,
     showName: true,
+    resident: true,
     burnReply: 'Thanks for the warm welcome!',
     glow: 'cyan',
     ward: 'ring',

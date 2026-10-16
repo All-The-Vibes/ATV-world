@@ -50,7 +50,7 @@ try {
     await page.clock.runFor(400);
     const tags = () => page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list
         .filter(o => o.name === 'creator-nametag').map(o => o.text).sort());
-    const verifiedCreators = new Set([...expectedTags, '@ShahabName', '@stephschofield']);
+    const verifiedCreators = new Set([...expectedTags, '@ShahabName', '@stephschofield', '@vicslive']);
     assert.ok((await tags()).every(text => verifiedCreators.has(text)), 'only verified creator accounts appear');
     assert.equal(await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');

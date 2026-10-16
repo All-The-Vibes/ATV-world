@@ -48,6 +48,7 @@ export class Roamers {
     constructor(private scene: Phaser.Scene, opts: RoamersOptions) {
         this.world = { scene, ...opts };
         ROAMERS.forEach((spec) => this.timers.set(spec.id, Phaser.Math.FloatBetween(6, 70)));
+        ROAMERS.filter((spec) => spec.resident).forEach((spec) => this.invite(spec.id));
         scene.events.once('shutdown', () => this.destroy());
     }
 
@@ -78,8 +79,8 @@ export class Roamers {
             console.warn(`Cannot invite ${id}: no open ground near the player.`);
             return false;
         }
-        if (this.active.size >= MAX_VISITORS) {
-            const visitors = [...this.active.values()];
+        const visitors = [...this.active.values()].filter((r) => !r.spec.resident);
+        if (!spec.resident && visitors.length >= MAX_VISITORS) {
             this.remove(visitors.find((r) => r.state === 'leave') ?? visitors[0]);
         }
         const r = this.add(spec);
@@ -131,7 +132,10 @@ export class Roamers {
             const left = (this.timers.get(spec.id) ?? 0) - dt;
             if (left > 0) {
                 this.timers.set(spec.id, left);
-            } else if (this.active.size < MAX_VISITORS) {
+            } else if (spec.resident) {
+                this.timers.set(spec.id, Phaser.Math.FloatBetween(...spec.every));
+                this.invite(spec.id);
+            } else if ([...this.active.values()].filter((r) => !r.spec.resident).length < MAX_VISITORS) {
                 this.timers.set(spec.id, Phaser.Math.FloatBetween(...spec.every));
                 this.add(spec);
             }
@@ -155,7 +159,7 @@ export class Roamers {
         const sprite = this.scene.add.sprite(x, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
         const r = {
             spec, sprite, shadow, anim, bubbleLeft: 0, state: 'wander', tx: x, ty: y, atToken: false, wait: 0,
-            life: Phaser.Math.FloatBetween(...spec.stay), rest: 0, foilCd: 2, greetCd: 3, fx: 0.5,
+            life: spec.resident ? Infinity : Phaser.Math.FloatBetween(...spec.stay), rest: 0, foilCd: 2, greetCd: 3, fx: 0.5,
         } as Roamer;
         r.handle = this.handleFor(r);
         addCreatorNametag(sprite, look, { speech: () => r.bubble });

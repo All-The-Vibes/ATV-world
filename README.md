@@ -71,15 +71,17 @@ Every push to `main` goes live within a few minutes, and the live page reloads i
 
 ## @vics on a hoverboard
 
-**@vics** (`vicslive`) visits on a pink retro hoverboard: an original fuzzy purple
+**@vics** (`vicslive`) is a permanent NPC, like Mark B, on a pink retro hoverboard: an original fuzzy purple
 puppet in a cyan-and-magenta space suit. The suit emits neon light at night
 (including Night View); a proximity shield rises within 130 world pixels of the
 dragon, and a blast earns "Thanks for the warm welcome!" The `@vics` nameplate
 stays visible independently of the global creator-label toggle. Find `@vics` in
-character search: click **Invite** when away to bring him onto open ground near
-the player and focus the camera; use **Focus** when already in town. Pressing
-Enter on a visitor search works too. Invitations make room within the five-visitor
-limit. For console-based testing, summon with
+character search and click **Focus**. He appears automatically on open ground near
+the starting player, never times out, and does not occupy or displace any of the
+five rotating visitor slots. This is NPC presence, not an online-player claim.
+Other visitors still use **Invite** when away; pressing Enter on a visitor search
+works too. Invitations make room within the five-visitor limit without removing
+residents. For console-based testing, summon with
 `atv.game.scene.getScene('Preview').roamers.spawn('vics')`. Run `npm run test:vics`
 for the focused browser regression. Character behavior lives in
 `src/game/roamers/characters/vics.ts`; original pixel art lives in

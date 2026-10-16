@@ -79,6 +79,8 @@ export interface RoamerSpec {
     /** Custom sheets use the same side-0/1/2 frame names as the built-in walkers. */
     sheet?: () => { canvas: PixelCanvas; frames: FrameRect[] };
     showName?: boolean;
+    /** Permanent NPC, separate from the five rotating visitor slots. */
+    resident?: boolean;
     burnReply?: string;
     prop?: RoamerProp;
     /** Colour of its sparkles and its ward. */

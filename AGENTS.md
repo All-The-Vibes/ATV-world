@@ -42,6 +42,11 @@ ATV World is a pixel-art world built with Phaser 4, React 19, TypeScript 7, and 
 
 ## Checking a change
 
+`@vics` is a permanent NPC using the roamer system's optional `resident` flag:
+he spawns automatically near the starting player, has no visit timeout, and is
+separate from the five rotating visitor slots (like the dedicated Mark B NPC).
+Inviting a visitor never removes a resident. Other roamer specs remain timed visitors.
+
 `npm install`, then `npm run typecheck` and `npm run build`. Both show real errors.
 
 To see ATV HQ with people in it, open the dev server with `?hq&call=demo` (people dialing in and out), `?hq&call=crowd` (a 48-person call), or `?hq&call=Ana,Ben,Cy` (a fixed list). To try the website mirror, start the dev server with `HQ_PUBLISH_KEY=anything`, POST `{ meeting }` to `/api/hq/token` with an `x-hq-key` header, then POST `{ meeting, people: [{ id, name }] }` to `/api/hq` with the token in `x-hq-token`.

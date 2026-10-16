@@ -17,6 +17,40 @@ try {
     await page.route('**/api/health', route => route.fulfill({ json: { state: 'unknown', message: 'AWAITING CI' } }));
     await page.goto(`${origin}/?time=day`);
     await page.waitForFunction(() => window.atv?.game?.scene.getScene('Preview')?.roamers);
+    const residency = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const roamers = scene.roamers;
+        const r = roamers.active.get('vics');
+        const initial = {
+            present: !!r, life: r?.life,
+            distance: r ? Math.hypot(r.sprite.x - scene.player.sprite.x, r.sprite.y - scene.player.sprite.y) : Infinity,
+        };
+        scene.scene.pause();
+        for (const id of roamers.timers.keys()) roamers.timers.set(id, 0);
+        for (let i = 0; i < 1500; i++) roamers.update(0.1);
+        const afterVisit = roamers.spriteOf('vics') === r?.sprite;
+        const visitors = [...roamers.active.values()].filter(v => !v.spec.resident);
+        for (const v of visitors) roamers.remove(v);
+        for (const visitor of roamers.catalog().filter(c => c.id !== 'vics').slice(0, 5)) roamers.spawn(visitor.id);
+        const absent = roamers.catalog().find(c => c.id !== 'vics' && !roamers.spriteOf(c.id));
+        const invited = roamers.invite(absent.id);
+        const result = {
+            ...initial, afterVisit, invited,
+            retained: roamers.spriteOf('vics') === r?.sprite,
+            visitors: [...roamers.active.values()].filter(v => !v.spec.resident).length,
+            count: roamers.active.size,
+        };
+        scene.scene.resume();
+        return result;
+    });
+    assert.equal(residency.present, true, '@vics arrives automatically without Invite');
+    assert.equal(residency.life, Infinity, 'the resident has no visit timeout');
+    assert.ok(residency.distance < 200, 'the resident starts near the player, not off-map');
+    assert.equal(residency.afterVisit, true, 'the same resident stays beyond the longest ordinary visit');
+    assert.equal(residency.invited, true);
+    assert.equal(residency.retained, true, 'inviting at capacity never evicts the resident');
+    assert.equal(residency.visitors, 5, 'all five rotating visitor slots remain available');
+    assert.equal(residency.count, 6);
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         scene.roamers.destroy();
@@ -48,7 +82,7 @@ try {
         };
     });
     assert.ok(invited.distance < 200 && invited.open, 'Invite brings @vics to visible open ground near the player, not the distant map edge');
-    assert.equal(invited.count, 5, 'an explicit invitation makes room even when all visitor slots are occupied');
+    assert.equal(invited.count, 6, 'inviting the resident preserves all five occupied visitor slots');
     await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         scene.roamers.remove(scene.roamers.active.get('vics'));
