@@ -15,6 +15,7 @@ import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
 import { TrafficLight } from '../health/TrafficLight';
+import { Giant } from '../giant/Giant';
 import { Ollama } from '../llama/Ollama';
 import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
@@ -47,6 +48,8 @@ export class Preview extends Phaser.Scene {
     private gremlins?: Gremlins;
     private ollama?: Ollama;
     private talkingMoles?: TalkingMoles;
+    /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
+    private giant?: Giant;
     /** The swimming pool, where people queue for the high dive (see ../pool). */
     private pool?: Pool;
     private ufo?: UFO;
@@ -183,6 +186,7 @@ export class Preview extends Phaser.Scene {
         this.fitWorld();
         this.ollama = new Ollama(this);
         this.talkingMoles = new TalkingMoles(this);
+        this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
@@ -330,6 +334,7 @@ export class Preview extends Phaser.Scene {
         this.gremlins?.update(dt);
         this.ollama?.update(dt);
         this.talkingMoles?.update(dt);
+        this.giant?.update(dt);
         this.pool?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
