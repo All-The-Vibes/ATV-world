@@ -116,7 +116,7 @@ export class Preview extends Phaser.Scene {
     private moles?: Moles;
     /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
     private lake?: Lake;
-    /** The rocket to Mars, south-east of the library: walk into it to fly there (see ../mars). */
+    /** The rocket to Mars, just south of the town: walk into it to fly there (see ../mars). */
     private launchPad?: LaunchPad;
     /** The player is aboard the rocket (taking off for Mars, or landing back home). */
     private rocketing = false;
@@ -209,7 +209,7 @@ export class Preview extends Phaser.Scene {
         this.lockAndKey = new LockAndKey(this, -195, 345);
         this.lockAndKey.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.lockAndKey.footprint);
-        this.launchPad = new LaunchPad(this, 330, 340);
+        this.launchPad = new LaunchPad(this, 644, 380);
         this.launchPad.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.launchPad.area);
         this.factory = new Factory(this, 290, 20, {
