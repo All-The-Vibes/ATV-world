@@ -66,7 +66,8 @@ try {
                 bounds.top < libraryBounds.bottom && bounds.bottom > libraryBounds.top,
             fountain: scene.children.list.some(child => child.texture?.key === 'preview-prop-fountain'),
             benches: scene.children.list.filter(child => child.texture?.key === 'preview-prop-bench').length,
-            sign: scene.children.list.some(child => child.texture?.key === 'preview-prop-banner'),
+            sign: scene.children.list.some(child =>
+                child.texture?.key.startsWith('preview-prop-banner-') && child.x === -290 && child.y === 247),
         };
     });
     assert.equal(placed.x, -290);

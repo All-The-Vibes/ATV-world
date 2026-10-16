@@ -49,6 +49,7 @@ import { UFO } from '../ufo/UFO';
 import { MarkB } from '../markb/MarkB';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
+import { Witch } from '../witch/Witch';
 
 type Placed = { getBounds: () => Phaser.Geom.Rectangle };
 type Vibe = { sprite: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; homeY: number; found: boolean };
@@ -175,6 +176,8 @@ export class Preview extends Phaser.Scene {
         'Create an AI character',
         'Add something that changes the whole world',
     ];
+    /** A seated witch by the portal who gives nearby people temporary Halloween costumes. */
+    private witch?: Witch;
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -325,6 +328,14 @@ export class Preview extends Phaser.Scene {
         this.incidents.parts.forEach(part => this.includeInWorld(part));
         this.solids.push(this.incidents.station.getBounds(), this.incidents.button.getBounds());
         this.fitWorld();
+        this.witch = new Witch(
+            this,
+            205,
+            92,
+            () => this.burnables().map(({ sprite }) => ({ sprite })),
+            () => !this.inHell && !this.insideHQ,
+        );
+        this.includeInWorld(this.witch.witch);
         this.ollama = new Ollama(this);
         this.rubberDuck = new RubberDuck(this, {
             // The plaza between the campus and the town, from the pool and disco rows down to the south lawn.
@@ -701,6 +712,7 @@ export class Preview extends Phaser.Scene {
         ]);
         this.kittens?.update(dt);
         this.tarot?.update(dt);
+        this.witch?.update();
         this.updateVibes();
         // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
         const p = this.player?.sprite;
@@ -1026,6 +1038,7 @@ export class Preview extends Phaser.Scene {
             }
         });
         this.atmosphere?.setHell(active);
+        this.witch?.setVisible(!active);
     }
 
     private usePortal() {
