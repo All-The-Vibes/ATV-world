@@ -15,6 +15,7 @@ import { Factory } from '../factory/Factory';
 import { Billboard } from '../billboard/Billboard';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Roamers } from '../roamers/Roamers';
+import { Workout } from '../workout/Workout';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
@@ -65,6 +66,8 @@ export class Preview extends Phaser.Scene {
     private catchers?: Catchers;
     /** Friendly visitors who scare gremlins off and chat with the player (see ../roamers). */
     private roamers?: Roamers;
+    /** Christian, who gathers a crowd for a workout class (see ../workout). */
+    private workout?: Workout;
     /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
     private bikeGang?: BikeGang;
     /** The "Lock & Key" room (Keyhouse Manor) with lots of magical doors/windows and the 3 Locke siblings. */
@@ -311,6 +314,20 @@ export class Preview extends Phaser.Scene {
             dragon: () => this.dragon?.plaything(),
         });
         this.ambience = new Ambience(this, { player: () => this.player?.sprite, walkers: () => this.walkers.map((w) => w.sprite), indoors: () => this.insideHQ });
+        this.workout = new Workout(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+            player: () => (this.player && !this.insideHQ ? this.player.sprite : undefined),
+            people: () => [
+                ...this.walkers.map((w) => ({
+                    sprite: w.sprite,
+                    shadow: w.shadow,
+                    label: w.label,
+                    hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
+                })),
+                ...(this.roamers?.people() ?? []),
+            ],
+        });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
             this.syncVibes(true);
@@ -473,6 +490,7 @@ export class Preview extends Phaser.Scene {
         this.gremlins?.update(dt);
         this.catchers?.update(dt);
         this.roamers?.update(dt);
+        this.workout?.update(dt);
         this.bikeGang?.update(dt);
         this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
@@ -974,7 +992,7 @@ export class Preview extends Phaser.Scene {
         if (this.lockAndKey) out.push(...this.lockAndKey.burnables());
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 56, nametag: this.player.nametag });
         if (this.disco) out.push(...this.disco.burnables());
-        out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []));
+        out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []), ...(this.workout?.burnables() ?? []));
         if (this.factory) out.push(...this.factory.burnables());
         return out;
     }

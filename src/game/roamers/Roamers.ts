@@ -57,6 +57,17 @@ export class Roamers {
         this.add(spec);
     }
 
+    /** Visitors who could be pulled into a group activity (a workout class) right now. */
+    people() {
+        return [...this.active.values()]
+            .filter((r) => r.state !== 'leave' && r.life > 25 && r.rest <= 0)
+            .map((r) => ({
+                sprite: r.sprite,
+                shadow: r.shadow,
+                hold: (seconds: number) => { r.rest = Math.max(r.rest, seconds); },
+            }));
+    }
+
     /** Who the dragon can toast. */
     burnables(): Burnable[] {
         return [...this.active.values()].map((r) => ({
