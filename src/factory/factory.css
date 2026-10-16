@@ -1,0 +1,144 @@
+/* The Agent Factory's role picker (FactoryPanel.tsx): same ink panels, night borders, and pixel fonts as the banner. */
+.factory {
+    position: fixed;
+    left: 50%;
+    bottom: 16px;
+    transform: translateX(-50%);
+    width: min(640px, calc(100vw - 32px));
+    max-height: calc(100vh - 140px);
+    overflow-y: auto;
+    padding: 12px;
+    color: var(--cream);
+    background: rgb(20 16 30 / 92%);
+    border: 3px solid var(--night);
+    box-shadow: 0 0 0 3px var(--ink);
+}
+
+.factory-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+}
+
+.factory-head h2 {
+    margin: 0;
+    font: 12px 'Press Start 2P', monospace;
+    color: var(--gold);
+}
+
+.factory-close {
+    min-width: 32px;
+    height: 32px;
+    font: 12px 'Press Start 2P', monospace;
+    color: var(--cream);
+    background: var(--ink);
+    border: 3px solid var(--night);
+    cursor: pointer;
+}
+
+.factory-close:hover,
+.factory-close:focus-visible {
+    color: var(--gold);
+    border-color: var(--gold);
+}
+
+.factory-roles {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(132px, 1fr));
+    gap: 8px;
+    margin: 0;
+    padding: 0;
+    list-style: none;
+}
+
+.factory-role {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 6px;
+    width: 100%;
+    height: 100%;
+    padding: 8px 6px;
+    font: inherit;
+    color: var(--cream);
+    text-align: center;
+    background: var(--ink);
+    border: 3px solid var(--night);
+    border-top-color: var(--role);
+    cursor: pointer;
+}
+
+.factory-role:hover,
+.factory-role:focus-visible {
+    border-color: var(--role);
+    outline: none;
+}
+
+.factory-role img {
+    image-rendering: pixelated;
+    width: 32px;
+    height: 44px;
+}
+
+.factory-role-title {
+    font: 10px 'Press Start 2P', monospace;
+    color: var(--role);
+}
+
+.factory-role-blurb {
+    font-size: 15px;
+    line-height: 1;
+}
+
+.factory-role-key {
+    position: absolute;
+    top: 4px;
+    left: 6px;
+    font: 9px 'Press Start 2P', monospace;
+    color: var(--cream);
+    opacity: 0.6;
+}
+
+.factory-roster {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 6px;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 3px solid var(--night);
+}
+
+.factory-count {
+    margin-right: 4px;
+    font: 9px 'Press Start 2P', monospace;
+    color: var(--gold);
+}
+
+.factory-chip,
+.factory-clear {
+    padding: 4px 8px;
+    font: 9px 'Press Start 2P', monospace;
+    color: var(--ink);
+    background: var(--role, var(--cream));
+    border: 0;
+    cursor: pointer;
+}
+
+.factory-chip:hover,
+.factory-chip:focus-visible {
+    text-decoration: line-through;
+}
+
+.factory-clear {
+    margin-left: auto;
+    color: var(--cream);
+    background: var(--night);
+}
+
+.factory-clear:hover,
+.factory-clear:focus-visible {
+    color: var(--gold);
+}

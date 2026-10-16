@@ -5,6 +5,7 @@
 - `npm run test:hq`: Node API tests, no credentials.
 - `npm run test:library`: pure library tests plus real browser journey; external book services mocked.
 - `npm run test:kittens`: real-browser world/animal assertions, no external services.
+- `npm run test:factory`: real-browser Agent Factory journey (picker, spawning, wandering, cap, dismissing).
 
 Browser scripts start/stop their own local Vite server and use Edge or Playwright Chromium.
 `KITTEN_SCREENSHOTS` optionally writes screenshots outside the source tree.

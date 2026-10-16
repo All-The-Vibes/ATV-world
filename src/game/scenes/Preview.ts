@@ -9,6 +9,8 @@ import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '..
 import { BikeGang } from '../bikes/BikeGang';
 import { Disco } from '../disco/Disco';
 import { Catchers } from '../catchers/Catchers';
+import { setFactoryOpen } from '../../factory/bridge';
+import { Factory } from '../factory/Factory';
 import { Gremlins } from '../gremlins/Gremlins';
 import { Roamers } from '../roamers/Roamers';
 import { Dragon, type Burnable } from '../dragon/Dragon';
@@ -55,6 +57,8 @@ export class Preview extends Phaser.Scene {
     private roamers?: Roamers;
     /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
     private bikeGang?: BikeGang;
+    /** The Agent Factory: walk in to build agents with roles, who then wander town (see ../factory). */
+    private factory?: Factory;
     private ollama?: Ollama;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
@@ -167,6 +171,16 @@ export class Preview extends Phaser.Scene {
         this.moles = new Moles(this, 150, 335);
         this.moles.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.moles.area);
+        this.factory = new Factory(this, 290, 20, {
+            area: () => new Phaser.Geom.Rectangle(
+                this.worldBounds.left + 24, this.worldBounds.top + 24,
+                Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24 - (this.worldBounds.left + 24),
+                this.worldBounds.height - 48,
+            ),
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+        });
+        this.solids.push(...this.factory.solids());
+        this.factory.parts.forEach((part) => this.includeInWorld(part));
         try {
             this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
         } catch (e) {
@@ -302,6 +316,7 @@ export class Preview extends Phaser.Scene {
         if (!this.hq || !this.player) return;
         if (!this.insideHQ) {
             this.insideHQ = true;
+            setFactoryOpen(false);
             const { sprite, shadow, marker } = this.player;
             const at = this.hq.doorway.inside;
             sprite.stop().setPosition(at.x, at.y).setFlipX(false).setFrame('up-0');
@@ -367,6 +382,7 @@ export class Preview extends Phaser.Scene {
         this.ufo?.update(dt);
         this.disco?.update(dt);
         this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
+        this.factory?.update(dt, this.insideHQ ? undefined : this.player?.sprite);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
@@ -378,6 +394,7 @@ export class Preview extends Phaser.Scene {
         const p = this.player?.sprite;
         if (p && this.libraryFoot && !this.insideHQ && this.libraryFoot.contains(p.x, p.y)) {
             p.setPosition(this.entrance!.x, this.libraryFoot.bottom + 18).stop();
+            setFactoryOpen(false);
             this.scene.launch('Library');
             this.scene.sleep();
         }
@@ -780,6 +797,7 @@ export class Preview extends Phaser.Scene {
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
         if (this.disco) out.push(...this.disco.burnables());
         out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []));
+        if (this.factory) out.push(...this.factory.burnables());
         return out;
     }
 
