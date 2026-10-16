@@ -10,6 +10,7 @@ import {
 import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, setViewModes, tokenCount } from '../commands';
 import { Directory, spotOf, spriteOf } from '../directory';
 import { BikeGang } from '../bikes/BikeGang';
+import { MovieParade } from '../bikes/MovieParade';
 import { LockAndKey } from '../keyhouse/LockAndKey';
 import { Disco } from '../disco/Disco';
 import { Catchers } from '../catchers/Catchers';
@@ -47,6 +48,7 @@ import { Tokens } from '../tokens/Tokens';
 import { TugOfWar } from '../tugOfWar/TugOfWar';
 import { Tarot } from '../tarot/Tarot';
 import { Town } from '../town/Town';
+import { SpiderMan } from '../town/SpiderMan';
 import { UFO } from '../ufo/UFO';
 import { MarkB } from '../markb/MarkB';
 import { publishVibes } from '../vibes';
@@ -85,6 +87,10 @@ export class Preview extends Phaser.Scene {
     private directory?: Directory;
     /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
     private bikeGang?: BikeGang;
+    /** ET, Scream, IronMan, Hulk, and Kung fu Panda walking in a group on the same track as the bicycle team. */
+    private movieParade?: MovieParade;
+    /** Spider Man swinging from tree to tree inside The Town (see ../town/SpiderMan). */
+    private spiderMan?: SpiderMan;
     /** The "Lock & Key" room (Keyhouse Manor) with lots of magical doors/windows and the 3 Locke siblings. */
     private lockAndKey?: LockAndKey;
     /** The Agent Factory: walk in to build agents with roles, who then wander town (see ../factory). */
@@ -339,6 +345,11 @@ export class Preview extends Phaser.Scene {
             townLeft: this.town?.left ?? 451,
             campusRight: this.campus?.bounds().right ?? -475,
         });
+        this.movieParade = new MovieParade(this, {
+            townLeft: this.town?.left ?? 451,
+            campusRight: this.campus?.bounds().right ?? -475,
+        });
+        this.spiderMan = new SpiderMan(this, this.town?.left ?? 451);
         this.createHell();
         this.createSteph();
         this.createPlayer();
@@ -662,6 +673,8 @@ export class Preview extends Phaser.Scene {
         dir.add({ id: 'ollama', name: 'Ollama', kind: 'llama', locate: at(() => spriteOf(this.ollama)) });
         dir.add({ id: 'giant', name: 'The Giant', kind: 'giant', locate: at(() => spriteOf(this.giant)) });
         dir.add({ id: 'ufo', name: 'Flying Saucer', kind: 'alien', locate: at(() => spriteOf(this.ufo)) });
+        dir.add({ id: 'spiderman', name: 'Spider Man', kind: 'hero', locate: at(() => this.spiderMan?.sprite) });
+        this.movieParade?.sprites().forEach((s) => dir.add({ id: `parade-${s.name}`, name: s.name, kind: 'movie', locate: () => spotOf(s) }));
         dir.add({
             id: 'white-rabbit', name: 'White Rabbit', kind: 'late',
             locate: () => {
@@ -790,6 +803,8 @@ export class Preview extends Phaser.Scene {
         this.workout?.update(dt);
         this.directory?.update(dt);
         this.bikeGang?.update(dt);
+        this.movieParade?.update(dt);
+        this.spiderMan?.update(dt);
         this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
         this.rubberDuck?.update(dt);
@@ -809,6 +824,7 @@ export class Preview extends Phaser.Scene {
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
             ...(this.bikeGang?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
+            ...(this.movieParade?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
             ...(this.lockAndKey?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
         ]);
         this.kittens?.update(dt);
@@ -1302,6 +1318,7 @@ export class Preview extends Phaser.Scene {
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
         if (this.bikeGang) out.push(...this.bikeGang.burnables());
+        if (this.movieParade) out.push(...this.movieParade.burnables());
         if (this.lockAndKey) out.push(...this.lockAndKey.burnables());
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 56, nametag: this.player.nametag });
         if (this.disco) out.push(...this.disco.burnables());
