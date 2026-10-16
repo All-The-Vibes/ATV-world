@@ -12,17 +12,19 @@ interface Puller {
     /** Distance from the centre line when the rope is level. */
     home: number;
     phase: number;
-    /** Seconds left on their speech bubble. */
+    /** Seconds left on their speech bubble, and how wide it is. */
     talk: number;
+    bubbleW: number;
 }
 
 const TEAM_SIZE = 4;
-const FRONT = 30;
+/** A wide gap between the front pullers keeps the sign behind them in view. */
+const FRONT = 66;
 const SPACING = 16;
 const SHIRTS: Record<-1 | 1, ColorName> = { [-1]: 'red', 1: 'blue' };
 const MAX_TALKERS = 2;
 /** Speakers have to stand at least this far apart so their bubbles don't pile up. */
-const TALK_GAP = 60;
+const TALK_GAP = 80;
 const TALK_SECONDS = 3.4;
 
 /**
@@ -77,6 +79,7 @@ export class TugOfWar {
             home: FRONT + i * SPACING,
             phase: Math.random(),
             talk: 0,
+            bubbleW: 0,
         });
     }
 
@@ -113,7 +116,10 @@ export class TugOfWar {
             p.shadow.setPosition(x, feet);
             if (p.talk > 0) {
                 p.talk -= dt;
-                p.bubble.setPosition(x, Math.round(p.sprite.y - 25));
+                // Slide the bubble outward rather than let it cover the sign.
+                const clear = SIGN.w / 2 + 3 + p.bubbleW / 2;
+                const bx = centre + p.side * Math.max(Math.abs(x - centre), clear);
+                p.bubble.setPosition(Math.round(bx), Math.round(p.sprite.y - 25));
             }
             p.bubble.setVisible(p.talk > 0);
         }
@@ -135,6 +141,7 @@ export class TugOfWar {
         ensurePixels(this.scene, key, () => speechArt(text, 18));
         const who = Phaser.Utils.Array.GetRandom(free);
         who.bubble.setTexture(key);
+        who.bubbleW = who.bubble.width;
         who.talk = TALK_SECONDS;
     }
 }

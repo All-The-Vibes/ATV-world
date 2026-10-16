@@ -1,19 +1,19 @@
 import { PixelCanvas, fbm, miniText, miniTextWidth } from '../kit';
 
 /** The trampled field, in pixels from its top-left corner. */
-export const FIELD = { w: 240, h: 80 };
+export const FIELD = { w: 310, h: 80 };
 /** Where the pullers' feet are, and the mud pit's centre. */
 export const FEET_Y = 58;
-export const ROPE_W = 180;
+export const ROPE_W = 270;
 export const ROPE_H = 4;
 /** How far from the centre the red "you win" lines sit. */
-export const WIN_LINE = 40;
+export const WIN_LINE = 60;
 
 /** Dirt churned up by years of pulling, a centre line, a win line each side, and a mud pit in the middle. */
 export function fieldArt() {
     const { w, h } = FIELD;
     const pc = new PixelCanvas(w, h);
-    pc.ellipse(w / 2, FEET_Y - 2, 118, 22, (x, y, nx, ny) => {
+    pc.ellipse(w / 2, FEET_Y - 2, w / 2 - 2, 22, (x, y, nx, ny) => {
         const edge = nx * nx + ny * ny;
         if (edge > 0.82) return fbm(x, y, 4, 3) > 0.5 ? 'clay' : 'wood';
         return fbm(x, y, 6, 3) > 0.6 ? 'clay' : 'sand';
