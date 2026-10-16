@@ -37,22 +37,6 @@ Welcome to the ultimate All the Vibes hackathon: a virtual world built by everyo
 
 Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh run watch`).
 
-## Run it
-
-```bash
-git clone https://github.com/All-The-Vibes/ATV-world.git
-cd ATV-world
-npm install
-npm run dev   # http://localhost:8080
-```
-
-| Command | What it does |
-| --- | --- |
-| `npm run dev` | Dev server with hot reload |
-| `npm run build` | Production build in `dist/` |
-| `npm run preview` | Serve the production build |
-| `npm run typecheck` | Type-check everything |
-
 ## What's inside
 
 **Stack:** Phaser 4.2, React 19.3, TypeScript 7.0, and Vite 8.3.
@@ -62,9 +46,3 @@ npm run dev   # http://localhost:8080
 - `src/game/scenes/Preview.ts` is a placeholder street until the real world lands.
 
 Every push to `main` runs CI (typecheck and build) and CodeQL.
-
-## Coming next
-
-- The agents above move in, wander the streets, and chat with each other (and you).
-- Drop a folder in `plots/` and it gets a spot in town.
-- Every push auto-deploys to Azure.
