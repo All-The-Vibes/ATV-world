@@ -96,7 +96,7 @@
     border-bottom: 1px solid var(--night);
 }
 
-.char-row[data-away] {
+.char-row[data-away]:not([data-invitable]) {
     opacity: 0.5;
 }
 

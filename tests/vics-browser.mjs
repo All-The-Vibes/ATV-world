@@ -17,6 +17,47 @@ try {
     await page.route('**/api/health', route => route.fulfill({ json: { state: 'unknown', message: 'AWAITING CI' } }));
     await page.goto(`${origin}/?time=day`);
     await page.waitForFunction(() => window.atv?.game?.scene.getScene('Preview')?.roamers);
+    await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        scene.roamers.destroy();
+        for (const id of scene.roamers.timers.keys()) scene.roamers.timers.set(id, Infinity);
+        for (const visitor of scene.roamers.catalog().filter(c => c.id !== 'vics').slice(0, 5)) {
+            scene.roamers.spawn(visitor.id);
+        }
+        scene.directory.update(1);
+    });
+    const filter = page.getByRole('textbox', { name: 'Filter characters', exact: true });
+    await filter.fill('@vics');
+    const invite = page.getByRole('button', { name: 'Invite', exact: true });
+    assert.equal(await invite.isEnabled(), true, 'an away visitor can be invited instead of having a disabled Focus button');
+    await invite.click();
+    await page.waitForFunction(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const sprite = scene.roamers.spriteOf('vics');
+        return sprite && scene.cameras.main.zoom > 3.5 && scene.cameras.main.worldView.contains(sprite.x, sprite.y - 22);
+    });
+    assert.equal(await page.getByRole('button', { name: 'Focus', exact: true }).isEnabled(), true);
+    const invited = await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        const sprite = scene.roamers.spriteOf('vics');
+        const player = scene.player.sprite;
+        return {
+            distance: Math.hypot(sprite.x - player.x, sprite.y - player.y),
+            open: scene.roamers.world.open(sprite.x, sprite.y),
+            count: scene.roamers.active.size,
+        };
+    });
+    assert.ok(invited.distance < 200 && invited.open, 'Invite brings @vics to visible open ground near the player, not the distant map edge');
+    assert.equal(invited.count, 5, 'an explicit invitation makes room even when all visitor slots are occupied');
+    await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        scene.roamers.remove(scene.roamers.active.get('vics'));
+        scene.directory.update(1);
+    });
+    await filter.fill('@vics');
+    await filter.press('Enter');
+    await page.waitForFunction(() => !!window.atv.game.scene.getScene('Preview').roamers.spriteOf('vics'));
+    await filter.blur();
     const initial = await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         scene.scene.pause();

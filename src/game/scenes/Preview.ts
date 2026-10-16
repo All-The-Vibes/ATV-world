@@ -516,7 +516,12 @@ export class Preview extends Phaser.Scene {
         this.registerCharacters();
         const offFocus = onFocusCharacter((id) => {
             const directory = this.directory;
-            if (!this.sys.isActive() || !directory?.locate(id)) return;
+            if (!this.sys.isActive() || !directory) return;
+            if (!directory.locate(id) && id.startsWith('visitor-')) {
+                if (!this.roamers?.invite(id.slice('visitor-'.length))) return;
+                directory.update(0.4);
+            }
+            if (!directory.locate(id)) return;
             if (this.view?.focus(() => directory.locate(id))) directory.ping(id);
         });
         const off = on('leaveHQ', () => this.leaveHQ());

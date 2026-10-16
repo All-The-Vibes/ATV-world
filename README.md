@@ -76,7 +76,10 @@ puppet in a cyan-and-magenta space suit. The suit emits neon light at night
 (including Night View); a proximity shield rises within 130 world pixels of the
 dragon, and a blast earns "Thanks for the warm welcome!" The `@vics` nameplate
 stays visible independently of the global creator-label toggle. Find `@vics` in
-character search when visiting, or summon with
+character search: click **Invite** when away to bring him onto open ground near
+the player and focus the camera; use **Focus** when already in town. Pressing
+Enter on a visitor search works too. Invitations make room within the five-visitor
+limit. For console-based testing, summon with
 `atv.game.scene.getScene('Preview').roamers.spawn('vics')`. Run `npm run test:vics`
 for the focused browser regression. Character behavior lives in
 `src/game/roamers/characters/vics.ts`; original pixel art lives in

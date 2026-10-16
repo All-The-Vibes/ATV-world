@@ -58,6 +58,37 @@ export class Roamers {
         this.add(spec);
     }
 
+    /** Invite an absent visitor onto open ground near the player, without crowding the town. */
+    invite(id: string): boolean {
+        if (this.active.has(id)) return true;
+        const spec = ROAMERS.find((s) => s.id === id);
+        if (!spec) {
+            console.warn(`Cannot invite unknown visitor: ${id}`);
+            return false;
+        }
+        const anchor = this.world.player() ?? this.scene.cameras.main.midPoint;
+        const bounds = this.world.bounds();
+        const spots = [48, 80, 120, 180].flatMap((radius) =>
+            Array.from({ length: 8 }, (_, i) => ({
+                x: anchor.x + Math.cos(i * Math.PI / 4) * radius,
+                y: anchor.y + Math.sin(i * Math.PI / 4) * radius,
+            })));
+        const spot = spots.find(({ x, y }) => bounds.contains(x, y) && this.world.open(x, y));
+        if (!spot) {
+            console.warn(`Cannot invite ${id}: no open ground near the player.`);
+            return false;
+        }
+        if (this.active.size >= MAX_VISITORS) {
+            const visitors = [...this.active.values()];
+            this.remove(visitors.find((r) => r.state === 'leave') ?? visitors[0]);
+        }
+        const r = this.add(spec);
+        r.sprite.setPosition(spot.x, spot.y);
+        this.pickWaypoint(r);
+        this.follow(r);
+        return true;
+    }
+
     /** Every visitor there is, in town or not (for the character search). */
     catalog() {
         return ROAMERS.map((s) => ({ id: s.id, name: s.name }));
@@ -159,6 +190,7 @@ export class Roamers {
         this.active.set(spec.id, r);
         spec.hooks?.onSpawn?.(r.handle);
         this.follow(r);
+        return r;
     }
 
     private handleFor(r: Roamer): RoamerHandle {

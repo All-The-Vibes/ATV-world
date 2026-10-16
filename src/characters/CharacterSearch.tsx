@@ -133,7 +133,7 @@ export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; o
                             setQuery('');
                             e.currentTarget.blur();
                         } else if (e.key === 'Enter') {
-                            const first = shown.find((c) => c.here);
+                            const first = shown.find((c) => c.here || c.kind === 'visitor');
                             if (first) focusCharacter(first.id);
                         }
                     }}
@@ -147,22 +147,22 @@ export function CharacterSearch({ hidden, onFocusChange }: { hidden?: boolean; o
                     onTouchMove={scrolledByHand}
                 >
                     {shown.map((c) => (
-                        <li key={c.id} className="char-row" data-away={c.here ? undefined : ''}>
+                        <li key={c.id} className="char-row" data-away={c.here ? undefined : ''} data-invitable={!c.here && c.kind === 'visitor' ? '' : undefined}>
                             <span className="char-dot" title={c.here ? 'In town' : 'Away from town'} />
                             <span className="char-name">{c.name}</span>
                             <span className="char-kind">{c.kind}</span>
                             <button
                                 type="button"
                                 className="char-focus"
-                                disabled={!c.here}
-                                title={c.here ? `Zoom in on ${c.name}` : `${c.name} is away from town right now`}
+                                disabled={!c.here && c.kind !== 'visitor'}
+                                title={c.here ? `Zoom in on ${c.name}` : c.kind === 'visitor' ? `Invite ${c.name} into town and zoom in` : `${c.name} is away from town right now`}
                                 onMouseDown={(e) => e.preventDefault()}
                                 onClick={() => {
                                     if (document.activeElement instanceof HTMLInputElement) document.activeElement.blur();
                                     focusCharacter(c.id);
                                 }}
                             >
-                                Focus
+                                {c.here || c.kind !== 'visitor' ? 'Focus' : 'Invite'}
                             </button>
                         </li>
                     ))}
