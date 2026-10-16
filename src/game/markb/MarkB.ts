@@ -45,7 +45,9 @@ const SCARED = [
 ];
 
 /** Every fourth stop he remembers how high up he is. */
-const SCARED_EVERY = 4;, then one far away, round and round. */
+const SCARED_EVERY = 4;
+
+/** Two stops near the middle, then one far away, round and round. */
 const STOPS: Stop[] = NEAR.map(([x, y], i): Stop[] =>
     i % 2 === 1 ? [{ x, y, far: false }, { x: FAR[(i - 1) / 2][0], y: FAR[(i - 1) / 2][1], far: true }] : [{ x, y, far: false }],
 ).flat();
