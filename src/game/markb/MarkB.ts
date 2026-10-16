@@ -23,6 +23,23 @@ const QUOTES = [
     'LGTM. THE MODEL SAID SO.',
     'EMBEDDINGS ARE JUST VIBES WITH COORDINATES.',
     'I PROMPT, THEREFORE I AM.',
+    'I ASKED THE AI TO FIX MY CODE. NOW I HAVE NEW CODE.',
+    'MY MODEL PASSED THE TURING TEST. I FAILED IT.',
+    'I EXPLAINED AI TO MY MUM. SHE ASKED IF IT DOES WASHING UP.',
+    'AI IS JUST SOMEONE ELSE\'S HOMEWORK.',
+    'I NAMED MY LLM BOB. BOB HALLUCINATES.',
+    'WORKS ON MY MACHINE. AND NOW ON THE MODEL.',
+    'SUDO MAKE ME A SANDWICH.',
+    'IT\'S NOT OVERFITTING, IT\'S COMMITMENT.',
+    'I HAVE 99 PROBLEMS AND A PROMPT FOR EACH.',
+    'MY JETPACK RUNS ON TOKENS. I AM ALMOST OUT.',
+    'ALL YOUR BASE ARE BELONG TO THE MODEL.',
+    'I DON\'T ALWAYS TEST PROMPTS, BUT WHEN I DO, IT\'S IN PROD.',
+    'THE MODEL IS 90% CONFIDENT AND 100% WRONG.',
+    'I USED AI TO WRITE THIS JOKE. IT WAS BETTER THAN MINE.',
+    'A NEURAL NET WALKS INTO A BAR. THE BAR WAS A HALLUCINATION.',
+    'MY BIGGEST FEAR? A STACK OVERFLOW.',
+    'I CAN\'T CHANGE THE WEATHER, BUT I CAN CHANGE THE SYSTEM PROMPT.',
 ];
 
 /** Where the action is: the plaza, ATV HQ and the shops around it (world pixels). */
@@ -41,6 +58,11 @@ const SCARED = [
     'DO NOT LOOK DOWN. DO NOT LOOK DOWN.',
     'WHY DID I PUT ON A JETPACK?',
     'THIS WAS A BAD IDEA.',
+    'IS IT TOO LATE TO TAKE THE BUS?',
+    'MY LEGS ARE DANGLING. WHY ARE MY LEGS DANGLING.',
+    'I CAN SEE MY HOUSE FROM HERE. I DO NOT WANT TO.',
+    'PLEASE TELL THE JETPACK I SAID SORRY.',
+    'I AM FINE. THIS IS FINE. EVERYTHING IS FINE.',
     'HELLO? CAN SOMEONE PUT ME DOWN?',
 ];
 
@@ -58,7 +80,8 @@ const SPEED = 70;
 const MAX_LEG = 5;
 /** Mark is drawn at character size, then blown up so he reads from the fit view. */
 const SIZE = 4;
-const TALK = 3.6;
+/** Reading time for a bubble: a base plus a little per character, so longer jokes stay up longer. */
+const talkTime = (text: string) => Math.max(3.6, 2 + text.length * 0.05);
 const EMOJI = 3;
 const FADE = 0.6;
 
@@ -121,6 +144,7 @@ export class MarkB {
     private quote = 0;
     private scaredQuote = 0;
     private visits = 0;
+    private talkFor = 0;
     private scared = false;
     private x: number;
     private y: number;
@@ -174,6 +198,8 @@ export class MarkB {
                 this.timer = 0;
                 this.visits++;
                 this.scared = this.visits % SCARED_EVERY === 0;
+                const line = this.scared ? SCARED[this.scaredQuote] : QUOTES[this.quote];
+                this.talkFor = talkTime(line);
                 this.bubble.setTexture(this.scared ? `mark-b-scared-${this.scaredQuote}` : `mark-b-quote-${this.quote}`);
             } else {
                 this.x += (dx / dist) * step;
@@ -181,7 +207,7 @@ export class MarkB {
             }
         } else {
             this.timer += dt;
-            if (this.mode === 'talk' && this.timer >= TALK) {
+            if (this.mode === 'talk' && this.timer >= this.talkFor) {
                 this.mode = 'emoji';
                 this.timer = 0;
                 this.bubble.setTexture(this.scared ? 'mark-b-scared' : 'mark-b-smile');
