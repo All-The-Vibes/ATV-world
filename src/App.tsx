@@ -10,8 +10,9 @@ import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
 import { MapButton, MiniMap } from './map/MiniMap';
 import { SoundButton } from './music/SoundButton';
-import { myName } from './multiplayer/identity';
+import { myCharacter, myName } from './multiplayer/identity';
 import { NamePrompt } from './multiplayer/NamePrompt';
+import { PlayersPanel } from './multiplayer/PlayersPanel';
 import { useTouch } from './touch/device';
 import { TouchControls } from './touch/TouchControls';
 
@@ -31,7 +32,8 @@ export default function App() {
     const modes = useSyncExternalStore(onViewModes, getViewModes);
     const [backpackOpen, setBackpackOpen] = useState(false);
     const [searching, setSearching] = useState(false);
-    const [named, setNamed] = useState(() => !!myName() || navigator.webdriver);
+    const [named, setNamed] = useState(() => (!!myName() && myCharacter() !== null) || navigator.webdriver);
+    const [editing, setEditing] = useState(false);
     const insideHQ = useSyncExternalStore(onInsideHQ, isInsideHQ);
     const scene = useSyncExternalStore(onActiveScene, activeScene);
     const touch = useTouch();
@@ -42,8 +44,10 @@ export default function App() {
     const canPulse = scene === 'Preview' && !insideHQ && !state.open && !backpackOpen && named;
     return (
         <>
-            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching || !named} />
+            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching || !named || editing} />
             {!named && <NamePrompt onDone={() => setNamed(true)} />}
+            {named && editing && <NamePrompt onDone={() => location.reload()} onCancel={() => setEditing(false)} />}
+            {named && outdoors && <PlayersPanel onEdit={() => setEditing(true)} />}
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
                 <p>{state.inside

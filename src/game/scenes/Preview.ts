@@ -24,6 +24,8 @@ import { Workout } from '../workout/Workout';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
 import { Multiplayer } from '../../multiplayer/Multiplayer';
+import { myLook } from '../../multiplayer/characters';
+import { myName } from '../../multiplayer/identity';
 import { SortingHat } from '../hat/SortingHat';
 import { Atmosphere } from '../fx/Atmosphere';
 import { HQ } from '../hq/HQ';
@@ -1332,8 +1334,22 @@ export class Preview extends Phaser.Scene {
         return out;
     }
 
+    /** A gold "YOU: name" tag under your own feet, so you can tell yourself from other players (blue tags) and NPCs (dark tags). */
+    private addYouTag(sprite: Phaser.GameObjects.Sprite) {
+        const name = myName();
+        const text = name ? `YOU: ${name}` : 'YOU';
+        const canvas = new PixelCanvas(miniTextWidth(text) + 6, 9);
+        canvas.rect(0, 0, canvas.width, 9, 'gold').rect(0, 8, canvas.width, 1, 'orange');
+        miniText(canvas, 3, 2, text, 'ink');
+        addPixels(this, 'preview-you-tag', canvas);
+        const tag = this.add.image(sprite.x, sprite.y + 3, 'preview-you-tag').setOrigin(0.5, 0);
+        const follow = () => tag.setPosition(sprite.x, sprite.y + 3).setDepth(sprite.y + 1).setVisible(sprite.visible);
+        this.events.on('postupdate', follow);
+        this.events.once('shutdown', () => this.events.off('postupdate', follow));
+    }
+
     private createPlayer() {
-        const look = PLAYER_LOOK;
+        const look = myLook();
         const key = 'preview-player';
         // The dancer sheet: the usual frames plus dance poses, for standing still on the disco floor.
         const sheet = dancerSheet(look);
@@ -1369,6 +1385,7 @@ export class Preview extends Phaser.Scene {
         const marker = this.add.image(x, y - 34, 'preview-player-marker').setOrigin(0.5, 1).setDepth(y + 1);
         const nametag = addCreatorNametag(sprite, look, { gap: 34 });
         this.player = { sprite, shadow, marker, nametag };
+        this.addYouTag(sprite);
 
         this.cursors = this.input.keyboard?.createCursorKeys();
         this.input.keyboard?.addCapture([

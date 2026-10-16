@@ -58,3 +58,32 @@
     opacity: 0.5;
     cursor: default;
 }
+
+.name-card { width: min(420px, 92vw); }
+.name-actions { display: flex; gap: 8px; }
+.name-actions button { flex: 1; }
+.name-card .name-cancel { background: #5b4b8a; color: #f5ecd0; }
+.char-grid { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.name-card .char-pick { padding: 4px; background: #0a0814; border: 2px solid #5b4b8a; display: grid; place-items: center; }
+.name-card .char-pick[data-selected] { border-color: #f5c542; background: #2c2350; }
+.portrait { image-rendering: pixelated; }
+
+.players {
+    position: fixed; top: 16px; right: 16px; z-index: 20; width: 190px; padding: 8px;
+    background: rgba(27, 21, 48, 0.92); border: 2px solid #5b4b8a; color: #f5ecd0;
+    font-family: 'VT323', monospace; font-size: 17px; display: grid; gap: 6px;
+}
+.players-head { display: flex; align-items: center; gap: 6px; font-family: 'Press Start 2P', monospace; font-size: 8px; }
+.players-count { margin-left: auto; color: #f5c542; }
+.players-dot { width: 8px; height: 8px; background: #888; }
+.players-dot[data-live] { background: #4ade80; }
+.players-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 3px; max-height: 180px; overflow: auto; }
+.players-row { display: flex; align-items: center; gap: 6px; }
+.players-name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.players-badge { font-family: 'Press Start 2P', monospace; font-size: 7px; padding: 2px 3px; background: #22d3ee; color: #0a0814; }
+.players-badge-you { background: #f5c542; }
+.players-legend { display: flex; gap: 8px; font-size: 15px; }
+.legend-swatch { display: inline-block; width: 8px; height: 8px; margin-right: 3px; }
+.legend-you { background: #f5c542; } .legend-player { background: #2563eb; } .legend-npc { background: #1b1530; border: 1px solid #f5ecd0; }
+.players-offline { font-size: 15px; color: #fca5a5; }
+.players-edit { font: inherit; font-size: 14px; color: #f5ecd0; background: #5b4b8a; border: 0; padding: 4px; cursor: pointer; }

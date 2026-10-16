@@ -54,3 +54,20 @@ export function onIdentity(fn: () => void): () => void {
     listeners.add(fn);
     return () => { listeners.delete(fn); };
 }
+
+const CHAR_KEY = 'atv-world-char';
+let memoryChar: number | null = null;
+
+/** Which preset character you play (an index into PRESETS), or null if you haven't picked yet. */
+export function myCharacter(): number | null {
+    if (memoryChar !== null) return memoryChar;
+    const raw = read(CHAR_KEY);
+    const n = raw === null ? NaN : Number(raw);
+    return Number.isInteger(n) && n >= 0 && n < 64 ? n : null;
+}
+
+export function setMyCharacter(index: number) {
+    memoryChar = index;
+    write(CHAR_KEY, String(index));
+    listeners.forEach((fn) => fn());
+}

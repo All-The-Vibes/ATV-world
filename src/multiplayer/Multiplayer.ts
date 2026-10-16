@@ -1,6 +1,8 @@
 import Phaser from 'phaser';
-import { PixelCanvas, addPixels, characterSheet, lookKey, miniText, miniTextWidth, randomLook, shadowTexture } from '../game/kit';
-import { myId, myName, onIdentity } from './identity';
+import { PixelCanvas, addPixels, characterSheet, lookKey, miniText, miniTextWidth, shadowTexture } from '../game/kit';
+import { myCharacter, myId, myName, onIdentity } from './identity';
+import { presetLook } from './characters';
+import { setPresence } from './presence';
 
 /**
  * Other people on the website, live. Each browser tells everyone else where its player is (a few times a second) over
@@ -28,10 +30,13 @@ interface Peer {
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
     label: Phaser.GameObjects.Image;
+    marker: Phaser.GameObjects.Image;
     name: string;
+    character: number;
     x: number;
     y: number;
     seen: number;
+    hidden: boolean;
 }
 
 export class Multiplayer {
@@ -78,6 +83,7 @@ export class Multiplayer {
         this.bye();
         this.peers.forEach((p) => this.drop(p));
         this.peers.clear();
+        setPresence([], false);
     }
 
     private state(force = false) {
@@ -87,6 +93,7 @@ export class Multiplayer {
             t: 's',
             id: myId(),
             n: myName(),
+            c: myCharacter() ?? 0,
             x: s ? Math.round(s.x * 10) / 10 : 0,
             y: s ? Math.round(s.y * 10) / 10 : 0,
             f: s ? String(s.frame.name) : 'down-0',
@@ -124,6 +131,7 @@ export class Multiplayer {
                 this.joined = true;
                 this.lastState = '';
                 this.send({ ...this.state(true) });
+                this.publish();
             };
             ws.onmessage = (event) => this.receive(event.data);
             ws.onclose = () => {
@@ -131,6 +139,7 @@ export class Multiplayer {
                 if (this.ws === ws) this.ws = undefined;
                 this.retryAt = performance.now() + this.retryMs;
                 this.retryMs = Math.min(this.retryMs * 2, 30_000);
+                this.publish();
             };
             ws.onerror = () => ws.close();
         } catch {
@@ -156,56 +165,75 @@ export class Multiplayer {
             if (gone) {
                 this.drop(gone);
                 this.peers.delete(id);
+                this.publish();
             }
             return;
         }
         if (d.t !== 's') return;
         const x = Number(d.x), y = Number(d.y);
         const name = typeof d.n === 'string' ? d.n.slice(0, 16) : '';
+        const character = Number.isInteger(d.c) ? Number(d.c) : 0;
         if (!Number.isFinite(x) || !Number.isFinite(y) || !name) return;
         // A newcomer asks everyone to answer right away, so they don't wait for the next heartbeat.
         if (d.r === 1) setTimeout(() => { if (!this.disposed) this.send(this.state()); }, Math.random() * 400);
         let peer = this.peers.get(id);
         if (!peer) {
             if (this.peers.size >= MAX_PEERS) return;
-            peer = this.spawn(name, x, y);
+            peer = this.spawn(name, character, x, y);
             this.peers.set(id, peer);
-        } else if (peer.name !== name) {
+        } else if (peer.name !== name || peer.character !== character) {
             this.drop(peer);
-            peer = this.spawn(name, x, y);
+            peer = this.spawn(name, character, x, y);
             this.peers.set(id, peer);
         }
         peer.seen = performance.now();
         peer.x = Phaser.Math.Clamp(x, -3000, 3000);
         peer.y = Phaser.Math.Clamp(y, -3000, 3000);
-        const visible = d.h !== 1;
-        peer.sprite.setVisible(visible);
-        peer.shadow.setVisible(visible);
-        peer.label.setVisible(visible);
+        peer.hidden = d.h === 1;
+        peer.sprite.setVisible(!peer.hidden);
+        peer.shadow.setVisible(!peer.hidden);
+        peer.label.setVisible(!peer.hidden);
+        peer.marker.setVisible(!peer.hidden);
         if (typeof d.f === 'string' && FRAME.test(d.f)) peer.sprite.setFrame(d.f);
         peer.sprite.setFlipX(d.fl === 1);
+        this.publish();
     }
 
-    private spawn(name: string, x: number, y: number): Peer {
-        const look = randomLook(`mp-${name}`);
+    /** Tells the players panel who's here. */
+    private publish() {
+        const list = [...this.peers].map(([id, p]) => ({ id, name: p.name, character: p.character }));
+        list.sort((a, b) => a.name.localeCompare(b.name) || a.id.localeCompare(b.id));
+        setPresence(list, this.joined);
+    }
+
+    private spawn(name: string, character: number, x: number, y: number): Peer {
+        const look = presetLook(character);
         const key = lookKey(look);
         const sheet = characterSheet(look);
         addPixels(this.scene, key, sheet.canvas, sheet.frames);
+        // Real players get a blue name tag with a cyan marker over their head; NPC tags are dark.
         const labelKey = `mp-label-${name}`;
         const canvas = new PixelCanvas(miniTextWidth(name) + 6, 9);
-        canvas.rect(0, 0, canvas.width, 9, 'ink');
-        miniText(canvas, 3, 2, name, 'cream');
+        canvas.rect(0, 0, canvas.width, 9, 'blue').rect(0, 0, canvas.width, 1, 'cyan');
+        miniText(canvas, 3, 2, name, 'white');
         addPixels(this.scene, labelKey, canvas);
+        if (!this.scene.textures.exists('mp-marker')) {
+            const m = new PixelCanvas(11, 8);
+            m.rect(0, 0, 11, 2, 'cyan').rect(1, 2, 9, 2, 'sky').rect(3, 4, 5, 2, 'cyan').rect(5, 6, 1, 1, 'white').outline('ink', true);
+            addPixels(this.scene, 'mp-marker', m);
+        }
         const shadow = this.scene.add.image(x, y, shadowTexture(this.scene, 12)).setAlpha(0.35).setDepth(y - 1);
         const sprite = this.scene.add.sprite(x, y, key, 'down-0').setOrigin(0.5, 1).setDepth(y);
         const label = this.scene.add.image(x, y - 28, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
-        return { sprite, shadow, label, name, x, y, seen: performance.now() };
+        const marker = this.scene.add.image(x, y - 40, 'mp-marker').setOrigin(0.5, 1).setDepth(y + 1);
+        return { sprite, shadow, label, marker, name, character, x, y, seen: performance.now(), hidden: false };
     }
 
     private drop(peer: Peer) {
         peer.sprite.destroy();
         peer.shadow.destroy();
         peer.label.destroy();
+        peer.marker.destroy();
     }
 
     private tick(_time: number, deltaMs: number) {
@@ -228,6 +256,7 @@ export class Multiplayer {
             if (now - peer.seen > STALE_MS) {
                 this.drop(peer);
                 this.peers.delete(id);
+                this.publish();
                 continue;
             }
             const s = peer.sprite;
@@ -237,6 +266,7 @@ export class Multiplayer {
             s.setDepth(s.y);
             peer.shadow.setPosition(s.x, s.y).setDepth(s.y - 1);
             peer.label.setPosition(s.x, s.y - 28).setDepth(s.y + 1);
+            peer.marker.setPosition(s.x, s.y - 40 + Math.round(Math.sin(now / 150) * 2)).setDepth(s.y + 1);
         }
     }
 }
