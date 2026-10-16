@@ -13,6 +13,7 @@ import { SoundButton } from './music/SoundButton';
 import { myCharacter, myName } from './multiplayer/identity';
 import { NamePrompt } from './multiplayer/NamePrompt';
 import { PlayersPanel } from './multiplayer/PlayersPanel';
+import { ChatBox } from './multiplayer/ChatBox';
 import { useTouch } from './touch/device';
 import { TouchControls } from './touch/TouchControls';
 
@@ -34,6 +35,7 @@ export default function App() {
     const [searching, setSearching] = useState(false);
     const [named, setNamed] = useState(() => (!!myName() && myCharacter() !== null) || navigator.webdriver);
     const [editing, setEditing] = useState(false);
+    const [chatting, setChatting] = useState(false);
     const insideHQ = useSyncExternalStore(onInsideHQ, isInsideHQ);
     const scene = useSyncExternalStore(onActiveScene, activeScene);
     const touch = useTouch();
@@ -44,7 +46,7 @@ export default function App() {
     const canPulse = scene === 'Preview' && !insideHQ && !state.open && !backpackOpen && named;
     return (
         <>
-            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching || !named || editing} />
+            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching || chatting || !named || editing} />
             {!named && <NamePrompt onDone={() => setNamed(true)} />}
             {named && editing && <NamePrompt onDone={() => location.reload()} onCancel={() => setEditing(false)} />}
             {named && outdoors && <PlayersPanel onEdit={() => setEditing(true)} />}
@@ -107,6 +109,7 @@ export default function App() {
             </div>
             </div>
             <CallPanel />
+            <ChatBox hidden={!named || state.inside || state.open || backpackOpen} onFocusChange={setChatting} />
             <FactoryPanel hidden={state.inside} />
             {outdoors && <MiniMap />}
             <TouchControls walk={canWalk} pulse={canPulse} />

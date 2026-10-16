@@ -1,0 +1,131 @@
+.chat {
+    position: fixed;
+    left: 50%;
+    bottom: 76px;
+    transform: translateX(-50%);
+    z-index: 12;
+    width: min(420px, calc(100vw - 32px));
+    display: grid;
+    gap: 6px;
+    justify-items: center;
+    pointer-events: none;
+    font-family: 'VT323', monospace;
+    font-size: 19px;
+}
+
+.chat > * {
+    pointer-events: auto;
+}
+
+.chat-log {
+    width: 100%;
+    max-height: 168px;
+    margin: 0;
+    padding: 6px 10px;
+    list-style: none;
+    overflow-y: auto;
+    background: rgba(10, 8, 20, 0.62);
+    border: 2px solid rgba(91, 75, 138, 0.8);
+    color: #f5ecd0;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+}
+
+.chat:not([data-open]) .chat-log {
+    pointer-events: none;
+    background: rgba(10, 8, 20, 0.45);
+    border-color: transparent;
+}
+
+.chat[data-open] .chat-log {
+    max-height: 260px;
+    background: rgba(10, 8, 20, 0.82);
+}
+
+.chat-line + .chat-line {
+    margin-top: 2px;
+}
+
+.chat-from {
+    color: #f5c542;
+}
+
+.chat-line[data-mine] .chat-from {
+    color: #8fd3ff;
+}
+
+.chat-line[data-channel='nearby'] .chat-text {
+    color: #b6f29b;
+}
+
+.chat-line[data-system] {
+    color: #a99bd0;
+    font-style: italic;
+}
+
+.chat-tag {
+    margin-right: 6px;
+    padding: 0 3px;
+    font-size: 15px;
+    color: #0a0814;
+    background: #7fd46a;
+}
+
+.chat-form {
+    width: 100%;
+    display: flex;
+    background: #0a0814;
+    border: 2px solid #f5c542;
+    box-shadow: 3px 3px 0 #0a0814;
+}
+
+.chat-form input {
+    flex: 1;
+    min-width: 0;
+    padding: 6px 8px;
+    font: inherit;
+    color: #f5ecd0;
+    background: transparent;
+    border: 0;
+    outline: none;
+}
+
+.chat-channel,
+.chat-open {
+    font-family: 'Press Start 2P', monospace;
+    font-size: 9px;
+    cursor: pointer;
+    border: 0;
+}
+
+.chat-channel {
+    padding: 0 10px;
+    color: #0a0814;
+    background: #f5c542;
+}
+
+.chat-channel[data-channel='nearby'] {
+    background: #7fd46a;
+}
+
+.chat-open {
+    padding: 7px 10px;
+    color: #f5ecd0;
+    background: #1b1530;
+    border: 2px solid #5b4b8a;
+    box-shadow: 3px 3px 0 #0a0814;
+}
+
+.chat-open:hover,
+.chat-open:focus-visible {
+    border-color: #f5c542;
+}
+
+.chat-offline {
+    color: #a99bd0;
+}
+
+[data-touch] .chat {
+    bottom: calc(210px + var(--safe-b, 0px));
+}
+

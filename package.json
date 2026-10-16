@@ -23,7 +23,8 @@
     "test:backpack": "node --experimental-strip-types --test tests/backpack.test.ts && node tests/backpack-browser.mjs",
     "test:library": "node --experimental-strip-types --test tests/library.test.ts && node tests/library-browser.mjs",
     "test:snacks": "node tests/snacks-browser.mjs",
-    "test:witch": "node tests/witch-browser.mjs"
+    "test:witch": "node tests/witch-browser.mjs",
+    "test:chat": "node tests/chat-browser.mjs"
   },
   "dependencies": {
     "@fluidframework/azure-client": "^1.2.0",

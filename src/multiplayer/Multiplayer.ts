@@ -1,5 +1,6 @@
 import Phaser from 'phaser';
-import { PixelCanvas, addPixels, characterSheet, lookKey, miniText, miniTextWidth, shadowTexture } from '../game/kit';
+import { PixelCanvas, addPixels, characterSheet, lookKey, miniText, miniTextWidth, shadowTexture, speechArt } from '../game/kit';
+import { MAX_CHAT, NEARBY_RADIUS, cleanChat, pushChat, setChatOnline, setChatSender, type ChatChannel } from './chat';
 import { myCharacter, myId, myName, onIdentity } from './identity';
 import { presetLook } from './characters';
 import { setPresence } from './presence';
@@ -19,6 +20,8 @@ const HEARTBEAT_MS = 3000;
 const STALE_MS = 9000;
 const MAX_PEERS = 60;
 const FRAME = /^(down|up|side)-[0-2]$/;
+const BUBBLE_MS = 6000;
+const BUBBLE_LIFT = 30;
 
 interface Local {
     sprite: Phaser.GameObjects.Sprite;
@@ -39,6 +42,13 @@ interface Peer {
     hidden: boolean;
 }
 
+interface Bubble {
+    owner: Phaser.GameObjects.Sprite;
+    image: Phaser.GameObjects.Image;
+    key: string;
+    until: number;
+}
+
 export class Multiplayer {
     private ws?: WebSocket;
     private disposed = false;
@@ -50,6 +60,9 @@ export class Multiplayer {
     private lastSend = 0;
     private lastState = '';
     private readonly peers = new Map<string, Peer>();
+    private readonly bubbles: Bubble[] = [];
+    private bubbleSerial = 0;
+    private warnedOffline = false;
     private readonly unsubscribe: () => void;
 
     constructor(private readonly scene: Phaser.Scene, private readonly local: () => Local | undefined) {
@@ -58,6 +71,7 @@ export class Multiplayer {
             if (this.joined) this.send(this.state(true));
         });
         scene.events.on('update', this.tick, this);
+        setChatSender(this.say);
         window.addEventListener('pagehide', this.bye);
         const stop = () => this.dispose();
         scene.events.once('shutdown', stop);
@@ -80,7 +94,10 @@ export class Multiplayer {
         this.scene.events.off('update', this.tick, this);
         window.removeEventListener('pagehide', this.bye);
         this.unsubscribe();
+        setChatSender(undefined);
+        setChatOnline(false);
         this.bye();
+        while (this.bubbles.length) this.pop(0);
         this.peers.forEach((p) => this.drop(p));
         this.peers.clear();
         setPresence([], false);
@@ -129,6 +146,8 @@ export class Multiplayer {
                 this.retryMs = 2000;
                 ws.send(JSON.stringify({ type: 'joinGroup', group: GROUP }));
                 this.joined = true;
+                this.warnedOffline = false;
+                setChatOnline(true);
                 this.lastState = '';
                 this.send({ ...this.state(true) });
                 this.publish();
@@ -137,6 +156,7 @@ export class Multiplayer {
             ws.onclose = () => {
                 this.joined = false;
                 if (this.ws === ws) this.ws = undefined;
+                setChatOnline(false);
                 this.retryAt = performance.now() + this.retryMs;
                 this.retryMs = Math.min(this.retryMs * 2, 30_000);
                 this.publish();
@@ -167,6 +187,10 @@ export class Multiplayer {
                 this.peers.delete(id);
                 this.publish();
             }
+            return;
+        }
+        if (d.t === 'c') {
+            this.hear(id, d);
             return;
         }
         if (d.t !== 's') return;
@@ -229,7 +253,54 @@ export class Multiplayer {
         return { sprite, shadow, label, marker, name, character, x, y, seen: performance.now(), hidden: false };
     }
 
+    /** Say a chat line: over the wire (if connected), over your own head, and into the log. */
+    private readonly say = (text: string, channel: ChatChannel) => {
+        const l = this.local();
+        const s = l?.sprite;
+        this.send({ t: 'c', id: myId(), n: myName(), m: text, ch: channel === 'nearby' ? 'n' : 'w', x: s ? Math.round(s.x) : 0, y: s ? Math.round(s.y) : 0 });
+        pushChat({ from: myName() || 'You', text, channel, mine: true });
+        if (s && !l?.hidden) this.bubble(s, text);
+        if (!this.joined && !this.warnedOffline) {
+            this.warnedOffline = true;
+            pushChat({ from: '', text: "You're offline right now, so nobody else can hear you.", channel, mine: false, system: true });
+        }
+    };
+
+    /** Someone else said something. Nearby lines only count if you're standing close enough to hear them. */
+    private hear(id: string, d: Record<string, unknown>) {
+        const text = typeof d.m === 'string' ? cleanChat(d.m.slice(0, MAX_CHAT * 2)) : '';
+        const name = typeof d.n === 'string' ? d.n.slice(0, 16) : '';
+        if (!text || !name) return;
+        const channel: ChatChannel = d.ch === 'n' ? 'nearby' : 'world';
+        const peer = this.peers.get(id);
+        if (channel === 'nearby') {
+            const me = this.local()?.sprite;
+            const x = Number(d.x), y = Number(d.y);
+            if (!me || !Number.isFinite(x) || !Number.isFinite(y)) return;
+            if (Math.hypot(me.x - x, me.y - y) > NEARBY_RADIUS) return;
+        }
+        pushChat({ from: name, text, channel, mine: false });
+        if (peer?.sprite.visible) this.bubble(peer.sprite, text);
+    }
+
+    private bubble(owner: Phaser.GameObjects.Sprite, text: string) {
+        const old = this.bubbles.findIndex((b) => b.owner === owner);
+        if (old >= 0) this.pop(old);
+        const key = `mp-chat-${++this.bubbleSerial}`;
+        addPixels(this.scene, key, speechArt(text, 24));
+        const image = this.scene.add.image(owner.x, owner.y - BUBBLE_LIFT, key).setOrigin(0.5, 1).setDepth(1e5);
+        this.bubbles.push({ owner, image, key, until: performance.now() + BUBBLE_MS + text.length * 40 });
+    }
+
+    private pop(index: number) {
+        const [b] = this.bubbles.splice(index, 1);
+        b.image.destroy();
+        if (this.scene.textures.exists(b.key)) this.scene.textures.remove(b.key);
+    }
+
     private drop(peer: Peer) {
+        const i = this.bubbles.findIndex((b) => b.owner === peer.sprite);
+        if (i >= 0) this.pop(i);
         peer.sprite.destroy();
         peer.shadow.destroy();
         peer.label.destroy();
@@ -267,6 +338,15 @@ export class Multiplayer {
             peer.shadow.setPosition(s.x, s.y).setDepth(s.y - 1);
             peer.label.setPosition(s.x, s.y - 28).setDepth(s.y + 1);
             peer.marker.setPosition(s.x, s.y - 40 + Math.round(Math.sin(now / 150) * 2)).setDepth(s.y + 1);
+        }
+
+        for (let i = this.bubbles.length - 1; i >= 0; i--) {
+            const b = this.bubbles[i];
+            if (now > b.until || !b.owner.active) {
+                this.pop(i);
+                continue;
+            }
+            b.image.setPosition(b.owner.x, b.owner.y - BUBBLE_LIFT).setVisible(b.owner.visible);
         }
     }
 }
