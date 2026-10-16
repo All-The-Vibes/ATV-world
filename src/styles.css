@@ -194,6 +194,7 @@ body,
 .vibe-meter-track span[data-lit] {
     background: var(--gold);
     box-shadow: inset 0 2px #fbe46f;
+    animation: vibe-slot-pop 260ms steps(3, end);
 }
 
 .vibe-meter-score {
@@ -229,6 +230,13 @@ body,
 @keyframes vibe-rush {
     50% {
         box-shadow: 0 0 0 3px var(--ink), 0 0 18px rgb(247 181 56 / 65%);
+    }
+}
+
+@keyframes vibe-slot-pop {
+    50% {
+        transform: translateY(-3px) scaleY(1.7);
+        background: #fbe46f;
     }
 }
 

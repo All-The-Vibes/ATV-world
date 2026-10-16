@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { LibraryBridge } from '../../library/bridge';
 import {
-    PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
+    HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
@@ -11,7 +11,7 @@ import { Tokens } from '../tokens/Tokens';
 import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
 
-type Vibe = { sprite: Phaser.GameObjects.Image; homeY: number; found: boolean };
+type Vibe = { sprite: Phaser.GameObjects.Image; glow: Phaser.GameObjects.Image; homeY: number; found: boolean };
 
 /** The world on the live screen: a little street built with the pixel-art kit. */
 export class Preview extends Phaser.Scene {
@@ -56,6 +56,8 @@ export class Preview extends Phaser.Scene {
     private vibeRound = 1;
     private lastVibeAt = -Infinity;
     private rushUntil = 0;
+    private lastRushTrail = -Infinity;
+    private rushTrailColor = 0;
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -384,14 +386,28 @@ export class Preview extends Phaser.Scene {
             '.......g.......',
         ], { '.': null, g: 'orange', h: 'gold', i: 'yellow', j: 'cream', k: 'white' }).outline('ink', true);
         addPixels(this, 'preview-vibe', art);
+        const glowArt = new PixelCanvas(31, 17);
+        for (let y = 0; y < glowArt.height; y++) {
+            for (let x = 0; x < glowArt.width; x++) {
+                const dx = (x - 15) / 15;
+                const dy = (y - 8) / 8;
+                const distance = dx * dx + dy * dy;
+                if (distance < 1 && 1 - distance > bayer(x, y)) glowArt.set(x, y, distance < 0.28 ? 'yellow' : 'gold');
+            }
+        }
+        addPixels(this, 'preview-vibe-glow', glowArt);
 
         const points = [
             [-330, 164], [-224, 34], [-104, 236], [92, 92], [180, 210], [350, 72],
         ] as const;
         this.vibes = points.map(([x, y], index) => {
+            const glow = this.add.image(x, y + 4, 'preview-vibe-glow')
+                .setBlendMode(Phaser.BlendModes.ADD)
+                .setAlpha(0.2)
+                .setDepth(y - 1);
             const sprite = this.add.image(x, y, 'preview-vibe').setDepth(y + 2);
             sprite.setAlpha(0.9 + index % 2 * 0.1);
-            return { sprite, homeY: y, found: false };
+            return { sprite, glow, homeY: y, found: false };
         });
         this.syncVibes(true, 'Find all six. Fast pickups build a combo.');
     }
@@ -417,6 +433,7 @@ export class Preview extends Phaser.Scene {
             const vibe = this.vibes[index];
             if (vibe.found) continue;
             vibe.sprite.y = vibe.homeY + Math.round(Math.sin(now / 220 + index) * 3);
+            vibe.glow.setAlpha(0.16 + (Math.sin(now / 280 + index * 1.7) + 1) * 0.08);
             if (Phaser.Math.Distance.Squared(player.x, player.y - 8, vibe.sprite.x, vibe.sprite.y) < 22 * 22) {
                 this.collectVibe(vibe);
             }
@@ -457,6 +474,15 @@ export class Preview extends Phaser.Scene {
             ease: 'Back.easeIn',
             onComplete: () => vibe.sprite.setActive(false).setVisible(false),
         });
+        this.tweens.add({
+            targets: vibe.glow,
+            alpha: 0,
+            scaleX: 2.4,
+            scaleY: 1.7,
+            duration: 320,
+            ease: 'Quad.easeOut',
+            onComplete: () => vibe.glow.setActive(false).setVisible(false),
+        });
 
         if (this.vibeCollected < this.vibes.length) {
             this.syncVibes(true, `Vibe ${this.vibeCollected} of ${this.vibes.length}. Combo ${this.vibeStreak}.`);
@@ -474,6 +500,7 @@ export class Preview extends Phaser.Scene {
             this.vibes.forEach((item) => {
                 item.found = false;
                 item.sprite.setPosition(item.sprite.x, item.homeY).setScale(1).setAlpha(1).setActive(true).setVisible(true);
+                item.glow.setPosition(item.sprite.x, item.homeY + 4).setScale(1).setAlpha(0.2).setActive(true).setVisible(true);
             });
             this.syncVibes(true, `Round ${this.vibeRound}. The vibes are back.`);
         });
@@ -546,6 +573,27 @@ export class Preview extends Phaser.Scene {
 
             const anim = `preview-player-${this.playerFacing}-walk`;
             if (sprite.anims.currentAnim?.key !== anim) sprite.play(anim);
+            if (this.time.now < this.rushUntil && this.time.now - this.lastRushTrail >= 65) {
+                this.lastRushTrail = this.time.now;
+                const colors = [HEX.gold, HEX.yellow, HEX.cyan, HEX.pink];
+                const ghost = this.add.sprite(sprite.x, sprite.y, sprite.texture.key, sprite.frame.name)
+                    .setOrigin(sprite.originX, sprite.originY)
+                    .setFlipX(sprite.flipX)
+                    .setTint(colors[this.rushTrailColor++ % colors.length])
+                    .setBlendMode(Phaser.BlendModes.ADD)
+                    .setAlpha(0.42)
+                    .setDepth(sprite.y - 0.5);
+                this.tweens.add({
+                    targets: ghost,
+                    y: ghost.y - 5,
+                    alpha: 0,
+                    scaleX: 1.3,
+                    scaleY: 0.9,
+                    duration: 300,
+                    ease: 'Quad.easeOut',
+                    onComplete: () => ghost.destroy(),
+                });
+            }
         } else {
             sprite.stop();
             sprite.setFrame(`${this.playerFacing}-0`);
