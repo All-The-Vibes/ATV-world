@@ -14,6 +14,7 @@ import { TrafficLight } from '../health/TrafficLight';
 import { Kittens } from '../kittens';
 import { Ollama } from '../llama/Ollama';
 import { Moles } from '../moles/Moles';
+import { Pool } from '../pool/Pool';
 import { Tokens } from '../tokens/Tokens';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
@@ -41,6 +42,8 @@ export class Preview extends Phaser.Scene {
     /** Gremlins that run around stealing tokens (see ../gremlins). */
     private gremlins?: Gremlins;
     private ollama?: Ollama;
+    /** The swimming pool, where people queue for the high dive (see ../pool). */
+    private pool?: Pool;
     private ufo?: UFO;
     private ground?: Phaser.GameObjects.TileSprite;
     private player?: {
@@ -130,6 +133,9 @@ export class Preview extends Phaser.Scene {
         this.includeInWorld(this.sortingHat.stool);
         this.includeInWorld(this.sortingHat.hat);
         [[-330, 150], [-60, 190], [180, 110], [-250, 40]].forEach(([x, y]) => this.prop('grassSign', x, y));
+        this.pool = new Pool(this, 160, -215);
+        this.solids.push(this.pool.deckBounds());
+        this.includeInWorld(this.pool);
         this.disco = new Disco(this, -250, 334);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
         this.moles = new Moles(this, 150, 335);
@@ -292,6 +298,7 @@ export class Preview extends Phaser.Scene {
         this.dragon?.update(dt);
         this.gremlins?.update(dt);
         this.ollama?.update(dt);
+        this.pool?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
         this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
