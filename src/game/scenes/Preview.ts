@@ -18,6 +18,7 @@ import { Roamers } from '../roamers/Roamers';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
+import { Atmosphere } from '../fx/Atmosphere';
 import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
@@ -70,6 +71,8 @@ export class Preview extends Phaser.Scene {
     private lockAndKey?: LockAndKey;
     /** The Agent Factory: walk in to build agents with roles, who then wander town (see ../factory). */
     private factory?: Factory;
+    /** Day/night lighting, clouds, fireflies (see ../fx/Atmosphere.ts). */
+    atmosphere?: Atmosphere;
     private ollama?: Ollama;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
@@ -275,6 +278,7 @@ export class Preview extends Phaser.Scene {
         this.createVibes();
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
+        this.atmosphere = new Atmosphere(this, { bounds: () => this.worldBounds, player: this.player?.sprite, vibes: () => this.vibes.map((v) => v.sprite), hq: this.hq });
         this.kittens = new Kittens(this, {
             bounds: () => this.worldBounds,
             include: (object) => this.includeInWorld(object),
@@ -811,6 +815,7 @@ export class Preview extends Phaser.Scene {
                 else if ('clearTint' in object && typeof object.clearTint === 'function') object.clearTint();
             }
         });
+        this.atmosphere?.setHell(active);
     }
 
     private usePortal() {
