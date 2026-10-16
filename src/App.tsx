@@ -1,6 +1,7 @@
 import { PhaserGame } from './PhaserGame';
 import { useMemo, useSyncExternalStore } from 'react';
 import { CallPanel } from './call/CallPanel';
+import { FactoryPanel } from './factory/FactoryPanel';
 import { onTokens, send, tokenCount, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
@@ -33,6 +34,7 @@ export default function App() {
                 <span>{tokens}</span>
             </div>}
             <CallPanel />
+            <FactoryPanel hidden={state.inside} />
             <VibeMeter insideLibrary={state.inside} />
             <div className="zoom">
                 {!state.inside && buttons.map(([label, command, title]) => (

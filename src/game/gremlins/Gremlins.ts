@@ -15,6 +15,8 @@ export interface GremlinsOptions {
     victims: () => Victim[];
     /** Try to take a token from the player; returns whether there was one. */
     stealFromPlayer: () => boolean;
+    /** Loot that gets dropped or recovered lands here. */
+    spill: (x: number, y: number) => void;
 }
 
 interface Gremlin {
@@ -49,6 +51,11 @@ export class Gremlins {
             scene.anims.create({ key: 'gremlin-run', frames: [0, 1].map((frame) => ({ key: 'gremlin', frame })), frameRate: 10, repeat: -1 });
         }
         scene.events.once('shutdown', () => this.destroy());
+    }
+
+    /** How many gremlins are in town right now. */
+    get count() {
+        return this.list.length;
     }
 
     /** Send one in right now (atv.game.scene.getScene('Preview').gremlins.spawn()). */
@@ -105,6 +112,45 @@ export class Gremlins {
             if (gone) this.destroyOne(g);
             return !gone;
         });
+    }
+
+    /** The closest gremlin within `range`; with `threatOnly`, one that is on the prowl or carrying loot. */
+    nearest(x: number, y: number, range: number, threatOnly = false): Phaser.GameObjects.Sprite | undefined {
+        let best: Gremlin | undefined;
+        let bestD = range;
+        for (const g of this.list) {
+            if (threatOnly && g.fleeing && !g.loot) continue;
+            const d = Math.hypot(g.sprite.x - x, g.sprite.y - y);
+            if (d <= bestD) { best = g; bestD = d; }
+        }
+        return best?.sprite;
+    }
+
+    /** Scare a gremlin off: it drops any loot where it stands and runs for the edge. Returns whether it had loot. */
+    foil(sprite: Phaser.GameObjects.Sprite): boolean {
+        const g = this.list.find((o) => o.sprite === sprite);
+        if (!g) return false;
+        const had = this.dropLoot(g);
+        this.startFlee(g, this.opts.bounds());
+        return had;
+    }
+
+    /** Take a gremlin out of town for good (a catcher's net). Its loot falls where it was caught. Returns whether it had loot. */
+    capture(sprite: Phaser.GameObjects.Sprite): boolean {
+        const g = this.list.find((o) => o.sprite === sprite);
+        if (!g) return false;
+        const had = this.dropLoot(g);
+        this.list = this.list.filter((o) => o !== g);
+        this.destroyOne(g);
+        return had;
+    }
+
+    private dropLoot(g: Gremlin): boolean {
+        if (!g.loot) return false;
+        g.loot.destroy();
+        g.loot = undefined;
+        this.opts.spill(g.sprite.x, g.sprite.y);
+        return true;
     }
 
     private pick(victims: Victim[]): Victim | undefined {

@@ -6,14 +6,21 @@ import {
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { BikeGang } from '../bikes/BikeGang';
+import { LockAndKey } from '../keyhouse/LockAndKey';
 import { Disco } from '../disco/Disco';
+import { Catchers } from '../catchers/Catchers';
+import { setFactoryOpen } from '../../factory/bridge';
+import { Factory } from '../factory/Factory';
 import { Gremlins } from '../gremlins/Gremlins';
+import { Roamers } from '../roamers/Roamers';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
 import { SortingHat } from '../hat/SortingHat';
 import { HQ } from '../hq/HQ';
 import { Incidents } from '../incidents/Incidents';
 import { Kittens } from '../kittens';
+import { Lake } from '../lake/Lake';
 import { TrafficLight } from '../health/TrafficLight';
 import { Giant } from '../giant/Giant';
 import { Ollama } from '../llama/Ollama';
@@ -47,6 +54,16 @@ export class Preview extends Phaser.Scene {
     private sortingHat?: SortingHat;
     /** Gremlins that run around stealing tokens (see ../gremlins). */
     private gremlins?: Gremlins;
+    /** Scouts with bug nets who catch gremlins and walk them out of town (see ../catchers). */
+    private catchers?: Catchers;
+    /** Friendly visitors who scare gremlins off and chat with the player (see ../roamers). */
+    private roamers?: Roamers;
+    /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
+    private bikeGang?: BikeGang;
+    /** The "Lock & Key" room (Keyhouse Manor) with lots of magical doors/windows and the 3 Locke siblings. */
+    private lockAndKey?: LockAndKey;
+    /** The Agent Factory: walk in to build agents with roles, who then wander town (see ../factory). */
+    private factory?: Factory;
     private ollama?: Ollama;
     private talkingMoles?: TalkingMoles;
     /** A giant who stomps round the plaza shouting "The floor is lava" (see ../giant). */
@@ -78,6 +95,8 @@ export class Preview extends Phaser.Scene {
     private disco?: Disco;
     /** Whack-a-Mole, south of the plaza: walk into the patch to play (see ../moles). */
     private moles?: Moles;
+    /** The huge lake out west, past the campus, with a castle sunk at the bottom (see ../lake). */
+    private lake?: Lake;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
     private insideHQ = false;
     /** The library's front door, and the base of the building that takes you inside when you walk into it. */
@@ -160,6 +179,19 @@ export class Preview extends Phaser.Scene {
         this.moles = new Moles(this, 150, 335);
         this.moles.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.moles.area);
+        this.lockAndKey = new LockAndKey(this, -195, 345);
+        this.lockAndKey.parts.forEach((part) => this.includeInWorld(part));
+        this.solids.push(this.lockAndKey.footprint);
+        this.factory = new Factory(this, 290, 20, {
+            area: () => new Phaser.Geom.Rectangle(
+                this.worldBounds.left + 24, this.worldBounds.top + 24,
+                Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24 - (this.worldBounds.left + 24),
+                this.worldBounds.height - 48,
+            ),
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+        });
+        this.solids.push(...this.factory.solids());
+        this.factory.parts.forEach((part) => this.includeInWorld(part));
         try {
             this.town = new Town(this, Math.max(451, (this.contentBounds?.right ?? 387) + 64));
         } catch (e) {
@@ -170,6 +202,14 @@ export class Preview extends Phaser.Scene {
         } catch (e) {
             console.error('[campus]', e);
         }
+        try {
+            const westEdge = Math.min(this.campus?.bounds().left ?? Infinity, this.contentBounds?.left ?? -411);
+            this.lake = new Lake(this, westEdge - 260, 70);
+            this.lake.parts.forEach((part) => this.includeInWorld(part));
+            this.solids.push(this.lake.bounds);
+        } catch (e) {
+            console.error('[lake]', e);
+        }
         this.fitWorld();
         const trafficLight = new TrafficLight(this, 60, 170);
         this.solids.push(trafficLight.sprite.getBounds());
@@ -177,9 +217,14 @@ export class Preview extends Phaser.Scene {
         this.includeInWorld(trafficLight.label);
         this.createIdeaMachine(-85, 170);
         // Introduction commits: 9c37211 (six originals), 3c1fb9c (Abdallah).
-        for (let i = 0; i < 6; i++) this.walker(i, undefined, 'Bakar404');
-        this.walker(6, 'Abdallah', 'aifateen');
-        this.walker(7, 'Shahab');
+        for (let i = 0; i < 6; i++) this.walker(i, undefined, undefined, 'Bakar404');
+        this.walker(6, 'Abdallah', undefined, 'aifateen');
+        this.walker(8, 'Ahmed', -180);
+        this.bikeGang = new BikeGang(this, () => {
+            const left = Math.max(this.worldBounds.left, this.campus?.bounds().right ?? -Infinity) + 24;
+            const right = Math.min(this.worldBounds.right, this.town?.bounds().left ?? Infinity) - 24;
+            return new Phaser.Geom.Rectangle(left, this.worldBounds.top, Math.max(260, right - left), this.worldBounds.height);
+        });
         this.createHell();
         this.createSteph();
         this.createPlayer();
@@ -221,6 +266,17 @@ export class Preview extends Phaser.Scene {
                 ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
             ],
             stealFromPlayer: () => removeToken(),
+            spill: (x, y) => this.tokens?.spill(x, y),
+        });
+        this.catchers = new Catchers(this, { bounds: () => this.worldBounds, gremlins: () => this.gremlins });
+        this.roamers = new Roamers(this, {
+            bounds: () => this.worldBounds,
+            open: (x, y) => !this.solids.some((r) => r.contains(x, y)) && !this.hq?.contains(x, y),
+            player: () => (this.player && !this.insideHQ ? this.player.sprite : undefined),
+            gremlins: () => this.gremlins,
+            tokens: () => this.tokens,
+            walkers: () => this.walkers.map((w) => w.sprite),
+            dragon: () => this.dragon?.plaything(),
         });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();
@@ -280,6 +336,7 @@ export class Preview extends Phaser.Scene {
         if (!this.hq || !this.player) return;
         if (!this.insideHQ) {
             this.insideHQ = true;
+            setFactoryOpen(false);
             const { sprite, shadow, marker } = this.player;
             const at = this.hq.doorway.inside;
             sprite.stop().setPosition(at.x, at.y).setFlipX(false).setFrame('up-0');
@@ -335,16 +392,24 @@ export class Preview extends Phaser.Scene {
         this.ideaBubble?.setVisible(this.nearIdeaMachine());
         this.dragon?.update(dt);
         this.gremlins?.update(dt);
+        this.catchers?.update(dt);
+        this.roamers?.update(dt);
+        this.bikeGang?.update(dt);
+        this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
         this.pool?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
+        this.lake?.update(dt, this.player && !this.insideHQ && !this.inHell ? this.player : undefined);
         this.moles?.update(dt, this.player && !this.insideHQ ? this.player.sprite : undefined);
+        this.factory?.update(dt, this.insideHQ ? undefined : this.player?.sprite);
         this.tokens?.update(dt, [
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
+            ...(this.bikeGang?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
+            ...(this.lockAndKey?.sprites().map((sprite) => ({ sprite, player: false })) ?? []),
         ]);
         this.kittens?.update(dt);
         this.updateVibes();
@@ -352,6 +417,7 @@ export class Preview extends Phaser.Scene {
         const p = this.player?.sprite;
         if (p && this.libraryFoot && !this.insideHQ && this.libraryFoot.contains(p.x, p.y)) {
             p.setPosition(this.entrance!.x, this.libraryFoot.bottom + 18).stop();
+            setFactoryOpen(false);
             this.scene.launch('Library');
             this.scene.sleep();
         }
@@ -418,41 +484,56 @@ export class Preview extends Phaser.Scene {
         this.ground = this.add.tileSprite(0, 0, 2048, 2048, 'preview-grass').setDepth(-1e9);
     }
 
+    /** The Upside Down: a cold, dead mirror of the world, laced with vines and spores, behind a fleshy gate. */
     private createHell() {
         const ground = new PixelCanvas(64, 64);
         for (let y = 0; y < 64; y++) {
             for (let x = 0; x < 64; x++) {
                 const n = fbm(x, y, 14, 4);
-                if (n > 0.84) ground.mix(x, y, 'red', 'orange', (n - 0.84) * 8);
-                else if (n > 0.79) ground.set(x, y, 'wine');
-                else ground.mix(x, y, 'ink', 'bark', n * 0.9 - 0.15);
+                if (n > 0.82) ground.set(x, y, 'slate');
+                else ground.mix(x, y, 'ink', 'night', n * 0.7 - 0.1);
             }
         }
-        for (let i = 0; i < 10; i++) {
-            const x = (i * 29 + 7) % 64;
-            const y = (i * 43 + 11) % 64;
-            ground.set(x, y, i % 3 ? 'red' : 'orange');
-        }
+        // A few short, crooked veins, wrapped so the tile stays seamless.
+        [[3, 10, 0.4], [40, 28, 2.2], [20, 50, -0.8], [52, 6, 1.6], [12, 34, -2.4]].forEach(([sx, sy, heading], v) => {
+            let x = sx;
+            let y = sy;
+            let angle = heading;
+            for (let step = 0; step < 18 + v * 3; step++) {
+                const wx = ((Math.round(x) % 64) + 64) % 64;
+                const wy = ((Math.round(y) % 64) + 64) % 64;
+                ground.set(wx, wy, step % 7 === 3 ? 'red' : 'wine');
+                angle += Math.sin(step * 1.7 + v * 5.3) * 0.7;
+                x += Math.cos(angle);
+                y += Math.sin(angle);
+            }
+        });
+        for (let i = 0; i < 14; i++) ground.set((i * 29 + 7) % 64, (i * 43 + 11) % 64, i % 3 ? 'steel' : 'mist');
         addPixels(this, 'preview-hell-ground', ground);
 
+        // The gate: a wet, pulsing tear with tendrils reaching out of it.
         const portal = new PixelCanvas(96, 24);
         for (let frame = 0; frame < 4; frame++) {
             const ox = frame * 24;
-            portal.ellipse(ox + 12, 13, 11, 7, 'ink');
-            portal.ellipse(ox + 12, 13, 9, 5, (_x, _y, nx, ny) => {
+            const pulse = [0, 1, 2, 1][frame];
+            portal.line(ox + 2, 20, ox + 7, 15, 'wine').line(ox + 22, 6 + pulse, ox + 17, 9, 'wine')
+                .line(ox + 1, 8 - pulse, ox + 7, 10, 'wine').line(ox + 21, 21, ox + 16, 16, 'wine');
+            portal.ellipse(ox + 12, 12, 7 + (pulse > 1 ? 1 : 0), 11, 'wine');
+            portal.ellipse(ox + 12, 12, 6, 10, (_x, _y, nx, ny) => {
                 const edge = nx * nx + ny * ny;
-                if (edge > 0.62) return (frame + Math.round(nx * 3) + Math.round(ny * 2)) % 2 ? 'orange' : 'gold';
-                return edge > 0.25 ? 'red' : 'wine';
+                if (edge > 0.7) return (frame + Math.round(ny * 5)) % 3 ? 'red' : 'pink';
+                if (edge > 0.35) return 'wine';
+                return edge > 0.12 ? 'plum' : 'ink';
             });
-            portal.ellipse(ox + 12, 13, 4, 2, frame % 2 ? 'plum' : 'ink');
-            portal.set(ox + 5 + frame, 5, 'yellow').set(ox + 18 - frame, 6, 'orange');
+            portal.line(ox + 12, 4, ox + 12, 20, frame % 2 ? 'red' : 'pink');
+            portal.set(ox + 4 + frame, 3, 'mist').set(ox + 19 - frame, 5, 'cloud');
         }
         addPixels(this, 'preview-hell-portal', portal, stripFrames(4, 24, 24));
         if (!this.anims.exists('preview-hell-portal')) {
             this.anims.create({
                 key: 'preview-hell-portal',
                 frames: Array.from({ length: 4 }, (_, frame) => ({ key: 'preview-hell-portal', frame })),
-                frameRate: 7,
+                frameRate: 5,
                 repeat: -1,
             });
         }
@@ -466,18 +547,26 @@ export class Preview extends Phaser.Scene {
             .setVisible(false)
             .play('preview-hell-portal');
 
-        const fissure = new PixelCanvas(48, 22);
-        fissure.line(2, 11, 12, 8, 'red')
-            .line(12, 8, 20, 13, 'orange')
-            .line(20, 13, 28, 7, 'yellow')
-            .line(28, 7, 37, 12, 'orange')
-            .line(37, 12, 46, 9, 'red')
-            .line(20, 13, 17, 19, 'red')
-            .line(28, 7, 31, 2, 'gold');
-        addPixels(this, 'preview-hell-fissure', fissure);
+        // Creeping vines across the ground, slowly breathing.
+        const vines = new PixelCanvas(48, 22);
+        const tendril = (pts: number[][]) => {
+            for (let i = 1; i < pts.length; i++) {
+                const [x0, y0] = pts[i - 1];
+                const [x1, y1] = pts[i];
+                vines.line(x0, y0 + 1, x1, y1 + 1, 'bark').line(x0, y0, x1, y1, 'wine');
+            }
+        };
+        tendril([[1, 12], [8, 9], [15, 13], [22, 10], [30, 14], [38, 9], [46, 11]]);
+        tendril([[15, 13], [13, 18], [17, 21]]);
+        tendril([[30, 14], [33, 19]]);
+        tendril([[22, 10], [24, 4], [29, 1]]);
+        tendril([[38, 9], [41, 4]]);
+        [[8, 9], [22, 10], [38, 9], [30, 14]].forEach(([x, y]) => vines.set(x, y, 'red'));
+        addPixels(this, 'preview-hell-fissure', vines);
         [
             [-326, -22, 0.8], [-170, 166, 1.1], [18, 54, 0.75],
             [170, 214, 1], [324, 20, 0.9], [90, -94, 0.7],
+            [-90, 30, 1], [250, 120, 0.85], [-240, -100, 0.9],
         ].forEach(([x, y, scale], i) => {
             const image = this.add.image(x, y, 'preview-hell-fissure')
                 .setDepth(-1e7)
@@ -487,100 +576,142 @@ export class Preview extends Phaser.Scene {
             this.hellDecor.push(image);
             this.tweens.add({
                 targets: image,
-                alpha: { from: 0.55, to: 1 },
-                duration: 480 + i * 70,
+                alpha: { from: 0.6, to: 1 },
+                scaleY: { from: scale, to: scale * 1.08 },
+                duration: 1400 + i * 120,
                 yoyo: true,
                 repeat: -1,
+                ease: 'Sine.easeInOut',
             });
         });
 
-        // Bonfires: four flickering frames of flame over charred logs.
-        const fire = new PixelCanvas(64, 24);
+        // Fleshy pods that throb with a red glow.
+        const pod = new PixelCanvas(64, 24);
         for (let f = 0; f < 4; f++) {
             const ox = f * 16;
-            fire.rect(ox + 2, 20, 12, 2, 'bark').line(ox + 1, 22, ox + 14, 19, 'earth').line(ox + 1, 19, ox + 14, 22, 'bark');
-            const sway = [0, 1, 0, -1][f];
-            fire.ellipse(ox + 8, 15, 6, 6, 'red');
-            fire.ellipse(ox + 8 + sway, 11, 4, 7, 'orange');
-            fire.ellipse(ox + 8 - sway, 13, 2, 4, 'gold');
-            fire.set(ox + 8 + sway * 2, 2 + (f % 2), 'orange').set(ox + 5 - sway, 6, 'red').set(ox + 11 + sway, 5 + (f % 2), 'red');
-            fire.set(ox + 8, 15, 'yellow').set(ox + 8, 16, 'yellow');
+            const swell = [0, 1, 1, 0][f];
+            pod.line(ox + 1, 23, ox + 5, 18, 'wine').line(ox + 15, 23, ox + 11, 18, 'wine');
+            pod.ellipse(ox + 8, 15, 5 + swell, 7 + swell, 'wine');
+            pod.ellipse(ox + 8, 15, 3 + swell, 5 + swell, (_x, _y, nx, ny) => (nx * nx + ny * ny < 0.3 ? (f === 2 ? 'pink' : 'red') : 'plum'));
+            pod.line(ox + 8, 9 - swell, ox + 8, 21, 'wine').outline('ink', false, { x: ox, y: 0, w: 16, h: 24 });
         }
-        addPixels(this, 'preview-hell-fire', fire, stripFrames(4, 16, 24));
+        addPixels(this, 'preview-hell-fire', pod, stripFrames(4, 16, 24));
         if (!this.anims.exists('preview-hell-fire')) {
             this.anims.create({
                 key: 'preview-hell-fire',
                 frames: Array.from({ length: 4 }, (_, frame) => ({ key: 'preview-hell-fire', frame })),
-                frameRate: 10,
+                frameRate: 3,
                 repeat: -1,
+                yoyo: true,
             });
         }
         const glowArt = new PixelCanvas(40, 16);
-        glowArt.ellipse(20, 8, 19, 7, 'red').ellipse(20, 8, 12, 4, 'orange');
+        glowArt.ellipse(20, 8, 19, 7, 'wine').ellipse(20, 8, 12, 4, 'red');
         addPixels(this, 'preview-hell-glow', glowArt);
         [[-230, 60], [-60, -40], [130, 40], [240, 170], [-330, 150], [60, 270], [330, -60]].forEach(([x, y], i) => {
-            const glow = this.add.image(x, y - 1, 'preview-hell-glow').setAlpha(0.35).setDepth(-1e7).setVisible(false);
-            this.tweens.add({ targets: glow, alpha: { from: 0.25, to: 0.5 }, scale: { from: 0.9, to: 1.15 }, duration: 300 + i * 40, yoyo: true, repeat: -1 });
-            const flame = this.add.sprite(x, y, 'preview-hell-fire', i % 4).setOrigin(0.5, 1).setDepth(y).setVisible(false);
-            flame.play({ key: 'preview-hell-fire', startFrame: i % 4 });
-            this.hellDecor.push(glow, flame);
+            const glow = this.add.image(x, y - 1, 'preview-hell-glow').setAlpha(0.3).setDepth(-1e7).setVisible(false);
+            this.tweens.add({ targets: glow, alpha: { from: 0.15, to: 0.4 }, scale: { from: 0.9, to: 1.1 }, duration: 1200 + i * 90, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+            const flesh = this.add.sprite(x, y, 'preview-hell-fire', i % 4).setOrigin(0.5, 1).setDepth(y).setVisible(false);
+            flesh.play({ key: 'preview-hell-fire', startFrame: i % 4 });
+            this.hellDecor.push(glow, flesh);
         });
 
-        // Skulls and bones scattered on the ash.
-        const skull = new PixelCanvas(9, 9);
-        skull.ellipse(4.5, 3.5, 4, 3.5, 'cloud').rect(2, 6, 5, 2, 'cloud')
-            .rect(2, 3, 2, 2, 'ink').rect(5, 3, 2, 2, 'ink').set(4, 5, 'ink')
-            .set(3, 7, 'ink').set(5, 7, 'ink').outline('ink');
-        addPixels(this, 'preview-hell-skull', skull);
-        const bone = new PixelCanvas(11, 5);
-        bone.line(2, 2, 8, 2, 'cloud').rect(0, 0, 2, 2, 'cloud').rect(0, 3, 2, 2, 'cloud').rect(9, 0, 2, 2, 'cloud').rect(9, 3, 2, 2, 'cloud').outline('ink');
-        addPixels(this, 'preview-hell-bone', bone);
+        // Small tangles of root and old dead leaves.
+        const clump = new PixelCanvas(11, 7);
+        clump.line(0, 6, 4, 2, 'wine').line(4, 2, 7, 5, 'wine').line(7, 5, 10, 1, 'wine').line(3, 6, 6, 3, 'bark').set(4, 2, 'red').outline('ink');
+        addPixels(this, 'preview-hell-bone', clump);
+        const leaves = new PixelCanvas(9, 5);
+        leaves.rect(0, 2, 3, 2, 'slate').rect(4, 1, 3, 2, 'steel').rect(6, 3, 3, 2, 'slate').set(2, 0, 'mist');
+        addPixels(this, 'preview-hell-skull', leaves);
         [[-280, 10], [-100, 90], [200, 110], [-20, 200], [300, 260], [-200, 260], [120, -20], [-360, -80]].forEach(([x, y], i) => {
             const img = this.add.image(x, y, i % 2 ? 'preview-hell-bone' : 'preview-hell-skull')
-                .setOrigin(0.5, 1).setDepth(y).setFlipX(i % 3 === 0).setAngle(i % 2 ? (i * 37) % 60 - 30 : 0).setVisible(false);
+                .setOrigin(0.5, 1).setDepth(y).setFlipX(i % 3 === 0).setVisible(false);
             this.hellDecor.push(img);
         });
 
-        // Obsidian spikes jutting from the ground.
-        const spike = new PixelCanvas(14, 22);
-        spike.line(3, 21, 6, 2, 'night').line(4, 21, 7, 4, 'plum').line(7, 21, 7, 4, 'night')
-            .line(8, 21, 11, 10, 'night').line(9, 21, 11, 12, 'violet')
-            .rect(2, 20, 11, 2, 'ink').outline('ink');
-        for (let y = 4; y < 21; y++) for (let x = 3; x < 12; x++) if (spike.filled(x - 1, y) && spike.filled(x + 1, y) && !spike.filled(x, y)) spike.set(x, y, 'night');
-        addPixels(this, 'preview-hell-spike', spike);
-        [[-150, -20], [40, 120], [260, -10], [-300, 220], [180, 280], [-40, -90]].forEach(([x, y], i) => {
-            this.hellDecor.push(this.add.image(x, y, 'preview-hell-spike').setOrigin(0.5, 1).setDepth(y).setFlipX(i % 2 === 1).setScale(1 + (i % 3) * 0.25).setVisible(false));
+        // Dead, leafless trees strangled by vines.
+        const tree = new PixelCanvas(22, 30);
+        tree.rect(9, 12, 3, 18, 'night').line(10, 12, 10, 29, 'slate')
+            .line(10, 14, 3, 6, 'night').line(3, 6, 1, 1, 'night').line(5, 8, 6, 3, 'night')
+            .line(11, 12, 18, 4, 'night').line(18, 4, 20, 0, 'night').line(15, 7, 17, 9, 'night')
+            .line(10, 12, 9, 2, 'night').line(9, 2, 11, 0, 'night')
+            .line(8, 28, 12, 22, 'wine').line(12, 22, 8, 17, 'wine').line(8, 17, 12, 13, 'wine')
+            .line(4, 29, 8, 28, 'wine').line(12, 28, 17, 29, 'wine')
+            .outline('ink');
+        addPixels(this, 'preview-hell-spike', tree);
+        [[-150, -20], [40, 120], [260, -10], [-300, 220], [180, 280], [-40, -90], [340, 200], [-380, 40]].forEach(([x, y], i) => {
+            this.hellDecor.push(this.add.image(x, y, 'preview-hell-spike').setOrigin(0.5, 1).setDepth(y).setFlipX(i % 2 === 1).setScale(1 + (i % 3) * 0.3).setVisible(false));
         });
 
-        // Embers drifting up through the whole world.
+        // A string of Christmas lights near the gate, flickering like someone's trying to talk.
+        const wire = new PixelCanvas(150, 12);
+        for (let x = 0; x < 150; x++) wire.set(x, Math.round(2 + Math.sin((x / 149) * Math.PI) * 8), 'ink');
+        addPixels(this, 'preview-hell-wire', wire);
+        const wireX = -258 - 75;
+        const wireY = 150;
+        this.hellDecor.push(this.add.image(wireX, wireY, 'preview-hell-wire').setOrigin(0, 0).setDepth(wireY + 20).setVisible(false));
+        (['red', 'gold', 'cyan', 'lime', 'pink'] as const).forEach((color) => {
+            const bulb = new PixelCanvas(3, 4);
+            bulb.rect(0, 1, 3, 3, color).set(1, 0, 'slate').set(0, 1, 'white');
+            addPixels(this, `preview-hell-bulb-${color}`, bulb);
+        });
+        const bulbColors = ['red', 'gold', 'cyan', 'lime', 'pink'] as const;
+        for (let i = 0; i < 13; i++) {
+            const x = 5 + i * 11.5;
+            const y = Math.round(2 + Math.sin((x / 149) * Math.PI) * 8);
+            const bulb = this.add.image(wireX + x, wireY + y + 1, `preview-hell-bulb-${bulbColors[i % 5]}`)
+                .setOrigin(0.5, 0).setDepth(wireY + 21).setVisible(false);
+            this.hellDecor.push(bulb);
+            const flicker = () => {
+                bulb.setAlpha(Math.random() < 0.35 ? 0.15 : 1);
+                this.time.delayedCall(Phaser.Math.Between(80, 900), flicker);
+            };
+            flicker();
+        }
+
+        // Spores drifting lazily through the air.
         const ember = new PixelCanvas(2, 2);
-        ember.rect(0, 0, 2, 2, 'orange').set(0, 0, 'yellow');
+        ember.rect(0, 0, 2, 2, 'mist').set(0, 0, 'cloud');
         addPixels(this, 'preview-hell-ember', ember);
-        for (let i = 0; i < 70; i++) {
+        for (let i = 0; i < 90; i++) {
             const e = this.add.image(0, 0, 'preview-hell-ember').setDepth(1e6).setVisible(false);
             this.hellDecor.push(e);
             const launch = () => {
                 const b = this.worldBounds;
-                e.setPosition(Phaser.Math.Between(b.left, b.right), Phaser.Math.Between(b.top + b.height * 0.3, b.bottom))
-                    .setAlpha(1).setScale(Phaser.Math.FloatBetween(0.6, 1.5));
+                e.setPosition(Phaser.Math.Between(b.left, b.right), Phaser.Math.Between(b.top, b.bottom))
+                    .setAlpha(0).setScale(Phaser.Math.FloatBetween(0.5, 1.3));
                 this.tweens.add({
                     targets: e,
-                    y: e.y - Phaser.Math.Between(80, 200),
-                    x: e.x + Phaser.Math.Between(-30, 30),
-                    alpha: 0,
-                    duration: Phaser.Math.Between(2200, 4200),
-                    delay: Phaser.Math.Between(0, 2000),
+                    y: e.y - Phaser.Math.Between(20, 70),
+                    x: e.x + Phaser.Math.Between(-40, 40),
+                    alpha: { from: 0, to: Phaser.Math.FloatBetween(0.5, 0.9) },
+                    yoyo: true,
+                    duration: Phaser.Math.Between(2500, 5000),
+                    delay: Phaser.Math.Between(0, 3000),
+                    ease: 'Sine.easeInOut',
                     onComplete: launch,
                 });
             };
             launch();
         }
+
+        // Red lightning crackling across the sky.
+        const storm = () => {
+            if (this.inHell && !this.insideHQ) {
+                const cam = this.cameras.main;
+                cam.flash(140, 200, 30, 50);
+                this.time.delayedCall(220, () => this.inHell && cam.flash(90, 160, 20, 40));
+                cam.shake(160, 0.002);
+            }
+            this.time.delayedCall(Phaser.Math.Between(4000, 10000), storm);
+        };
+        this.time.delayedCall(3000, storm);
     }
 
     private setHellTheme(active: boolean) {
         this.inHell = active;
         this.ground?.setTexture(active ? 'preview-hell-ground' : 'preview-grass');
-        this.cameras.main.setBackgroundColor(active ? '#1a0306' : '#14101e');
+        this.cameras.main.setBackgroundColor(active ? '#0a0d18' : '#14101e');
         this.surfacePortal?.setVisible(!active);
         this.hellPortal?.setVisible(active);
         this.hellDecor.forEach((object) => object.setVisible(active));
@@ -594,7 +725,7 @@ export class Preview extends Phaser.Scene {
         this.children.list.forEach((object) => {
             if (exempt.has(object) || object === this.ground) return;
             if ('setTint' in object && typeof object.setTint === 'function') {
-                if (active) object.setTint(0xe04a30);
+                if (active) object.setTint(0x6878a0);
                 else if ('clearTint' in object && typeof object.clearTint === 'function') object.clearTint();
             }
         });
@@ -616,7 +747,7 @@ export class Preview extends Phaser.Scene {
         marker.setPosition(to.x, y - 34).setDepth(y + 1);
         this.portalReadyAt = this.time.now + 700;
         this.view?.trackPlayer();
-        this.cameras.main.flash(220, this.inHell ? 255 : 255, this.inHell ? 55 : 220, this.inHell ? 20 : 150);
+        this.cameras.main.flash(220, this.inHell ? 200 : 255, this.inHell ? 30 : 220, this.inHell ? 50 : 150);
         this.cameras.main.shake(180, 0.004);
     }
 
@@ -695,7 +826,7 @@ export class Preview extends Phaser.Scene {
         }
     }
 
-    private walker(i: number, name?: string, githubUsername?: string) {
+    private walker(i: number, name?: string, startAt?: number, githubUsername?: string) {
         const look = randomLook(name ?? `preview-${i}`, { githubUsername });
         const key = lookKey(look);
         const sheet = characterSheet(look);
@@ -707,7 +838,7 @@ export class Preview extends Phaser.Scene {
         const lanes = [62, 124, 184, 96, 154, 42, 214, 140];
         const y = lanes[i % lanes.length];
         const shadow = this.add.image(0, y, shadowTexture(this, 10)).setAlpha(0.25).setDepth(-1e8);
-        const startX = Phaser.Math.Clamp(-310 + i * 95, this.worldBounds.left + 28, this.worldBounds.right - 28);
+        const startX = startAt ?? Phaser.Math.Clamp(-310 + i * 95, this.worldBounds.left + 28, this.worldBounds.right - 28);
         const sprite = this.add.sprite(startX, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
         let label: Phaser.GameObjects.Image | undefined;
         if (name) {
@@ -752,8 +883,12 @@ export class Preview extends Phaser.Scene {
             nametag: w.nametag,
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
+        if (this.bikeGang) out.push(...this.bikeGang.burnables());
+        if (this.lockAndKey) out.push(...this.lockAndKey.burnables());
         if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 56, nametag: this.player.nametag });
         if (this.disco) out.push(...this.disco.burnables());
+        out.push(...(this.catchers?.burnables() ?? []), ...(this.roamers?.burnables() ?? []));
+        if (this.factory) out.push(...this.factory.burnables());
         return out;
     }
 
