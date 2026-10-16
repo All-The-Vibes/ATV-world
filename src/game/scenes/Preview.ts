@@ -24,6 +24,7 @@ import { Workout } from '../workout/Workout';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { Campus } from '../campus/Campus';
 import { Multiplayer } from '../../multiplayer/Multiplayer';
+import { Skateboard } from '../skateboard/Skateboard';
 import { myLook } from '../../multiplayer/characters';
 import { myName } from '../../multiplayer/identity';
 import { SortingHat } from '../hat/SortingHat';
@@ -137,6 +138,7 @@ export class Preview extends Phaser.Scene {
     private campus?: Campus;
     /** Other people on the website right now, live (see ../../multiplayer). */
     private multiplayer?: Multiplayer;
+    private skateboard?: Skateboard;
     /** The disco north of the house: light-up floor, glitter ball, dancers (see ../disco). */
     private disco?: Disco;
     /** The digital AI advertising board: rotates humorous AI ads (see ../billboard). */
@@ -358,7 +360,11 @@ export class Preview extends Phaser.Scene {
         try {
             this.multiplayer = new Multiplayer(this, () => (this.player ? { sprite: this.player.sprite, hidden: this.insideHQ } : undefined));
         } catch (e) {
-            console.error('[multiplayer]', e);
+        }
+        try {
+            this.skateboard = new Skateboard(this, () => this.player?.sprite, () => this.playerFacing);
+        } catch (e) {
+            console.error('[skateboard]', e);
         }
         this.incidents = new Incidents(this, () => this.sys.isActive() && !this.insideHQ);
         this.incidents.parts.forEach(part => this.includeInWorld(part));
@@ -1740,7 +1746,7 @@ export class Preview extends Phaser.Scene {
 
         if (moving) {
             const length = Math.hypot(dx, dy);
-            const speed = this.time.now < this.rushUntil ? 146 : 92;
+            const speed = (this.time.now < this.rushUntil ? 146 : 92) * (this.skateboard?.speedMultiplier ?? 1);
             sprite.x = Phaser.Math.Clamp(sprite.x + dx / length * speed * dt, this.worldBounds.left + 12, this.worldBounds.right - 12);
             sprite.y = Phaser.Math.Clamp(sprite.y + dy / length * speed * dt, this.worldBounds.top + 12, this.worldBounds.bottom - 12);
 
