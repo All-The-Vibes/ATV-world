@@ -28,6 +28,7 @@ import { Moles } from '../moles/Moles';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
 import { Pool } from '../pool/Pool';
 import { Tokens } from '../tokens/Tokens';
+import { TugOfWar } from '../tugOfWar/TugOfWar';
 import { Town } from '../town/Town';
 import { UFO } from '../ufo/UFO';
 import { publishVibes } from '../vibes';
@@ -70,6 +71,8 @@ export class Preview extends Phaser.Scene {
     private giant?: Giant;
     /** The swimming pool, where people queue for the high dive (see ../pool). */
     private pool?: Pool;
+    /** A tug of war that never ends, with people shouting about it (see ../tugOfWar). */
+    private tugOfWar?: TugOfWar;
     private ufo?: UFO;
     private incidents?: Incidents;
     private ground?: Phaser.GameObjects.TileSprite;
@@ -174,6 +177,9 @@ export class Preview extends Phaser.Scene {
         this.pool = new Pool(this, 160, -215);
         this.solids.push(this.pool.deckBounds());
         this.includeInWorld(this.pool);
+        this.tugOfWar = new TugOfWar(this, 0, 400);
+        this.solids.push(this.tugOfWar.getBounds());
+        this.includeInWorld(this.tugOfWar);
         this.disco = new Disco(this, -290, -250);
         this.disco.parts.forEach((part) => this.includeInWorld(part));
         this.moles = new Moles(this, 150, 335);
@@ -400,6 +406,7 @@ export class Preview extends Phaser.Scene {
         this.talkingMoles?.update(dt);
         this.giant?.update(dt);
         this.pool?.update(dt);
+        this.tugOfWar?.update(dt);
         this.ufo?.update(dt);
         this.disco?.update(dt);
         this.lake?.update(dt, this.player && !this.insideHQ && !this.inHell ? this.player : undefined);
