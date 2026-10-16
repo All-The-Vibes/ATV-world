@@ -40,8 +40,10 @@ const STOPS: Stop[] = NEAR.map(([x, y], i): Stop[] =>
     i % 2 === 1 ? [{ x, y, far: false }, { x: FAR[(i - 1) / 2][0], y: FAR[(i - 1) / 2][1], far: true }] : [{ x, y, far: false }],
 ).flat();
 
-const ALTITUDE = 34;
+const ALTITUDE = 40;
 const SPEED = 70;
+/** Mark is drawn at character size, then blown up so he reads from the fit view. */
+const SIZE = 2.5;
 const TALK = 3.6;
 const EMOJI = 3;
 const FADE = 0.6;
@@ -110,9 +112,9 @@ export class MarkB {
         const start = this.stopPoint(0);
         this.x = start.x;
         this.y = start.y;
-        this.shadow = scene.add.image(0, 0, shadowTexture(scene, 12)).setAlpha(0.25).setDepth(-1e8);
+        this.shadow = scene.add.image(0, 0, shadowTexture(scene, 12)).setAlpha(0.25).setDepth(-1e8).setScale(SIZE);
         this.flame = scene.add.sprite(0, 0, 'mark-b-flame', 0).setOrigin(0.5, 0).setDepth(1e6 + 2);
-        this.sprite = scene.add.sprite(0, 0, 'mark-b', 'side-0').setName('Mark B').setOrigin(0.5, 1).setDepth(1e6 + 3);
+        this.sprite = scene.add.sprite(0, 0, 'mark-b', 'side-0').setName('Mark B').setOrigin(0.5, 1).setDepth(1e6 + 3).setScale(SIZE);
         this.name = scene.add.image(0, 0, 'mark-b-label').setOrigin(0.5, 1).setDepth(1e6 + 4);
         this.bubble = scene.add.image(0, 0, 'mark-b-smile').setOrigin(0.5, 1).setDepth(1e6 + 5).setVisible(false);
         this.update(0);
@@ -164,15 +166,15 @@ export class MarkB {
         const gx = Math.round(this.x), top = Math.round(this.y - ALTITUDE + bob);
         const side = this.sprite.flipX ? 1 : -1;
         this.sprite.setPosition(gx, top);
-        this.flame.setPosition(gx + 5 * side, top - 3).setFrame(Math.floor(this.clock * 14) % 2).setScale(1, hovering ? 0.7 : 1);
+        this.flame.setPosition(gx + 5 * SIZE * side, top - 3 * SIZE).setFrame(Math.floor(this.clock * 14) % 2).setScale(SIZE, SIZE * (hovering ? 0.7 : 1));
         this.shadow.setPosition(gx, Math.round(this.y));
-        this.name.setPosition(gx, top - this.sprite.height - 2);
+        this.name.setPosition(gx, top - this.sprite.displayHeight - 2);
 
         if (hovering) {
             const emoji = this.mode === 'emoji';
             const alpha = emoji ? Phaser.Math.Clamp((EMOJI - this.timer) / FADE, 0, 1) : 1;
-            const pop = emoji ? 1 + Math.max(0, 0.3 - this.timer) : 1;
-            this.bubble.setVisible(true).setAlpha(alpha).setScale(pop).setPosition(gx, top - this.sprite.height - 12);
+            const scale = emoji ? 2 + Math.max(0, 0.3 - this.timer) : 1;
+            this.bubble.setVisible(true).setAlpha(alpha).setScale(scale).setPosition(gx, top - this.sprite.displayHeight - 12);
         }
     }
 
