@@ -14,7 +14,8 @@
     "useDefineForClassFields": true,
     "strictPropertyInitialization": false,
     "noFallthroughCasesInSwitch": true,
-    "types": ["vite/client", "node"]
+    "types": ["vite/client", "node"],
+    "paths": { "@atv": ["./src/api/index.ts"] }
   },
-  "include": ["src", "plots", "vite.config.ts"]
+  "include": ["src", "plots", "scripts", "vite.config.ts"]
 }
