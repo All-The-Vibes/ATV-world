@@ -4,10 +4,11 @@ import { Backpack } from './backpack/Backpack';
 import { CallPanel } from './call/CallPanel';
 import { CharacterSearch } from './characters/CharacterSearch';
 import { FactoryPanel } from './factory/FactoryPanel';
-import { getViewModes, githubLabelsVisible, onGithubLabels, onViewModes, send, toggleGithubLabels, type Command } from './game/commands';
+import { getViewModes, githubLabelsVisible, isInsideHQ, onGithubLabels, onInsideHQ, onViewModes, send, toggleGithubLabels, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
+import { MapButton, MiniMap } from './map/MiniMap';
 import { SoundButton } from './music/SoundButton';
 
 const buttons: [label: string, command: Command, title: string][] = [
@@ -23,6 +24,9 @@ export default function App() {
     const modes = useSyncExternalStore(onViewModes, getViewModes);
     const [backpackOpen, setBackpackOpen] = useState(false);
     const [searching, setSearching] = useState(false);
+    const insideHQ = useSyncExternalStore(onInsideHQ, isInsideHQ);
+    // The world map sits out indoors, where the call panel and the library take the screen.
+    const outdoors = !state.inside && !insideHQ;
     return (
         <>
             <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching} />
@@ -63,6 +67,7 @@ export default function App() {
             <CallPanel />
             <FactoryPanel hidden={state.inside} />
             <VibeMeter insideLibrary={state.inside} />
+            {outdoors && <MiniMap />}
             <div className="zoom">
                 {!state.inside && buttons.map(([label, command, title]) => (
                     // preventDefault on mousedown keeps keyboard focus on the game.
@@ -77,6 +82,7 @@ export default function App() {
                     onMouseDown={(e) => e.preventDefault()} onClick={toggleGithubLabels}>
                     @
                 </button>
+                {outdoors && <MapButton />}
                 <SoundButton />
             </div>
             {!state.open && state.inside && <div className="world-actions">

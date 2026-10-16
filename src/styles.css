@@ -95,7 +95,7 @@ body,
     position: fixed;
     left: 16px;
     bottom: 16px;
-    max-width: calc(100vw - 296px);
+    max-width: calc(100vw - 342px);
     padding: 6px 12px;
     overflow: hidden;
     font-size: 20px;
