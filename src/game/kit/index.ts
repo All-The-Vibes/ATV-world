@@ -8,6 +8,7 @@ export * from './pixels';
 export * from './textures';
 export * from './font';
 export * from './characters';
+export * from './nametag';
 export * from './nature';
 export * from './props';
 export * from './buildings';

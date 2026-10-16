@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { music } from '../../music';
 import {
-    DISCO_COLORS, DISCO_TILE_H, DISCO_TILE_W, addPixels, dancerSheet, discoBeamArt, discoFloorArt, discoGlowArt, discoRigArt,
+    DISCO_COLORS, DISCO_TILE_H, DISCO_TILE_W, addCreatorNametag, addPixels, dancerSheet, discoBeamArt, discoFloorArt, discoGlowArt, discoRigArt,
     discoSparkleArt, discoSpeckArt, discoTileArt, ensurePixels, glitterBallArt, hash, lookKey, randomLook, shadowTexture,
     type DiscoColor,
 } from '../kit';
@@ -35,6 +35,7 @@ const MOVES: { frames: string[]; sway?: number[]; flip?: boolean[] }[] = [
 type Dancer = {
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
+    nametag?: Phaser.GameObjects.Text;
     x: number;
     y: number;
     seed: number;
@@ -131,12 +132,14 @@ export class Disco {
     }
 
     private dancer(i: number, x: number, y: number) {
-        const look = randomLook(`disco-${i}`);
+        // Creator verified at introduction, commit c5fedcc.
+        const look = randomLook(`disco-${i}`, { githubUsername: 'markbriggs-ms' });
         const key = `disco|${lookKey(look)}`;
         ensurePixels(this.scene, key, () => dancerSheet(look));
         const shadow = this.scene.add.image(x, y, shadowTexture(this.scene, 10)).setAlpha(0.3).setDepth(-1e8);
         const sprite = this.scene.add.sprite(x, y, key, 'down-0').setOrigin(0.5, 1).setDepth(y);
-        this.dancers.push({ sprite, shadow, x, y, seed: i * 7 + 3, rest: 0 });
+        const nametag = addCreatorNametag(sprite, look);
+        this.dancers.push({ sprite, shadow, nametag, x, y, seed: i * 7 + 3, rest: 0 });
     }
 
     /** Beats since the track started (or since we did), as a float. */
@@ -167,6 +170,7 @@ export class Disco {
         return this.dancers.map((d) => ({
             sprite: d.sprite,
             headroom: 24,
+            nametag: d.nametag,
             hold: (seconds: number) => { d.rest = Math.max(d.rest, seconds); },
         }));
     }

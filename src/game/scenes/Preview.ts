@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { LibraryBridge } from '../../library/bridge';
 import {
-    HEX, PixelCanvas, PROPS, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
+    HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
 import { addToken, isTyping, on, setInsideHQ } from '../commands';
@@ -26,6 +26,7 @@ export class Preview extends Phaser.Scene {
         sprite: Phaser.GameObjects.Sprite;
         shadow: Phaser.GameObjects.Image;
         label?: Phaser.GameObjects.Image;
+        nametag?: Phaser.GameObjects.Text;
         anim: string;
         dir: number;
         speed: number;
@@ -42,6 +43,7 @@ export class Preview extends Phaser.Scene {
         sprite: Phaser.GameObjects.Sprite;
         shadow: Phaser.GameObjects.Image;
         marker: Phaser.GameObjects.Image;
+        nametag?: Phaser.GameObjects.Text;
     };
     private cursors?: Phaser.Types.Input.Keyboard.CursorKeys;
     private playerFacing: Facing = 'down';
@@ -123,8 +125,9 @@ export class Preview extends Phaser.Scene {
             console.error('[town]', e);
         }
         this.fitWorld();
-        for (let i = 0; i < 6; i++) this.walker(i);
-        this.walker(6, 'Abdallah');
+        // Introduction commits: 9c37211 (six originals), 3c1fb9c (Abdallah).
+        for (let i = 0; i < 6; i++) this.walker(i, undefined, 'Bakar404');
+        this.walker(6, 'Abdallah', 'aifateen');
         this.createHell();
         this.createPlayer();
         this.ollama = new Ollama(this);
@@ -146,7 +149,7 @@ export class Preview extends Phaser.Scene {
             coins: () => this.tokens?.playthings() ?? [],
             dragon: () => this.dragon?.plaything(),
             people: this.walkers.map((w) => ({
-                sprite: w.sprite, shadow: w.shadow, label: w.label, anim: w.anim,
+                sprite: w.sprite, shadow: w.shadow, label: w.label, nametag: w.nametag, anim: w.anim,
                 hold: (seconds) => { w.rest = Math.max(w.rest, seconds); },
             })),
         });
@@ -560,8 +563,8 @@ export class Preview extends Phaser.Scene {
         }
     }
 
-    private walker(i: number, name?: string) {
-        const look = randomLook(name ?? `preview-${i}`);
+    private walker(i: number, name?: string, githubUsername?: string) {
+        const look = randomLook(name ?? `preview-${i}`, { githubUsername });
         const key = lookKey(look);
         const sheet = characterSheet(look);
         addPixels(this, key, sheet.canvas, sheet.frames);
@@ -582,7 +585,8 @@ export class Preview extends Phaser.Scene {
             label = this.add.image(sprite.x, y - 26, labelKey).setOrigin(0.5, 1).setDepth(y + 1);
             sprite.setName(name);
         }
-        this.walkers.push({ sprite, shadow, label, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
+        const nametag = addCreatorNametag(sprite, look, { gap: label ? 16 : 2 });
+        this.walkers.push({ sprite, shadow, label, nametag, anim, dir: i % 2 ? -1 : 1, speed: 18 + (i % 3) * 8, rest: 0 });
     }
 
     /** Who the dragon can toast: the walkers, and the player unless they're safe inside HQ. */
@@ -590,23 +594,16 @@ export class Preview extends Phaser.Scene {
         const out: Burnable[] = this.walkers.map((w) => ({
             sprite: w.sprite,
             headroom: w.label ? 38 : 24,
+            nametag: w.nametag,
             hold: (seconds: number) => { w.rest = Math.max(w.rest, seconds); },
         }));
-        if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 52 });
+        if (this.player && !this.insideHQ) out.push({ sprite: this.player.sprite, headroom: 56, nametag: this.player.nametag });
         if (this.disco) out.push(...this.disco.burnables());
         return out;
     }
 
     private createPlayer() {
-        const look = randomLook('player', {
-            skin: 'peach',
-            hair: 'earth',
-            hairStyle: 'cap',
-            hat: 'gold',
-            shirt: 'blue',
-            pants: 'navy',
-            shoes: 'white',
-        });
+        const look = PLAYER_LOOK;
         const key = 'preview-player';
         // The dancer sheet: the usual frames plus dance poses, for standing still on the disco floor.
         const sheet = dancerSheet(look);
@@ -640,7 +637,8 @@ export class Preview extends Phaser.Scene {
         const shadow = this.add.image(x, y, shadowTexture(this, 12)).setAlpha(0.35).setDepth(y - 1);
         const sprite = this.add.sprite(x, y, key, 'down-0').setOrigin(0.5, 1).setDepth(y);
         const marker = this.add.image(x, y - 34, 'preview-player-marker').setOrigin(0.5, 1).setDepth(y + 1);
-        this.player = { sprite, shadow, marker };
+        const nametag = addCreatorNametag(sprite, look, { gap: 34 });
+        this.player = { sprite, shadow, marker, nametag };
 
         this.cursors = this.input.keyboard?.createCursorKeys();
         this.input.keyboard?.addCapture([

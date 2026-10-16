@@ -34,7 +34,7 @@ const HOP_BACK = 7;
 const REACH = 16;
 const REARM = 34;
 
-type Player = { sprite: Phaser.GameObjects.Sprite; marker: Phaser.GameObjects.Image };
+type Player = { sprite: Phaser.GameObjects.Sprite; marker: Phaser.GameObjects.Image; nametag?: Phaser.GameObjects.Text };
 
 /**
  * A talking hat on a stool. Walk up to it and it hops onto your head, hums and haws,
@@ -132,7 +132,8 @@ export class SortingHat {
         // Flap the mouth while the latest line is being said.
         const now = this.scene.time.now;
         this.hat.setFrame(now - this.saidAt < 900 && Math.floor(now / 110) % 2 ? 1 : 0);
-        this.bubble?.setPosition(Math.round(this.hat.x), Math.round(this.hat.y - 24));
+        const ceiling = p?.nametag ? p.sprite.y - 62 - p.nametag.height / this.scene.cameras.main.zoom : Infinity;
+        this.bubble?.setPosition(Math.round(this.hat.x), Math.round(Math.min(this.hat.y - 24, ceiling)));
     }
 
     private hop(from: { x: number; y: number }, to: { x: number; y: number }, k: number) {

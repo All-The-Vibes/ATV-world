@@ -53,3 +53,43 @@ Optional: [GitHub CLI](https://cli.github.com/) to watch your push go live (`gh 
 - `src/music/` is the background music: an 80s arcade loop made with Gemini. The speaker button or M turns it off and on.
 
 Every push to `main` goes live within a few minutes, and the live page reloads itself to show it. CI (typecheck and build) and CodeQL run on every push too.
+
+## Character creator nametags
+
+Set `githubUsername` (without `@`, preserving casing) on the character's look:
+
+```ts
+const look = randomLook('my-character', { githubUsername: 'YourGitHubLogin' });
+// After creating the sprite from that look:
+addCreatorNametag(sprite, look);
+```
+
+Both helpers are exported from `src/game/kit`. Omit `githubUsername` when ownership
+is unknown. It identifies the character's creator, not the author of the shared
+drawing kit, a later editor, the current viewer, or a Teams participant. Never
+derive it from a display name, participant ID, texture key, or login session.
+The label follows movement, visibility and opacity; destroying the sprite or
+stopping its scene removes the label and its listeners. Player markers and speech
+bubbles have separate space; labels keep a 12px screen font at every zoom.
+Crowded full-world views can overlap tags; zoom in to read individual characters.
+
+Backfill evidence (creation diffs and GitHub's commit-author account association,
+checked October 16, 2026):
+
+| Characters | Creator | Introduction commit |
+| --- | --- | --- |
+| Six street walkers (`preview-0` through `preview-5`) | `Bakar404` | `9c37211d647e5fba6a20dd7e8149f0509abd52de` |
+| Player, including the library copy (`PLAYER_LOOK`) | `vvundela1111` | `9fd2cf3a9bd3c02e8374a6dc25b13737725deb52` |
+| Abdallah (the named street walker) | `aifateen` | `3c1fb9c186c8051a961a26073761e970347316de` |
+| Disco dancers | `markbriggs-ms` | `c5fedcc91e9cd741957049bda145811b8a768dc4` |
+| Kitten playground's project manager | `DeaderestPool` | `bee168535494ad2ed5f4eef73dcfdfd2da2e8be0` |
+| HQ seated coders and arriving/departing avatars (`callerLook`) | **Unresolved; unlabeled** | `3ccda30b460936980682095775fdcd746f1b5f75` |
+
+The HQ commit names Veda Vundela but has no linked GitHub author account. Confirm
+the creator's account before adding `githubUsername` to `callerLook` in
+`src/game/hq/art.ts`; both seated and walking sprites already support it. Existing
+HQ desk plates still identify call participants, separately from creator tags.
+
+Run `node tests/nametags-browser.mjs` for focused real-Phaser regression checks at
+desktop and mobile widths. It uses an OS-assigned local port and closes only its
+own server. Set `NAMETAG_SCREENSHOTS` to a directory to save screenshots.

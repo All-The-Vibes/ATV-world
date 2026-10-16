@@ -10,6 +10,7 @@ export interface Burnable {
     sprite: Phaser.GameObjects.Sprite;
     /** How far above their feet the speech bubble goes. */
     headroom: number;
+    nametag?: Phaser.GameObjects.Text;
     /** Stop walking for a moment to complain. */
     hold?(seconds: number): void;
 }
@@ -24,6 +25,7 @@ type Mode = 'cruise' | 'swoop' | 'breathe' | 'climb';
 interface Burn {
     sprite: Phaser.GameObjects.Sprite;
     headroom: number;
+    nametag?: Phaser.GameObjects.Text;
     hair: Phaser.GameObjects.Sprite;
     bubble: Phaser.GameObjects.Image;
     age: number;
@@ -274,6 +276,7 @@ export class Dragon {
         const burn: Burn = {
             sprite: s,
             headroom: t.headroom,
+            nametag: t.nametag,
             hair: this.scene.add.sprite(s.x, s.y - 19, 'dragon-hair-flame', 0).setOrigin(0.5, 1).setDepth(SKY + 1).play('dragon-hair-flame'),
             bubble: this.scene.add.image(s.x, s.y - t.headroom, key).setOrigin(0.5, 1).setDepth(SKY + 2).setAlpha(0),
             age: 0,
@@ -309,7 +312,8 @@ export class Dragon {
         const talk = b.age - TALK_AT;
         b.bubble.setAlpha(Phaser.Math.Clamp(Math.min(talk / 0.15, (BURN_LIFE - b.age) / 0.35), 0, 1));
         const rise = talk < 0.15 ? Math.max(0, 3 * (1 - talk / 0.15)) : 0;
-        b.bubble.setPosition(Math.round(s.x), Math.round(s.y - b.headroom + rise));
+        const headroom = b.headroom + (b.nametag?.active ? b.nametag.height / this.scene.cameras.main.zoom + 6 : 0);
+        b.bubble.setPosition(Math.round(s.x), Math.round(s.y - headroom + rise));
     }
 
     private endBurn(b: Burn) {

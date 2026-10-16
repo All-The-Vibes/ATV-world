@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { addPixels, characterSheet, randomLook, shadowTexture, speechArt } from './kit';
+import { addCreatorNametag, addPixels, characterSheet, randomLook, shadowTexture, speechArt } from './kit';
 import { corralSignArt, fenceArt, kittenArt, TOY_KINDS, toyArt, type ToyKind } from './kit/kittens';
 import type { Color } from './kit/palette';
 
@@ -10,6 +10,7 @@ interface Person {
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
     label?: Phaser.GameObjects.Image;
+    nametag?: Phaser.GameObjects.Text;
     anim: string;
     hold: (seconds: number) => void;
 }
@@ -53,6 +54,7 @@ export class Kittens {
     private readonly cats: Kitten[] = [];
     private readonly toys: { sprite: Phaser.GameObjects.Image; x: number; y: number; kind: ToyKind }[] = [];
     private readonly manager: Phaser.GameObjects.Sprite;
+    private readonly managerNametag?: Phaser.GameObjects.Text;
     private readonly managerShadow: Phaser.GameObjects.Image;
     private readonly managerBubble: Phaser.GameObjects.Image;
     private readonly label: Phaser.GameObjects.Text;
@@ -115,7 +117,8 @@ export class Kittens {
             });
         });
 
-        const look = randomLook('kitten-project-manager', { shirt: 'pink', pants: 'navy', hair: 'wood', hairStyle: 'short' });
+        // Creator verified at introduction, commit bee1685.
+        const look = randomLook('kitten-project-manager', { githubUsername: 'DeaderestPool', shirt: 'pink', pants: 'navy', hair: 'wood', hairStyle: 'short' });
         const sheet = characterSheet(look);
         addPixels(scene, 'kitten-pm', sheet.canvas, sheet.frames);
         if (!scene.anims.exists('kitten-pm-walk')) {
@@ -126,6 +129,7 @@ export class Kittens {
             });
         }
         this.manager = scene.add.sprite(b.centerX, b.bottom + 18, 'kitten-pm', 'side-0').setOrigin(0.5, 1);
+        this.managerNametag = addCreatorNametag(this.manager, look, { gap: 30 });
         this.managerShadow = scene.add.image(this.manager.x, this.manager.y, shadowTexture(scene, 12)).setAlpha(0.3);
         this.managerBubble = scene.add.image(0, 0, this.bubble('HERDING CATS')).setOrigin(0.5, 1).setVisible(false);
         this.label = scene.add.text(0, 0, 'PROJECT MANAGER', {
@@ -360,7 +364,8 @@ export class Kittens {
         pm.setDepth(pm.y);
         this.managerShadow.setPosition(pm.x, pm.y).setDepth(pm.y - 1);
         this.label.setPosition(pm.x, pm.y - 31).setDepth(pm.y + 2);
-        this.managerBubble.setPosition(pm.x, pm.y - 48).setDepth(pm.y + 1000).setVisible(this.managerTalk > 0);
+        const headroom = this.managerNametag ? 58 + this.managerNametag.height / this.scene.cameras.main.zoom : 48;
+        this.managerBubble.setPosition(pm.x, pm.y - headroom).setDepth(pm.y + 1000).setVisible(this.managerTalk > 0);
     }
 
     private updateVisitors(dt: number) {
@@ -425,7 +430,8 @@ export class Kittens {
             s.setDepth(s.y);
             person.shadow.setPosition(s.x, s.y);
             person.label?.setPosition(s.x, s.y - 26);
-            visitor.bubble.setPosition(s.x, s.y - 29).setDepth(s.y + 1000);
+            const headroom = (person.label ? 38 : 24) + (person.nametag ? person.nametag.height / this.scene.cameras.main.zoom + 6 : 5);
+            visitor.bubble.setPosition(s.x, s.y - headroom).setDepth(s.y + 1000);
         }
     }
 

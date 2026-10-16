@@ -6,8 +6,10 @@ import { hashString, pick, rng } from './noise';
 export type HairStyle = 'short' | 'long' | 'spiky' | 'bald' | 'bun' | 'cap';
 export type Facing = 'down' | 'up' | 'side';
 
-/** How a built-in character looks. Every field takes any Color; missing fields are filled from a seed. */
+/** How a built-in character looks; missing appearance fields are filled from a seed. */
 export interface CharacterLook {
+    /** Verified creator's GitHub login (without @), not the viewer or the latest editor. Unknown: omit. */
+    githubUsername?: string;
     skin?: Color;
     hair?: Color;
     hairStyle?: HairStyle;
@@ -17,7 +19,7 @@ export interface CharacterLook {
     shoes?: Color;
 }
 
-export type FullLook = Required<CharacterLook>;
+export type FullLook = Required<Omit<CharacterLook, 'githubUsername'>> & Pick<CharacterLook, 'githubUsername'>;
 
 export const FRAME_W = 16;
 export const FRAME_H = 22;
@@ -45,6 +47,18 @@ export function randomLook(seed: number | string, base: CharacterLook = {}): Ful
     for (const [k, v] of Object.entries(base)) if (v !== undefined && v !== null) (look as Record<string, unknown>)[k] = v;
     return look;
 }
+
+/** The same player outside and in the library. Creator verified at introduction, commit 9fd2cf3. */
+export const PLAYER_LOOK = randomLook('player', {
+    githubUsername: 'vvundela1111',
+    skin: 'peach',
+    hair: 'earth',
+    hairStyle: 'cap',
+    hat: 'gold',
+    shirt: 'blue',
+    pants: 'navy',
+    shoes: 'white',
+});
 
 export const lookKey = (l: FullLook) =>
     `char|${l.skin}|${l.hair}|${l.hairStyle}|${l.hat}|${l.shirt}|${l.pants}|${l.shoes}`;

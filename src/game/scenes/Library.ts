@@ -2,7 +2,7 @@ import Phaser from 'phaser';
 import { booksOn, shelves, type ShelfId } from '../../library/books';
 import { LibraryBridge } from '../../library/bridge';
 import {
-    PixelCanvas, READING_ROOM, addPixels, bayer, hash, readingRoomArt, shadowTexture, shaftPoint,
+    PLAYER_LOOK, PixelCanvas, READING_ROOM, addCreatorNametag, addPixels, bayer, hash, readingRoomArt, shadowTexture, shaftPoint,
     type Facing, type RoomLamp,
 } from '../kit';
 
@@ -46,6 +46,7 @@ export class Library extends Phaser.Scene {
         this.facing = 'up';
         this.shadow = this.add.image(start.x, start.y, shadowTexture(this, 12)).setAlpha(0.3);
         this.player = this.add.sprite(start.x, start.y, 'preview-player', 'up-0').setOrigin(0.5, 1);
+        addCreatorNametag(this.player, PLAYER_LOOK);
         this.place();
         this.cursors = this.input.keyboard!.createCursorKeys();
 

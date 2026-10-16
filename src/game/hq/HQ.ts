@@ -1,6 +1,6 @@
 import Phaser from 'phaser';
 import { call, type Caller } from '../../call';
-import { addPixels, characterSheet, hashString, shadowTexture, type Facing } from '../kit';
+import { addCreatorNametag, addPixels, characterSheet, hashString, shadowTexture, type Facing } from '../kit';
 import {
     BAYS, DESK_W, HQ_SPOTS, HQ_W, beaconArt, bubbleArt, callerLook, coderSheet, deskDarkArt, deskSpot, hqBodyHeight,
     hqFacade, hqGlass, hqHeight, plateArt, plateText, signArt, tickerArt,
@@ -18,6 +18,7 @@ interface Desk {
     /** Lights-off overlay. */
     dark: Phaser.GameObjects.Image;
     coder?: Phaser.GameObjects.Sprite;
+    nametag?: Phaser.GameObjects.Text;
     plate?: Phaser.GameObjects.Image;
     /** The leaver's coder and plate, fading out. */
     fading?: Phaser.GameObjects.GameObject[];
@@ -232,6 +233,7 @@ export class HQ {
         coder.play({ key: anim, startFrame: Math.floor(Math.random() * frames) });
         this.track(coder, key, [anim]);
         desk.coder = coder;
+        desk.nametag = addCreatorNametag(coder, callerLook(c.id), { headOffsetX: 8 - DESK_W / 2 });
         this.placePlate(desk);
 
         this.scene.tweens.killTweensOf(desk.dark);
@@ -268,6 +270,7 @@ export class HQ {
         if (!quiet) this.say(desk, 'BYE!');
         const parts = [desk.coder, desk.plate].filter((p): p is NonNullable<typeof p> => !!p);
         desk.coder = undefined;
+        desk.nametag = undefined;
         desk.plate = undefined;
         desk.fading = parts;
         this.scene.tweens.add({
@@ -308,6 +311,7 @@ export class HQ {
         const far = { x: Math.round(this.x + side * (HQ_W / 2 + 28 + Math.random() * 40)), y: Math.round(this.bottom + 10 + Math.random() * 8) };
         const route = way === 'in' ? [far, front, door] : [door, front, far];
         const sprite = scene.add.sprite(route[0].x, route[0].y, key, 'down-0').setOrigin(0.5, 1).setAlpha(0).setDepth(route[0].y);
+        addCreatorNametag(sprite, callerLook(c.id));
         this.track(sprite, key, (['down', 'up', 'side'] as const).map((f) => `${key}-${f}`));
         const shadow = scene.add.image(route[0].x, route[0].y, shadowTexture(scene, 10)).setAlpha(0).setDepth(-1e8);
         const follow = () => {
@@ -418,11 +422,17 @@ export class HQ {
         const y = this.bottom + spot.y + 3;
         const bubble = this.scene.add.image(0, y, key).setOrigin(0, 1).setDepth(this.bottom + LAYER.bubble).setAlpha(0);
         bubble.x = headX - Math.floor(bubble.width / 2);
+        const nametag = desk.nametag;
+        const float = { y: 0, alpha: 0 };
+        const follow = () => bubble.setAlpha(float.alpha)
+            .setY((nametag?.active ? nametag.y - nametag.displayHeight - 4 : y) + float.y);
+        this.scene.events.on('postupdate', follow);
+        bubble.once('destroy', () => this.scene.events.off('postupdate', follow));
         this.scene.tweens.chain({
-            targets: bubble,
+            targets: float,
             tweens: [
-                { alpha: 1, y: y - 3, duration: 200, ease: 'Back.easeOut' },
-                { alpha: 0, y: y - 6, delay: 1500, duration: 300 },
+                { alpha: 1, y: -3, duration: 200, ease: 'Back.easeOut' },
+                { alpha: 0, y: -6, delay: 1500, duration: 300 },
             ],
             onComplete: () => bubble.destroy(),
         });
