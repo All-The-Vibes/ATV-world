@@ -241,6 +241,8 @@ export class Preview extends Phaser.Scene {
             player: () => (this.player && !this.insideHQ ? this.player.sprite : undefined),
             gremlins: () => this.gremlins,
             tokens: () => this.tokens,
+            walkers: () => this.walkers.map((w) => w.sprite),
+            dragon: () => this.dragon?.plaything(),
         });
         this.events.on('wake', () => {
             this.input.keyboard?.resetKeys();

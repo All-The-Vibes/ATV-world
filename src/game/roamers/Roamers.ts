@@ -1,27 +1,17 @@
 import Phaser from 'phaser';
-import { addPixels, characterSheet, lookKey, randomLook, shadowTexture, speechArt, toHexNumber, type Color } from '../kit';
+import { addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, toHexNumber, type Color } from '../kit';
 import type { Burnable } from '../dragon/Dragon';
-import type { Gremlins } from '../gremlins/Gremlins';
-import type { Tokens } from '../tokens/Tokens';
-import { LANTERN_H, lanternTexture } from './art';
-import { ROAMERS, type RoamerSpec } from './specs';
+import { ROAMERS } from './specs';
+import type { RoamerHandle, RoamerSpec, RoamerWorld } from './types';
 
-export interface RoamersOptions {
-    bounds: () => Phaser.Geom.Rectangle;
-    /** Whether someone can stand here (not inside a building). */
-    open: (x: number, y: number) => boolean;
-    /** The player's sprite, or nothing while they're out of sight (inside HQ). */
-    player: () => Phaser.GameObjects.Sprite | undefined;
-    gremlins: () => Gremlins | undefined;
-    tokens: () => Tokens | undefined;
-}
+export type RoamersOptions = Omit<RoamerWorld, 'scene'>;
 
 interface Roamer {
     spec: RoamerSpec;
     sprite: Phaser.GameObjects.Sprite;
     shadow: Phaser.GameObjects.Image;
     anim: string;
-    lantern?: Phaser.GameObjects.Sprite;
+    prop?: Phaser.GameObjects.Sprite;
     bubble?: Phaser.GameObjects.Image;
     bubbleLeft: number;
     state: 'wander' | 'pause' | 'leave';
@@ -35,23 +25,28 @@ interface Roamer {
     foilCd: number;
     greetCd: number;
     fx: number;
+    handle: RoamerHandle;
 }
 
 const SKY = 1e6;
 const FOIL_RANGE = 64;
 const GREET_RANGE = 36;
+/** How many visitors can be in town at once, so the streets stay readable. */
+const MAX_VISITORS = 5;
 
 /**
- * Friendly characters that visit town now and then (see ./specs.ts): they wander between spots and
- * tokens, chat with the player, and scare gremlins into dropping what they stole. Call `update(dt)`
- * from the scene's update.
+ * Friendly characters that visit town now and then (one file each in ./characters): they wander
+ * between spots and tokens, chat with the player, and scare gremlins into dropping what they stole.
+ * A character can add its own behaviour through `hooks`. Call `update(dt)` from the scene's update.
  */
 export class Roamers {
     private active = new Map<string, Roamer>();
     private timers = new Map<string, number>();
+    private readonly world: RoamerWorld;
 
-    constructor(private scene: Phaser.Scene, private opts: RoamersOptions) {
-        ROAMERS.forEach((spec, i) => this.timers.set(spec.id, 6 + i * 7));
+    constructor(private scene: Phaser.Scene, opts: RoamersOptions) {
+        this.world = { scene, ...opts };
+        ROAMERS.forEach((spec) => this.timers.set(spec.id, Phaser.Math.FloatBetween(6, 70)));
         scene.events.once('shutdown', () => this.destroy());
     }
 
@@ -67,7 +62,10 @@ export class Roamers {
         return [...this.active.values()].map((r) => ({
             sprite: r.sprite,
             headroom: 38,
-            hold: (seconds: number) => { r.rest = Math.max(r.rest, seconds); },
+            hold: (seconds: number) => {
+                if (r.rest <= 0) r.spec.hooks?.onBurn?.(r.handle);
+                r.rest = Math.max(r.rest, seconds);
+            },
         }));
     }
 
@@ -76,11 +74,11 @@ export class Roamers {
         for (const spec of ROAMERS) {
             if (this.active.has(spec.id)) continue;
             const left = (this.timers.get(spec.id) ?? 0) - dt;
-            if (left <= 0) {
+            if (left > 0) {
+                this.timers.set(spec.id, left);
+            } else if (this.active.size < MAX_VISITORS) {
                 this.timers.set(spec.id, Phaser.Math.FloatBetween(...spec.every));
                 this.add(spec);
-            } else {
-                this.timers.set(spec.id, left);
             }
         }
         for (const r of [...this.active.values()]) this.step(r, dt);
@@ -95,30 +93,65 @@ export class Roamers {
         if (!this.scene.anims.exists(anim)) {
             this.scene.anims.create({ key: anim, frames: ['side-1', 'side-0', 'side-2', 'side-0'].map((frame) => ({ key, frame })), frameRate: 8, repeat: -1 });
         }
-        const b = this.opts.bounds();
+        const b = this.world.bounds();
         const x = Math.random() < 0.5 ? b.left - 12 : b.right + 12;
         const y = Phaser.Math.Between(Math.round(b.top + 80), Math.round(b.bottom - 40));
         const shadow = this.scene.add.image(x, y, shadowTexture(this.scene, 10)).setAlpha(0.25).setDepth(-1e8 + 1);
         const sprite = this.scene.add.sprite(x, y, key, 'side-0').setOrigin(0.5, 1).setDepth(y).play(anim);
-        const r: Roamer = {
+        const r = {
             spec, sprite, shadow, anim, bubbleLeft: 0, state: 'wander', tx: x, ty: y, atToken: false, wait: 0,
             life: Phaser.Math.FloatBetween(...spec.stay), rest: 0, foilCd: 2, greetCd: 3, fx: 0.5,
-        };
-        if (spec.lantern) {
-            const tex = lanternTexture(this.scene, spec.lantern);
-            const anims = `${tex}-flicker`;
-            if (!this.scene.anims.exists(anims)) {
-                this.scene.anims.create({ key: anims, frames: [0, 1].map((frame) => ({ key: tex, frame })), frameRate: 5, repeat: -1 });
+        } as Roamer;
+        r.handle = this.handleFor(r);
+        const prop = spec.prop;
+        if (prop) {
+            const tex = ensurePixels(this.scene, prop.key, prop.make);
+            if (prop.frames > 1) {
+                const flicker = `${tex}-roam`;
+                if (!this.scene.anims.exists(flicker)) {
+                    this.scene.anims.create({
+                        key: flicker,
+                        frames: Array.from({ length: prop.frames }, (_, frame) => ({ key: tex, frame })),
+                        frameRate: prop.frameRate ?? 5,
+                        repeat: -1,
+                    });
+                }
+                r.prop = this.scene.add.sprite(x, y, tex, 0).play(flicker);
+            } else {
+                r.prop = this.scene.add.sprite(x, y, tex);
             }
-            r.lantern = this.scene.add.sprite(x, y, tex, 0).setOrigin(0.5, 0).play(anims);
         }
         this.pickWaypoint(r);
         this.active.set(spec.id, r);
     }
 
+    private handleFor(r: Roamer): RoamerHandle {
+        return {
+            spec: r.spec,
+            sprite: r.sprite,
+            world: this.world,
+            age: 0,
+            data: {},
+            say: (text) => this.say(r, text),
+            sparkle: (color, x, y) => this.sparkle(x ?? r.sprite.x, y ?? r.sprite.y - 14, color ?? r.spec.glow),
+            ward: () => this.ward(r),
+            pause: (seconds) => {
+                r.state = 'pause';
+                r.wait = Math.max(r.wait, seconds);
+            },
+            goTo: (x, y) => {
+                r.state = 'wander';
+                r.tx = x;
+                r.ty = y;
+                r.atToken = false;
+            },
+        };
+    }
+
     private step(r: Roamer, dt: number) {
         const s = r.sprite;
         const spec = r.spec;
+        r.handle.age += dt;
         r.foilCd -= dt;
         r.greetCd -= dt;
         r.life -= dt;
@@ -143,7 +176,7 @@ export class Roamers {
             return;
         }
 
-        const gremlins = this.opts.gremlins();
+        const gremlins = this.world.gremlins();
         if (gremlins && r.foilCd <= 0) {
             const g = gremlins.nearest(s.x, s.y, FOIL_RANGE, true);
             if (g) {
@@ -151,10 +184,11 @@ export class Roamers {
                 this.ward(r);
                 this.say(r, Phaser.Utils.Array.GetRandom(spec.foil));
                 r.foilCd = 7;
+                spec.hooks?.onFoil?.(r.handle);
             }
         }
 
-        const p = this.opts.player();
+        const p = this.world.player();
         if (p && r.greetCd <= 0 && Math.hypot(p.x - s.x, p.y - s.y) < GREET_RANGE) {
             r.greetCd = 14;
             r.state = 'pause';
@@ -162,15 +196,18 @@ export class Roamers {
             s.setFlipX(p.x < s.x);
             this.say(r, Phaser.Utils.Array.GetRandom(spec.greet));
             this.sparkle(p.x, p.y - 34, spec.glow);
+            spec.hooks?.onGreet?.(r.handle);
         }
 
         if (r.life <= 0 && r.state !== 'leave') {
-            const b = this.opts.bounds();
+            const b = this.world.bounds();
             r.state = 'leave';
             r.atToken = false;
             r.tx = s.x - b.left < b.right - s.x ? b.left - 40 : b.right + 40;
             r.ty = s.y;
         }
+
+        spec.hooks?.update?.(r.handle, dt);
 
         if (r.state === 'pause') {
             this.halt(r);
@@ -191,9 +228,10 @@ export class Roamers {
                 if (r.atToken) {
                     this.sparkle(s.x, s.y - 14, spec.glow);
                     this.say(r, Phaser.Utils.Array.GetRandom(spec.token));
+                    spec.hooks?.onToken?.(r.handle);
                 }
                 r.state = 'pause';
-                r.wait = Phaser.Math.FloatBetween(2, 4);
+                r.wait = Math.max(r.wait, Phaser.Math.FloatBetween(2, 4));
             } else {
                 const step = Math.min(d, spec.speed * dt);
                 s.x += (dx / d) * step;
@@ -214,13 +252,14 @@ export class Roamers {
         r.shadow.setPosition(s.x, s.y);
         s.setDepth(s.y);
         const dir = s.flipX ? -1 : 1;
-        r.lantern?.setPosition(Math.round(s.x + dir * 9), Math.round(s.y - 12 - LANTERN_H / 2)).setFlipX(s.flipX).setDepth(s.y + 1);
+        const off = r.spec.prop?.offset;
+        if (off) r.prop?.setPosition(Math.round(s.x + dir * off[0]), Math.round(s.y + off[1])).setFlipX(s.flipX).setDepth(s.y + 1);
         r.bubble?.setPosition(Math.round(s.x), Math.round(s.y - 30)).setDepth(SKY + 2);
     }
 
     private pickWaypoint(r: Roamer) {
-        const b = this.opts.bounds();
-        const coins = this.opts.tokens()?.playthings() ?? [];
+        const b = this.world.bounds();
+        const coins = this.world.tokens()?.playthings() ?? [];
         if (coins.length && Math.random() < 0.4) {
             const c = Phaser.Utils.Array.GetRandom([...coins]);
             r.tx = c.x;
@@ -234,7 +273,7 @@ export class Roamers {
             const y = Phaser.Math.Between(Math.round(b.top + 70), Math.round(b.bottom - 30));
             r.tx = x;
             r.ty = y;
-            if (this.opts.open(x, y)) return;
+            if (this.world.open(x, y)) return;
         }
     }
 
@@ -281,9 +320,10 @@ export class Roamers {
     }
 
     private remove(r: Roamer) {
+        r.spec.hooks?.onLeave?.(r.handle);
         r.sprite.destroy();
         r.shadow.destroy();
-        r.lantern?.destroy();
+        r.prop?.destroy();
         r.bubble?.destroy();
         this.active.delete(r.spec.id);
     }
