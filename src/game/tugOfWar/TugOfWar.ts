@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, type ColorName } from '../kit';
+import { addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, type ColorName } from '../kit';
 import { FEET_Y, FIELD, FLAG, ROPE_H, ROPE_W, SIGN, fieldArt, flagArt, ropeArt, signArt } from './art';
 import { QUIPS } from './quips';
 
@@ -66,12 +66,12 @@ export class TugOfWar {
 
     private addPuller(side: -1 | 1, i: number) {
         const scene = this.scene;
-        const look = randomLook(`tug-${side}-${i}`, { shirt: SHIRTS[side] });
+        const look = randomLook(`tug-${side}-${i}`, { githubUsername: 'markbriggs-ms', shirt: SHIRTS[side] });
         const key = lookKey(look);
         const sheet = characterSheet(look);
         addPixels(scene, key, sheet.canvas, sheet.frames);
         const feet = this.y + FEET_Y;
-        this.pullers.push({
+        const puller: Puller = {
             sprite: scene.add.sprite(0, feet, key, 'side-1').setOrigin(0.5, 1).setFlipX(side === 1).setDepth(feet + i * 0.01),
             shadow: scene.add.image(0, feet, shadowTexture(scene, 12)).setAlpha(0.25).setDepth(-1e7 + 1),
             bubble: scene.add.image(0, 0, 'tug-flag').setOrigin(0.5, 1).setDepth(1e5).setVisible(false),
@@ -80,7 +80,9 @@ export class TugOfWar {
             phase: Math.random(),
             talk: 0,
             bubbleW: 0,
-        });
+        };
+        addCreatorNametag(puller.sprite, look, { speech: () => puller.bubble });
+        this.pullers.push(puller);
     }
 
     /** Where the flag is, relative to the centre line: always wandering, never past the win lines. */

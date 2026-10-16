@@ -1,5 +1,5 @@
 import type Phaser from 'phaser';
-import { PixelCanvas, ensurePixels, shadowTexture, stripFrames } from '../kit';
+import { PixelCanvas, addCreatorNametag, ensurePixels, shadowTexture, stripFrames } from '../kit';
 
 export class UFO {
     private readonly sprite: Phaser.GameObjects.Sprite;
@@ -33,6 +33,7 @@ export class UFO {
         });
         this.shadow = scene.add.image(0, 0, shadowTexture(scene, 44)).setAlpha(0.2).setDepth(-1e8);
         this.sprite = scene.add.sprite(0, 0, 'ufo-saucer', 0).setName('Flying saucer').setDepth(1e6 + 2);
+        addCreatorNametag(this.sprite, { githubUsername: 'aifateen' });
         this.update(0);
         scene.events.once('shutdown', () => this.destroy());
     }

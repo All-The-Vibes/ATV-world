@@ -14,6 +14,20 @@ export function on(command: Command, fn: () => void): () => void {
     return () => bus.removeEventListener(command, fn);
 }
 
+/** One switch for creator labels in every scene, including characters spawned later. */
+let githubLabels = true;
+export const githubLabelsVisible = () => githubLabels;
+
+export function toggleGithubLabels() {
+    githubLabels = !githubLabels;
+    bus.dispatchEvent(new Event('githubLabels'));
+}
+
+export function onGithubLabels(fn: () => void): () => void {
+    bus.addEventListener('githubLabels', fn);
+    return () => bus.removeEventListener('githubLabels', fn);
+}
+
 /** Whether the player is inside ATV HQ. The game sets it; the call panel only shows in there. */
 let insideHQ = false;
 

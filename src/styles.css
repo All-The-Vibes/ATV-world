@@ -87,6 +87,10 @@ body,
     margin: auto;
 }
 
+.zoom .github-labels[aria-pressed='false'] {
+    text-decoration: line-through;
+}
+
 /* The player's free tokens, top-left (the call panel takes the top-right). */
 .tokens {
     position: fixed;

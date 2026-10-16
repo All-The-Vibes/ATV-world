@@ -68,6 +68,10 @@ Every push to `main` goes live within a few minutes, and the live page reloads i
 
 ## Character creator nametags
 
+The **@** button beside **− / FIT / +**, at the bottom right, turns all GitHub
+creator labels on or off for the session. It works in every scene and applies to
+characters spawned later. Character names, role plates and speech stay visible.
+
 Set `githubUsername` (without `@`, preserving casing) on the character's look:
 
 ```ts
@@ -96,6 +100,13 @@ checked October 16, 2026):
 | Disco dancers | `markbriggs-ms` | `c5fedcc91e9cd741957049bda145811b8a768dc4` |
 | Dragon | `markbriggs-ms` | `b13d64dd83a60f510e921dfeed1eb3d8bf8e4400` |
 | Kitten playground's project manager | `DeaderestPool` | `bee168535494ad2ed5f4eef73dcfdfd2da2e8be0` |
+| Kittens | `DeaderestPool` | `bee1685` |
+| Steph / Daenerys | `stephschofield` | `2c3ea0c` / `2736f55` |
+| Ahmed / campus walkers | `Bakar404` | `2f93583` / `0431fbe` |
+| Bike gang / Locke siblings | `ShahabName` | `e205f51` / `fba5687` |
+| Repair crew / factory role templates / saucer pilot | `aifateen` | `e59d0a2` / `861331c` / `155f1b7` |
+| Pool swimmers / tug-of-war pullers | `markbriggs-ms` | `0da492f` / `1030554` |
+| Ollama / giant / talking lawn moles | `markbriggs-ms` | `132c652` / `39ba278` / `ea467d3` |
 | HQ seated coders and arriving/departing avatars (`callerLook`) | **Unresolved; unlabeled** | `3ccda30b460936980682095775fdcd746f1b5f75` |
 
 The HQ commit names Veda Vundela but has no linked GitHub author account. Confirm
@@ -103,10 +114,12 @@ the creator's account before adding `githubUsername` to `callerLook` in
 `src/game/hq/art.ts`; both seated and walking sprites already support it. Existing
 HQ desk plates still identify call participants, separately from creator tags.
 
-Concurrent additions outside this backfill remain unverified and unlabeled:
-Shahab, Steph's supplied sprite, pool swimmers, repair crew, and custom creatures
-(kittens, llama, gremlins, giant, moles and the saucer pilot). Do not apply
-the shared pixel-kit author's username to them; confirm each creation separately.
+Remaining account mappings are unverified: Veda Vundela (HQ, sorting hat,
+Whack-a-Mole and lake fish) and Christian Presley (20 roamers, catchers and
+gremlins; introduction commits `bbd3095`, `5f9f885`, `d7ad2ab`). Their creation
+commits have no linked GitHub author account. Roamer specs now support tags
+through `look.githubUsername`; leave it absent until the account is confirmed.
+Ambient scenery and effects are not character labels.
 
 Run `node tests/nametags-browser.mjs` for focused real-Phaser regression checks at
 desktop and mobile widths. It uses an OS-assigned local port and closes only its

@@ -27,10 +27,58 @@ try {
     await page.waitForFunction(() => window.atv?.game?.scene.getScene('Preview')?.player?.sprite);
     await page.evaluate(() => document.fonts.ready);
     await page.clock.pauseAt(await page.evaluate(() => Date.now() + 200));
+    const labelToggle = page.getByRole('button', { name: 'GitHub username labels', exact: true });
+    assert.equal(await labelToggle.count(), 1, 'a global GitHub-label button is beside the zoom controls');
+    assert.equal(await labelToggle.getAttribute('aria-pressed'), 'true', 'creator labels start on');
+    await labelToggle.click();
+    await page.clock.runFor(50);
+    assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list
+        .filter(o => o.name === 'creator-nametag').some(o => o.visible)), false, 'global toggle hides all existing creator tags');
+    await page.evaluate(() => window.atv.game.scene.getScene('Preview').factory.spawn('developer'));
+    await page.clock.runFor(1000);
+    assert.equal(await page.evaluate(() => {
+        const agent = window.atv.game.scene.getScene('Preview').factory.agents.at(-1);
+        const label = agent.sprite.getData('creatorNametag');
+        return label?.text === '@aifateen' && !label.visible && agent.sprite.visible && agent.tag.visible;
+    }), true, 'new factory NPCs inherit off; character and role nameplates stay visible');
+    await labelToggle.press('Space');
+    await page.clock.runFor(50);
+    assert.equal(await labelToggle.getAttribute('aria-pressed'), 'true', 'keyboard activation restores creator tags');
+    assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').factory.agents.at(-1)
+        .sprite.getData('creatorNametag').visible), true, 'turning on restores labels spawned while off');
+    await page.evaluate(() => window.atv.game.scene.getScene('Preview').factory.dismiss());
+    await page.clock.runFor(400);
     const tags = () => page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list
         .filter(o => o.name === 'creator-nametag').map(o => o.text).sort());
-    assert.deepEqual(await tags(), expectedTags,
-        'only verified character creators are labeled, never Teams display names');
+    const verifiedCreators = new Set([...expectedTags, '@ShahabName', '@stephschofield']);
+    assert.ok((await tags()).every(text => verifiedCreators.has(text)), 'only verified creator accounts appear');
+    assert.equal(await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        return ['Steph', 'Daenerys'].every(name => {
+            const sprite = scene.walkers.find(w => w.sprite.name === name)?.sprite;
+            return sprite && scene.children.list.some(o => o.name === 'creator-nametag'
+                && o.text === '@stephschofield' && Math.abs(o.x - sprite.x) < 1e-6);
+        });
+    }), true, 'verified creators are rendered for Steph and Daenerys, not just the original six walkers');
+    const coverage = await page.evaluate(() => {
+        const s = window.atv.game.scene.getScene('Preview');
+        const groups = [
+            ['campus', s.campus.walkers.map(w => w.sprite), 'Bakar404'],
+            ['repair crew', s.incidents.agents.map(a => a.sprite), 'aifateen'],
+            ['bikers', s.bikeGang.bikers.map(b => b.sprite), 'ShahabName'],
+            ['Locke siblings', s.lockAndKey.npcs.map(n => n.sprite), 'ShahabName'],
+            ['swimmers', s.pool.swimmers.map(w => w.sprite), 'markbriggs-ms'],
+            ['tug of war', s.tugOfWar.pullers.map(p => p.sprite), 'markbriggs-ms'],
+            ['kittens', s.kittens.cats.map(c => c.sprite), 'DeaderestPool'],
+            ['talking moles', s.talkingMoles.burrows.map(b => b.mole), 'markbriggs-ms'],
+            ['llama and giant', [s.ollama.sprite, s.giant.sprite], 'markbriggs-ms'],
+            ['saucer pilot', [s.ufo.sprite], 'aifateen'],
+        ];
+        return groups.map(([name, sprites, creator]) => ({
+            name, total: sprites.length, tagged: sprites.filter(sprite => sprite.getData('creatorNametag')?.text === `@${creator}`).length,
+        }));
+    });
+    for (const group of coverage) assert.ok(group.total > 0 && group.tagged === group.total, `${group.name}: every verified character is tagged`);
     assert.equal(await page.evaluate(() => {
         const scene = window.atv.game.scene.getScene('Preview');
         scene.walker(6, 'Abdallah');
@@ -77,7 +125,7 @@ try {
         const restored = label.visible;
         label.destroy();
         const detached = ['postupdate', 'sleep', 'wake'].every((event, i) => scene.events.listenerCount(event) === before[i])
-            && sprite.listenerCount('destroy') === 0;
+            && sprite.getData('creatorNametag') === undefined;
         const replacement = addCreatorNametag(sprite, { githubUsername: 'OtherCreator' });
         sprite.destroy();
         const destroyed = !replacement.scene
@@ -105,9 +153,19 @@ try {
     await page.evaluate(() => { window.atv.game.scene.getScene('Preview').dragon.timer = 1e9; });
     for (const [size, width, height] of [['desktop', 1280, 800], ['mobile', 390, 844]]) {
         await page.setViewportSize({ width, height });
+        const toggleBox = await labelToggle.boundingBox();
+        assert.ok(toggleBox.x >= 0 && toggleBox.x + toggleBox.width <= width && toggleBox.y + toggleBox.height <= height,
+            `${size}: global toggle fits in the bottom-right controls`);
         await page.keyboard.press('f');
         await page.clock.runFor(200);
         if (shots) await page.screenshot({ path: join(shots, `nametags-${size}.png`) });
+        if (shots) await page.locator('.zoom').screenshot({ path: join(shots, `controls-${size}.png`) });
+        await labelToggle.click();
+        await page.clock.runFor(50);
+        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').children.list
+            .some(o => o.name === 'creator-nametag' && o.visible)), false, `${size}: off hides every creator label`);
+        if (shots) await page.locator('.zoom').screenshot({ path: join(shots, `controls-${size}-off.png`) });
+        await labelToggle.click();
         const start = await page.evaluate(() => {
             const scene = window.atv.game.scene.getScene('Preview');
             scene.kittens.visitors.forEach(v => { v.stage = 'idle'; v.timer = 1e9; v.bubble.setVisible(false); });
@@ -202,6 +260,7 @@ try {
         assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Preview').player.nametag.visible), true,
             `${size}: stepping out restores it`);
 
+        await labelToggle.click();
         await page.evaluate(() => {
             const scene = window.atv.game.scene.getScene('Preview');
             scene.player.sprite.setPosition(scene.entrance.x, scene.libraryFoot.centerY);
@@ -215,6 +274,14 @@ try {
             return outside.sys.isSleeping() && !outside.player.nametag.visible
                 && label?.text === '@vvundela1111' && Math.abs(label.x - inside.player.x) < 1e-6;
         }), true, `${size}: library entry transfers the same creator without a visible outdoor duplicate`);
+        assert.equal(await page.evaluate(() => window.atv.game.scene.getScene('Library').children.list
+            .find(o => o.name === 'creator-nametag').visible), false, `${size}: off applies across scene transitions`);
+        await labelToggle.click();
+        assert.equal(await page.evaluate(() => {
+            const game = window.atv.game;
+            return game.scene.getScene('Library').player.getData('creatorNametag').visible
+                && !game.scene.getScene('Preview').player.nametag.visible;
+        }), true, `${size}: toggling in the library cannot reveal sleeping-scene labels`);
         await page.keyboard.down('ArrowLeft');
         await page.clock.runFor(200);
         await page.keyboard.up('ArrowLeft');
@@ -256,12 +323,13 @@ try {
     }), true, 'returning from Mars cleans up its label and restores the world label');
 
     // HQ ownership is unresolved: changing a Teams identity, name, or "me" flag never claims authorship.
+    const beforeRoster = await tags();
     await page.evaluate(async () => {
         const { call } = await import('/src/call/roster.ts');
         call.join({ id: 'unverified', name: 'Bakar404', me: true, source: 'teams', githubUsername: 'PretendCreator' });
     });
     await page.clock.runFor(5000);
-    assert.deepEqual(await tags(), expectedTags, 'HQ arrivals and roster fields do not invent attribution');
+    assert.deepEqual(await tags(), beforeRoster, 'HQ arrivals and roster fields do not invent attribution');
     assert.equal(await page.evaluate(async () => {
         const { addCreatorNametag } = await import('/src/game/kit/nametag.ts');
         const scene = window.atv.game.scene.getScene('Preview');

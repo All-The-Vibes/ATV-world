@@ -1,5 +1,5 @@
 import Phaser from 'phaser';
-import { addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, type ColorName, type Facing } from '../kit';
+import { addCreatorNametag, addPixels, characterSheet, ensurePixels, lookKey, randomLook, shadowTexture, speechArt, type ColorName, type Facing } from '../kit';
 import { BOARD, DECK, STEPS_X, TOWER, WATER, boardArt, poolArt, rippleArt, splashArt, towerArt, wakeArt } from './art';
 import { FLOP_QUIPS, QUIPS } from './quips';
 
@@ -97,7 +97,7 @@ export class Pool {
 
     private addSwimmer(i: number) {
         const scene = this.scene;
-        const base = randomLook(`pool-${i}`);
+        const base = randomLook(`pool-${i}`, { githubUsername: 'markbriggs-ms' });
         const suit = SUITS[(i * 3) % SUITS.length];
         // Most go shirtless in trunks; some wear a one-piece. Everyone's barefoot.
         const look = { ...base, shirt: i % 3 === 1 ? suit : base.skin, pants: suit, shoes: base.skin };
@@ -128,6 +128,7 @@ export class Pool {
             style: 'dive',
             talk: 0,
         };
+        addCreatorNametag(s.sprite, look, { speech: () => s.bubble });
         this.swimmers.push(s);
         this.queue.push(s);
     }

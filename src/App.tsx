@@ -2,7 +2,7 @@ import { PhaserGame } from './PhaserGame';
 import { useMemo, useSyncExternalStore } from 'react';
 import { CallPanel } from './call/CallPanel';
 import { FactoryPanel } from './factory/FactoryPanel';
-import { onTokens, send, tokenCount, type Command } from './game/commands';
+import { githubLabelsVisible, onGithubLabels, onTokens, send, toggleGithubLabels, tokenCount, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
@@ -18,6 +18,7 @@ export default function App() {
     const bridge = useMemo(() => new LibraryBridge(), []);
     const state = useSyncExternalStore(bridge.subscribe, bridge.getSnapshot);
     const tokens = useSyncExternalStore(onTokens, tokenCount);
+    const githubLabels = useSyncExternalStore(onGithubLabels, githubLabelsVisible);
     return (
         <>
             <PhaserGame bridge={bridge} />
@@ -43,6 +44,13 @@ export default function App() {
                         {label}
                     </button>
                 ))}
+                <button type="button" className="github-labels" title={`${githubLabels ? 'Hide' : 'Show'} GitHub usernames`}
+                    aria-label="GitHub username labels" aria-pressed={githubLabels}
+                    onKeyDown={(e) => { if (e.key === ' ' || e.key === 'Enter') e.stopPropagation(); }}
+                    onKeyUp={(e) => { if (e.key === ' ' || e.key === 'Enter') e.stopPropagation(); }}
+                    onMouseDown={(e) => e.preventDefault()} onClick={toggleGithubLabels}>
+                    @
+                </button>
                 <SoundButton />
             </div>
             {!state.open && state.inside && <div className="world-actions">

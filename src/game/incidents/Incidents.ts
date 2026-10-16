@@ -1,7 +1,7 @@
 import Phaser from 'phaser';
 import { isTyping } from '../commands';
 import {
-    HEX, PixelCanvas, addPixels, characterSheet, flameArt, miniText, miniTextWidth, randomLook, shadowTexture,
+    HEX, PixelCanvas, addCreatorNametag, addPixels, characterSheet, flameArt, miniText, miniTextWidth, randomLook, shadowTexture,
 } from '../kit';
 
 const INCIDENTS = [
@@ -73,9 +73,11 @@ export class Incidents {
         }
         ['WATCH', 'PATCH', 'ROLLBACK'].forEach((name, i) => {
             const key = `incident-agent-${i}`;
-            const sheet = characterSheet(randomLook(key, {
+            const look = randomLook(key, {
+                githubUsername: 'aifateen',
                 hairStyle: 'cap', hat: 'red', shirt: 'gold', pants: 'navy',
-            }));
+            });
+            const sheet = characterSheet(look);
             addPixels(scene, key, sheet.canvas, sheet.frames);
             const anim = `${key}-walk`;
             if (!scene.anims.exists(anim)) {
@@ -86,6 +88,7 @@ export class Incidents {
             }
             const home = new Phaser.Math.Vector2(-345 + i * 37, 110 + i % 2 * 15);
             const sprite = scene.add.sprite(home.x, home.y, key, 'down-0').setOrigin(0.5, 1).setDepth(home.y);
+            addCreatorNametag(sprite, look, { gap: 18 });
             const shadow = scene.add.image(home.x, home.y, shadowTexture(scene, 10)).setAlpha(0.25).setDepth(home.y - 1);
             const labelKey = `incident-agent-label-${i}`;
             this.text(labelKey, [name]);
