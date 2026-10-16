@@ -35,6 +35,7 @@ import { Ambience } from '../life/Ambience';
 import { Ollama } from '../llama/Ollama';
 import { RubberDuck } from '../rubberDuck/RubberDuck';
 import { LaunchPad } from '../mars/Rocket';
+import { RabbitTree } from '../wonderland/RabbitTree';
 import { Moles } from '../moles/Moles';
 import { Planetarium } from '../planetarium/Planetarium';
 import { TalkingMoles } from '../talkingMoles/TalkingMoles';
@@ -139,6 +140,10 @@ export class Preview extends Phaser.Scene {
     private launchPad?: LaunchPad;
     /** The player is aboard the rocket (taking off for Mars, or landing back home). */
     private rocketing = false;
+    /** The big tree east of the town, with a portal to Wonderland and the White Rabbit racing to it (see ../wonderland). */
+    private rabbitTree?: RabbitTree;
+    /** The player is going down the rabbit hole (or popping back out of it). */
+    private tumbling = false;
     /** The planetarium between the library and the town: walk in for the star show (see ../planetarium). */
     private planetarium?: Planetarium;
     /** The player is inside HQ (hidden indoors, with the call panel open). */
@@ -299,6 +304,16 @@ export class Preview extends Phaser.Scene {
         this.planetarium.parts.forEach((part) => this.includeInWorld(part));
         this.solids.push(this.planetarium.area);
         this.planetarium.onClick = () => this.enterPlanetarium();
+        try {
+            // Off to the side, east of the town.
+            const east = Math.max(this.town?.bounds().right ?? 420, this.contentBounds?.right ?? 420);
+            const town = this.town?.bounds();
+            this.rabbitTree = new RabbitTree(this, east + 110, town ? Math.round(town.centerY) + 60 : 120, () => this.worldBounds);
+            this.rabbitTree.parts.forEach((part) => this.includeInWorld(part, 'tree'));
+            this.solids.push(this.rabbitTree.area);
+        } catch (e) {
+            console.error('[rabbit tree]', e);
+        }
         this.fitWorld();
         this.billboard = new Billboard(this, 368, 415);
         this.billboard.parts.forEach((part) => this.includeInWorld(part));
@@ -452,6 +467,7 @@ export class Preview extends Phaser.Scene {
         });
         const wake = (_sys: unknown, data?: { from?: string }) => {
             if (data?.from === 'mars') this.landFromMars();
+            else if (data?.from === 'wonderland') this.backFromWonderland();
             this.input.keyboard?.resetKeys();
             this.syncVibes(true);
         };
@@ -539,6 +555,75 @@ export class Preview extends Phaser.Scene {
         if (wasInsideHQ || (first && (q.has('teams') || q.has('hq'))) || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
         else if (q.has('mars')) this.time.delayedCall(0, () => this.blastOff(true));
         else if (q.has('planetarium')) this.time.delayedCall(0, () => this.enterPlanetarium());
+        else if (q.has('wonderland')) this.time.delayedCall(0, () => this.enterWonderland(true));
+    }
+
+    /** Follow the White Rabbit: the player shrinks into the swirl in the big tree and falls into Wonderland. */
+    private enterWonderland(instantly = false) {
+        const tree = this.rabbitTree;
+        if (!this.player || !tree || this.tumbling || this.rocketing || this.insideHQ || !this.sys.isActive()) return;
+        this.tumbling = true;
+        setFactoryOpen(false);
+        const { sprite, shadow, marker } = this.player;
+        sprite.stop();
+        shadow.setVisible(false);
+        marker.setVisible(false);
+        const go = () => {
+            // Wait by the tree for the trip home.
+            const { x, y } = tree.exit;
+            sprite.setPosition(x, y).setScale(1).setAlpha(1).setAngle(0).setVisible(false);
+            shadow.setPosition(x, y);
+            marker.setPosition(x, y - 34);
+            this.view?.trackPlayer();
+            this.scene.launch('Wonderland');
+            this.scene.sleep();
+        };
+        if (instantly) {
+            go();
+            return;
+        }
+        sprite.setDepth(tree.y + 0.2);
+        this.tweens.add({
+            targets: sprite,
+            x: tree.x,
+            y: sprite.y - 14,
+            scale: 0.1,
+            alpha: 0,
+            angle: 360,
+            duration: 550,
+            ease: 'Quad.easeIn',
+            onComplete: () => {
+                const cam = this.cameras.main;
+                cam.once(Phaser.Cameras.Scene2D.Events.FADE_OUT_COMPLETE, go);
+                cam.fadeOut(300, 125, 75, 181);
+            },
+        });
+    }
+
+    /** Back from Wonderland: the player tumbles out of the hollow in the big tree. */
+    private backFromWonderland() {
+        const tree = this.rabbitTree;
+        if (!this.player || !tree) return;
+        const { sprite, shadow, marker } = this.player;
+        const { x, y } = tree.exit;
+        sprite.setPosition(x, y).setFlipX(false).setFrame('down-0').setDepth(y).setScale(0.1).setAlpha(0).setVisible(true);
+        shadow.setPosition(x, y).setDepth(y - 1);
+        marker.setPosition(x, y - 34).setDepth(y + 1);
+        this.playerFacing = 'down';
+        this.view?.trackPlayer();
+        this.cameras.main.fadeIn(300, 125, 75, 181);
+        this.tweens.add({
+            targets: sprite,
+            scale: 1,
+            alpha: 1,
+            duration: 450,
+            ease: 'Back.easeOut',
+            onComplete: () => {
+                shadow.setVisible(true);
+                marker.setVisible(true);
+                this.tumbling = false;
+            },
+        });
     }
 
     /** Step into the planetarium for the star show, and come back out at the foot of its steps. */
@@ -568,6 +653,13 @@ export class Preview extends Phaser.Scene {
         dir.add({ id: 'ollama', name: 'Ollama', kind: 'llama', locate: at(() => spriteOf(this.ollama)) });
         dir.add({ id: 'giant', name: 'The Giant', kind: 'giant', locate: at(() => spriteOf(this.giant)) });
         dir.add({ id: 'ufo', name: 'Flying Saucer', kind: 'alien', locate: at(() => spriteOf(this.ufo)) });
+        dir.add({
+            id: 'white-rabbit', name: 'White Rabbit', kind: 'late',
+            locate: () => {
+                const r = this.rabbitTree?.rabbit;
+                return r?.sprite.visible ? { x: r.x, y: r.y } : undefined;
+            },
+        });
         this.roamers?.catalog().forEach(({ id, name }) => dir.add({ id: `visitor-${id}`, name, kind: 'visitor', locate: at(() => this.roamers?.spriteOf(id)) }));
     }
 
@@ -713,6 +805,7 @@ export class Preview extends Phaser.Scene {
         this.kittens?.update(dt);
         this.tarot?.update(dt);
         this.witch?.update();
+        this.rabbitTree?.update(dt);
         this.updateVibes();
         // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
         const p = this.player?.sprite;
@@ -725,6 +818,8 @@ export class Preview extends Phaser.Scene {
             this.blastOff();
         } else if (p && !this.insideHQ && this.planetarium?.foot.contains(p.x, p.y)) {
             this.enterPlanetarium();
+        } else if (p && !this.insideHQ && !this.tumbling && this.rabbitTree?.enters(p.x, p.y)) {
+            this.enterWonderland();
         }
     }
 
@@ -1516,6 +1611,9 @@ export class Preview extends Phaser.Scene {
         place({ id: 'mars-rocket', name: 'Rocket to Mars', by: 'Veda Vundela', color: PALETTE.orange,
             about: 'A launch pad, a tower, and a rocket. Walk into the rocket to climb aboard and fly to Mars.' },
         this.launchPad && covering(...this.launchPad.parts));
+        place({ id: 'rabbit-tree', name: 'The Rabbit Hole Tree', by: 'Veda Vundela', color: PALETTE.pink,
+            about: 'A huge old tree with a swirling portal in its trunk. Follow the White Rabbit in, and fall down into Wonderland.' },
+        this.rabbitTree && covering(...this.rabbitTree.parts));
         place({ id: 'agent-factory', name: 'Agent Factory', by: 'AI Fateen', color: PALETTE.steel,
             about: 'Walk in (or click it) to pick a role. A new agent rolls out on the conveyor belt and wanders town handing out work.' },
         this.factory && covering(...this.factory.parts));
@@ -1584,7 +1682,7 @@ export class Preview extends Phaser.Scene {
         const dy = Number(this.cursors.down.isDown) - Number(this.cursors.up.isDown);
         const moving = dx !== 0 || dy !== 0;
 
-        if (this.insideHQ || this.rocketing) return;
+        if (this.insideHQ || this.rocketing || this.tumbling) return;
 
         if (moving) {
             const length = Math.hypot(dx, dy);

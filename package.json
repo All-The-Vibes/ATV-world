@@ -19,6 +19,7 @@
     "test:ideas": "node tests/idea-machine-browser.mjs",
     "test:steph": "node tests/steph-browser.mjs",
     "test:factory": "node tests/factory-browser.mjs",
+    "test:wonderland": "node tests/wonderland-browser.mjs",
     "test:backpack": "node --experimental-strip-types --test tests/backpack.test.ts && node tests/backpack-browser.mjs",
     "test:library": "node --experimental-strip-types --test tests/library.test.ts && node tests/library-browser.mjs",
     "test:snacks": "node tests/snacks-browser.mjs",
