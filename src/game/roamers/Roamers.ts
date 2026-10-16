@@ -57,6 +57,16 @@ export class Roamers {
         this.add(spec);
     }
 
+    /** Every visitor there is, in town or not (for the character search). */
+    catalog() {
+        return ROAMERS.map((s) => ({ id: s.id, name: s.name }));
+    }
+
+    /** A visitor's sprite while they're in town. */
+    spriteOf(id: string): Phaser.GameObjects.Sprite | undefined {
+        return this.active.get(id)?.sprite;
+    }
+
     /** Visitors who could be pulled into a group activity (a workout class) right now. */
     people() {
         return [...this.active.values()]

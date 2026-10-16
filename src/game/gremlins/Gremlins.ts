@@ -58,6 +58,11 @@ export class Gremlins {
         return this.list.length;
     }
 
+    /** One gremlin to point at (the character search), if any are about. */
+    first(): Phaser.GameObjects.Sprite | undefined {
+        return this.list[0]?.sprite;
+    }
+
     /** Send one in right now (atv.game.scene.getScene('Preview').gremlins.spawn()). */
     spawn() {
         const b = this.opts.bounds();

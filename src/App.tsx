@@ -2,6 +2,7 @@ import { PhaserGame } from './PhaserGame';
 import { useMemo, useState, useSyncExternalStore } from 'react';
 import { Backpack } from './backpack/Backpack';
 import { CallPanel } from './call/CallPanel';
+import { CharacterSearch } from './characters/CharacterSearch';
 import { FactoryPanel } from './factory/FactoryPanel';
 import { send, type Command } from './game/commands';
 import { VibeMeter } from './game/VibeMeter';
@@ -19,14 +20,16 @@ export default function App() {
     const bridge = useMemo(() => new LibraryBridge(), []);
     const state = useSyncExternalStore(bridge.subscribe, bridge.getSnapshot);
     const [backpackOpen, setBackpackOpen] = useState(false);
+    const [searching, setSearching] = useState(false);
     return (
         <>
-            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen} />
+            <PhaserGame bridge={bridge} inputBlocked={state.open || backpackOpen || searching} />
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
                 <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Space pulses · Collect vibes'}</p>
             </div>
             <Backpack open={backpackOpen} onOpenChange={setBackpackOpen} />
+            <CharacterSearch hidden={state.inside} onFocusChange={setSearching} />
             <CallPanel />
             <FactoryPanel hidden={state.inside} />
             <VibeMeter insideLibrary={state.inside} />

@@ -6,7 +6,8 @@ import {
     HEX, PLAYER_LOOK, PixelCanvas, PROPS, addCreatorNametag, addPixels, bayer, buildingArt, characterSheet, dancerSheet, fbm, libraryArt, lookKey, paintProp, randomLook,
     miniText, miniTextWidth, shadowTexture, speechArt, stripFrames, treeArt, type BuildingSpec, type Facing, type PropOptions,
 } from '../kit';
-import { addToken, isTyping, on, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { addToken, isTyping, on, onFocusCharacter, removeToken, setInsideHQ, tokenCount } from '../commands';
+import { Directory, spotOf, spriteOf } from '../directory';
 import { BikeGang } from '../bikes/BikeGang';
 import { LockAndKey } from '../keyhouse/LockAndKey';
 import { Disco } from '../disco/Disco';
@@ -71,6 +72,8 @@ export class Preview extends Phaser.Scene {
     private roamers?: Roamers;
     /** Christian, who gathers a crowd for a workout class (see ../workout). */
     private workout?: Workout;
+    /** Everyone the character search can list and zoom in on (see ../directory). */
+    private directory?: Directory;
     /** Shahab and 3 friends riding BMX bicycles in single-file Stranger Things style (see ../bikes). */
     private bikeGang?: BikeGang;
     /** The "Lock & Key" room (Keyhouse Manor) with lots of magical doors/windows and the 3 Locke siblings. */
@@ -372,10 +375,17 @@ export class Preview extends Phaser.Scene {
                 this.vibePulse();
             }
         };
+        this.registerCharacters();
+        const offFocus = onFocusCharacter((id) => {
+            const directory = this.directory;
+            if (!this.sys.isActive() || !directory?.locate(id)) return;
+            if (this.view?.focus(() => directory.locate(id))) directory.ping(id);
+        });
         const off = on('leaveHQ', () => this.leaveHQ());
         window.addEventListener('keydown', onKey);
         const stop = () => {
             off();
+            offFocus();
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
             this.syncVibes(false);
@@ -397,6 +407,23 @@ export class Preview extends Phaser.Scene {
         }
         if (q.has('teams') || q.has('hq') || (p && this.hq.contains(p.x, p.y))) this.enterHQ();
         else if (q.has('mars')) this.time.delayedCall(0, () => this.blastOff(true));
+    }
+
+    /** List everyone worth finding in the character search. */
+    private registerCharacters() {
+        const dir = new Directory(this);
+        this.directory = dir;
+        const at = (get: () => Phaser.GameObjects.Sprite | undefined) => () => spotOf(get());
+        dir.add({ id: 'you', name: 'You', kind: 'player', locate: () => (this.insideHQ ? undefined : spotOf(this.player?.sprite)) });
+        this.walkers.forEach((w, i) => dir.add({ id: `walker-${i}`, name: w.sprite.name || `Townsperson ${i + 1}`, kind: 'local', locate: () => spotOf(w.sprite) }));
+        dir.add({ id: 'christian', name: 'Christian', kind: 'coach', locate: at(() => this.workout?.body) });
+        dir.add({ id: 'catcher', name: 'Gremlin Catcher', kind: 'scout', locate: at(() => this.catchers?.first()) });
+        dir.add({ id: 'gremlin', name: 'Gremlin', kind: 'thief', locate: at(() => this.gremlins?.first()) });
+        dir.add({ id: 'dragon', name: 'Dragon', kind: 'beast', locate: at(() => spriteOf(this.dragon)) });
+        dir.add({ id: 'ollama', name: 'Ollama', kind: 'llama', locate: at(() => spriteOf(this.ollama)) });
+        dir.add({ id: 'giant', name: 'The Giant', kind: 'giant', locate: at(() => spriteOf(this.giant)) });
+        dir.add({ id: 'ufo', name: 'Flying Saucer', kind: 'alien', locate: at(() => spriteOf(this.ufo)) });
+        this.roamers?.catalog().forEach(({ id, name }) => dir.add({ id: `visitor-${id}`, name, kind: 'visitor', locate: at(() => this.roamers?.spriteOf(id)) }));
     }
 
     /** Climb into the rocket and fly to Mars (`instantly` skips the countdown and liftoff). */
@@ -512,6 +539,7 @@ export class Preview extends Phaser.Scene {
         this.catchers?.update(dt);
         this.roamers?.update(dt);
         this.workout?.update(dt);
+        this.directory?.update(dt);
         this.bikeGang?.update(dt);
         this.lockAndKey?.update(dt);
         this.ollama?.update(dt);
