@@ -8,7 +8,10 @@ import { addToken, isTyping, on, setInsideHQ } from '../commands';
 import { Dragon, type Burnable } from '../dragon/Dragon';
 import { HQ } from '../hq/HQ';
 import { Tokens } from '../tokens/Tokens';
+import { publishVibes } from '../vibes';
 import { WorldView } from '../view';
+
+type Vibe = { sprite: Phaser.GameObjects.Image; homeY: number; found: boolean };
 
 /** The world on the live screen: a little street built with the pixel-art kit. */
 export class Preview extends Phaser.Scene {
@@ -46,6 +49,13 @@ export class Preview extends Phaser.Scene {
     private readonly solids: Phaser.Geom.Rectangle[] = [];
     /** Flying cars that drop free tokens for anyone to pick up (see ../tokens). */
     private tokens?: Tokens;
+    private vibes: Vibe[] = [];
+    private vibeScore = 0;
+    private vibeStreak = 0;
+    private vibeCollected = 0;
+    private vibeRound = 1;
+    private lastVibeAt = -Infinity;
+    private rushUntil = 0;
 
     constructor(private bridge: LibraryBridge) {
         super('Preview');
@@ -87,9 +97,14 @@ export class Preview extends Phaser.Scene {
             },
             onCollect: (by) => by.player && addToken(),
         });
+        this.createVibes();
         this.view = new WorldView(this, { bounds: () => this.worldBounds, player: this.player?.sprite });
         this.dragon = new Dragon(this, { bounds: () => this.worldBounds, targets: () => this.burnables() });
-        this.events.on('wake', () => this.input.keyboard?.resetKeys());
+        this.events.on('wake', () => {
+            this.input.keyboard?.resetKeys();
+            this.syncVibes(true);
+        });
+        this.events.on('sleep', () => this.syncVibes(false));
 
         // Go into HQ by walking into it or clicking the building. Inside, the call panel shows who's there;
         // a fresh press of down or sideways (or the panel's Step out) walks you back out. A window listener, so
@@ -105,6 +120,7 @@ export class Preview extends Phaser.Scene {
             off();
             window.removeEventListener('keydown', onKey);
             setInsideHQ(false);
+            this.syncVibes(false);
         };
         this.events.once('shutdown', stop);
         this.events.once('destroy', stop);
@@ -179,6 +195,7 @@ export class Preview extends Phaser.Scene {
             ...(this.player && !this.insideHQ ? [{ sprite: this.player.sprite, player: true }] : []),
             ...this.walkers.map((w) => ({ sprite: w.sprite, player: false })),
         ]);
+        this.updateVibes();
         // Walked into the library (through its door or any wall): go in, and come back out just below the steps.
         const p = this.player?.sprite;
         if (p && this.libraryFoot && !this.insideHQ && this.libraryFoot.contains(p.x, p.y)) {
@@ -351,6 +368,118 @@ export class Preview extends Phaser.Scene {
         ]);
     }
 
+    private createVibes() {
+        const art = new PixelCanvas(15, 17);
+        art.ascii(0, 0, [
+            '.......g.......',
+            '......hhh......',
+            '.....hiiih.....',
+            '..ggghjjjhggg..',
+            '.ghhjjkkkjhhg..',
+            'ghijjkkkkkjihg.',
+            '.ghhjjkkkjhhg..',
+            '..ggghjjjhggg..',
+            '.....hiiih.....',
+            '......hhh......',
+            '.......g.......',
+        ], { '.': null, g: 'orange', h: 'gold', i: 'yellow', j: 'cream', k: 'white' }).outline('ink', true);
+        addPixels(this, 'preview-vibe', art);
+
+        const points = [
+            [-330, 164], [-224, 34], [-104, 236], [92, 92], [180, 210], [350, 72],
+        ] as const;
+        this.vibes = points.map(([x, y], index) => {
+            const sprite = this.add.image(x, y, 'preview-vibe').setDepth(y + 2);
+            sprite.setAlpha(0.9 + index % 2 * 0.1);
+            return { sprite, homeY: y, found: false };
+        });
+        this.syncVibes(true, 'Find all six. Fast pickups build a combo.');
+    }
+
+    private syncVibes(active: boolean, message = '') {
+        publishVibes({
+            active,
+            collected: this.vibeCollected,
+            total: this.vibes.length,
+            score: this.vibeScore,
+            streak: this.vibeStreak,
+            round: this.vibeRound,
+            rush: this.time.now < this.rushUntil,
+            message,
+        });
+    }
+
+    private updateVibes() {
+        const player = this.player?.sprite;
+        if (!player || this.insideHQ) return;
+        const now = this.time.now;
+        for (let index = 0; index < this.vibes.length; index++) {
+            const vibe = this.vibes[index];
+            if (vibe.found) continue;
+            vibe.sprite.y = vibe.homeY + Math.round(Math.sin(now / 220 + index) * 3);
+            if (Phaser.Math.Distance.Squared(player.x, player.y - 8, vibe.sprite.x, vibe.sprite.y) < 22 * 22) {
+                this.collectVibe(vibe);
+            }
+        }
+    }
+
+    private collectVibe(vibe: Vibe) {
+        vibe.found = true;
+        const now = this.time.now;
+        this.vibeStreak = now - this.lastVibeAt <= 4_000 ? Math.min(5, this.vibeStreak + 1) : 1;
+        this.lastVibeAt = now;
+        this.vibeCollected++;
+        this.vibeScore += 100 * this.vibeStreak;
+
+        for (let i = 0; i < 8; i++) {
+            const spark = this.add.image(vibe.sprite.x, vibe.sprite.y, 'preview-vibe')
+                .setScale(0.35)
+                .setAlpha(0.9)
+                .setDepth(vibe.sprite.depth + 1);
+            const angle = Math.PI * 2 * i / 8;
+            this.tweens.add({
+                targets: spark,
+                x: spark.x + Math.cos(angle) * (16 + i % 3 * 4),
+                y: spark.y + Math.sin(angle) * (16 + i % 3 * 4),
+                alpha: 0,
+                scale: 0.05,
+                duration: 360,
+                ease: 'Quad.easeOut',
+                onComplete: () => spark.destroy(),
+            });
+        }
+        this.tweens.add({
+            targets: vibe.sprite,
+            y: vibe.sprite.y - 20,
+            alpha: 0,
+            scale: 1.8,
+            duration: 280,
+            ease: 'Back.easeIn',
+            onComplete: () => vibe.sprite.setActive(false).setVisible(false),
+        });
+
+        if (this.vibeCollected < this.vibes.length) {
+            this.syncVibes(true, `Vibe ${this.vibeCollected} of ${this.vibes.length}. Combo ${this.vibeStreak}.`);
+            return;
+        }
+
+        this.rushUntil = now + 6_000;
+        this.cameras.main.flash(180, 247, 181, 56, false);
+        this.cameras.main.shake(180, 0.002);
+        this.syncVibes(true, `Round ${this.vibeRound} clear. Vibe Rush activated.`);
+        this.time.delayedCall(2_500, () => {
+            this.vibeRound++;
+            this.vibeCollected = 0;
+            this.vibeStreak = 0;
+            this.vibes.forEach((item) => {
+                item.found = false;
+                item.sprite.setPosition(item.sprite.x, item.homeY).setScale(1).setAlpha(1).setActive(true).setVisible(true);
+            });
+            this.syncVibes(true, `Round ${this.vibeRound}. The vibes are back.`);
+        });
+        this.time.delayedCall(6_000, () => this.syncVibes(true, 'Vibe Rush ended.'));
+    }
+
     private includeInWorld(object: { getBounds: () => Phaser.Geom.Rectangle }) {
         const bounds = object.getBounds();
         if (!this.contentBounds) {
@@ -403,7 +532,7 @@ export class Preview extends Phaser.Scene {
 
         if (moving) {
             const length = Math.hypot(dx, dy);
-            const speed = 92;
+            const speed = this.time.now < this.rushUntil ? 146 : 92;
             sprite.x = Phaser.Math.Clamp(sprite.x + dx / length * speed * dt, this.worldBounds.left + 12, this.worldBounds.right - 12);
             sprite.y = Phaser.Math.Clamp(sprite.y + dy / length * speed * dt, this.worldBounds.top + 12, this.worldBounds.bottom - 12);
 

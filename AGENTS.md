@@ -4,7 +4,7 @@ ATV World is a pixel-art world built with Phaser 4, React 19, TypeScript 7, and 
 
 ## Where things live
 
-- `src/game/scenes/Preview.ts`: the world on the live screen. Things added with its `building`, `tree`, and `prop` helpers grow the world's bounds, so the camera's fit view always includes them.
+- `src/game/scenes/Preview.ts`: the world on the live screen, including the collectible Vibe Run. Things added with its `building`, `tree`, and `prop` helpers grow the world's bounds, so the camera's fit view always includes them.
 - `src/game/kit/`: all the pixel art, drawn in code (characters, buildings, nature, props, palette, font).
 - `src/game/main.ts`: the Phaser game config and its scene list.
 - `src/game/view.ts`: the camera. F fits the world, +/- and the wheel zoom, dragging looks around, and it follows the player. `show(area)` frames one spot, and both leave room for UI panels via `insets` in `src/game/commands.ts`.

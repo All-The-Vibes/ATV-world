@@ -2,6 +2,7 @@ import { PhaserGame } from './PhaserGame';
 import { useMemo, useSyncExternalStore } from 'react';
 import { CallPanel } from './call/CallPanel';
 import { onTokens, send, tokenCount, type Command } from './game/commands';
+import { VibeMeter } from './game/VibeMeter';
 import { LibraryBridge } from './library/bridge';
 import { LibraryPanel } from './library/LibraryPanel';
 import { SoundButton } from './music/SoundButton';
@@ -21,7 +22,7 @@ export default function App() {
             <PhaserGame bridge={bridge} />
             <div className="banner">
                 <h1>{state.inside ? 'TOWER LIBRARY' : 'ATV WORLD'}</h1>
-                <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Wheel or +/- zooms · Drag to look around'}</p>
+                <p>{state.inside ? 'Arrow keys move. Walk up to a bookcase or the card catalog.' : 'Arrows walk · Collect vibes · Wheel or +/- zooms'}</p>
             </div>
             {!state.inside && <div className="tokens" title="Free tokens you've picked up. Flying cars drop them: walk over one to grab it.">
                 <svg viewBox="0 0 9 9" width="18" height="18" shapeRendering="crispEdges" aria-hidden="true">
@@ -32,6 +33,7 @@ export default function App() {
                 <span>{tokens}</span>
             </div>}
             <CallPanel />
+            <VibeMeter insideLibrary={state.inside} />
             <div className="zoom">
                 {!state.inside && buttons.map(([label, command, title]) => (
                     // preventDefault on mousedown keeps keyboard focus on the game.

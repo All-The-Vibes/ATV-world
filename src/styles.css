@@ -91,7 +91,7 @@ body,
 .tokens {
     position: fixed;
     top: 16px;
-    left: 16px;
+    left: 216px;
     display: flex;
     align-items: center;
     gap: 8px;
@@ -131,6 +131,105 @@ body,
 .live.updating {
     color: var(--gold);
     border-color: var(--gold);
+}
+
+.vibe-meter {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 184px;
+    padding: 9px 10px 8px;
+    color: var(--cream);
+    background:
+        linear-gradient(135deg, rgb(42 36 69 / 96%), rgb(20 16 30 / 96%)),
+        var(--ink);
+    border: 3px solid var(--night);
+    box-shadow: 0 0 0 3px var(--ink), 6px 6px 0 rgb(20 16 30 / 35%);
+    pointer-events: none;
+}
+
+.vibe-meter[data-rush] {
+    border-color: var(--gold);
+    animation: vibe-rush 450ms steps(2, end) infinite;
+}
+
+.vibe-meter-top,
+.vibe-meter-score {
+    display: flex;
+    align-items: center;
+}
+
+.vibe-meter-top {
+    gap: 7px;
+    font: 10px 'Press Start 2P', monospace;
+}
+
+.vibe-meter-gem {
+    color: var(--gold);
+    filter: drop-shadow(2px 0 #ec7a3a);
+}
+
+.vibe-meter-title {
+    flex: 1;
+    color: var(--gold);
+}
+
+.vibe-meter-round {
+    color: #94a3b8;
+}
+
+.vibe-meter-track {
+    display: grid;
+    grid-template-columns: repeat(6, 1fr);
+    gap: 3px;
+    margin: 8px 0 7px;
+}
+
+.vibe-meter-track span {
+    height: 7px;
+    background: #3d3d5c;
+    border-bottom: 2px solid #14101e;
+}
+
+.vibe-meter-track span[data-lit] {
+    background: var(--gold);
+    box-shadow: inset 0 2px #fbe46f;
+}
+
+.vibe-meter-score {
+    justify-content: space-between;
+    gap: 8px;
+    min-height: 17px;
+    font-size: 16px;
+    line-height: 1;
+}
+
+.vibe-meter-score strong {
+    font-weight: normal;
+    color: white;
+}
+
+.vibe-meter-score span {
+    font: 8px 'Press Start 2P', monospace;
+    color: #fbe46f;
+}
+
+.sr-only {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+@keyframes vibe-rush {
+    50% {
+        box-shadow: 0 0 0 3px var(--ink), 0 0 18px rgb(247 181 56 / 65%);
+    }
 }
 
 /* The library's prompt and panel. Scoped so the zoom buttons and call panel keep their own look. */
@@ -193,7 +292,8 @@ body,
     .banner { top: 12px; padding: 8px; }
     .banner h1 { font-size: 13px; }
     .banner p { font-size: 17px; }
-    .tokens { top: auto; bottom: 64px; left: 12px; font-size: 11px; padding: 6px 8px; }
+    .vibe-meter { top: auto; bottom: 72px; left: 12px; width: 164px; }
+    .tokens { top: auto; bottom: 72px; left: 184px; font-size: 11px; padding: 6px 8px; }
     .world-actions { gap: 6px; font-size: 18px; }
     .world-actions button { padding: 8px; }
 }

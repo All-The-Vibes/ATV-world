@@ -150,14 +150,29 @@ try {
     await page.goto(ORIGIN);
     await until(async () => (await heading()) === 'ATV WORLD', 'the world to load');
     await sleep(500);
+    assert.equal(await page.locator('.vibe-meter-title').innerText(), 'VIBE RUN');
+    assert.equal(await page.locator('.vibe-meter-track span[data-lit]').count(), 0);
 
     // Outside: walk to the tower door.
     await pause();
+    await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        scene.player.sprite.setPosition(-330, 172);
+    });
+    await page.clock.runFor(100);
+    assert.equal(await page.locator('.vibe-meter-track span[data-lit]').count(), 1, 'walking into a vibe collects it');
+    assert.match(await page.locator('.vibe-meter-score').innerText(), /100/);
+    await page.evaluate(() => {
+        const scene = window.atv.game.scene.getScene('Preview');
+        scene.player.sprite.setPosition(0, 158);
+        scene.view.trackPlayer();
+    });
     await hold('ArrowRight', 3080);
     await shot('exterior');
     await walkUntil('ArrowDown', inside, 'the library door');
     await page.clock.resume();
     await until(async () => (await heading()) === 'TOWER LIBRARY', 'the reading room');
+    assert.equal(await page.locator('.vibe-meter').count(), 0, 'the outside challenge hides indoors');
     await sleep(400);
     await shot('interior');
 
