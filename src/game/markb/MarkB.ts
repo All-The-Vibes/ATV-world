@@ -22,14 +22,11 @@ const QUOTES = [
 
 /** Where the action is: the plaza, ATV HQ and the shops around it (world pixels). */
 const MIDDLE = { x: 0, y: 125 };
-/** Stops near the middle, as offsets from it, so he is almost always on screen. */
+/** Stops near the middle, as offsets from it, so he stays well away from the edge of the map. */
 const NEAR: [number, number][] = [
     [-260, -120], [-60, -150], [200, -120], [300, 20], [220, 140], [0, 170], [-220, 120], [-320, 0],
 ];
-/** Now and then he swings out to the corners of the map (fractions of the world bounds). */
-const FAR: [number, number][] = [[0.08, 0.14], [0.92, 0.14], [0.92, 0.86], [0.08, 0.86]];
 
-interface Stop { x: number; y: number; far: boolean }
 const SCARED = [
     'I AM SCARED OF HEIGHTS.',
     'HOW DO I GET DOWN?',
@@ -40,11 +37,6 @@ const SCARED = [
 
 /** Every fourth stop he remembers how high up he is. */
 const SCARED_EVERY = 4;
-
-/** Two stops near the middle, then one far away, round and round. */
-const STOPS: Stop[] = NEAR.map(([x, y], i): Stop[] =>
-    i % 2 === 1 ? [{ x, y, far: false }, { x: FAR[(i - 1) / 2][0], y: FAR[(i - 1) / 2][1], far: true }] : [{ x, y, far: false }],
-).flat();
 
 const ALTITUDE = 50;
 const SPEED = 70;
@@ -121,7 +113,7 @@ export class MarkB {
     private x: number;
     private y: number;
 
-    constructor(scene: Phaser.Scene, private readonly bounds: () => Phaser.Geom.Rectangle) {
+    constructor(scene: Phaser.Scene) {
         ensurePixels(scene, 'mark-b', () => characterSheet(LOOK, jetpack));
         ensurePixels(scene, 'mark-b-flame', flameArt);
         ensurePixels(scene, 'mark-b-smile', smileyArt);
@@ -148,10 +140,8 @@ export class MarkB {
     }
 
     private stopPoint(i: number) {
-        const stop = STOPS[i];
-        if (!stop.far) return { x: MIDDLE.x + stop.x, y: MIDDLE.y + stop.y };
-        const b = this.bounds();
-        return { x: Math.round(b.left + b.width * stop.x), y: Math.round(b.top + b.height * stop.y) };
+        const [x, y] = NEAR[i];
+        return { x: MIDDLE.x + x, y: MIDDLE.y + y };
     }
 
     update(dt: number) {
@@ -188,7 +178,7 @@ export class MarkB {
                 if (this.scared) this.scaredQuote = (this.scaredQuote + 1) % SCARED.length;
                 else this.quote = (this.quote + 1) % QUOTES.length;
                 this.scared = false;
-                this.stop = (this.stop + 1) % STOPS.length;
+                this.stop = (this.stop + 1) % NEAR.length;
                 this.bubble.setVisible(false);
             }
         }

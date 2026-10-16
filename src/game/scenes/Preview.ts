@@ -366,7 +366,7 @@ export class Preview extends Phaser.Scene {
         this.talkingMoles = new TalkingMoles(this);
         this.giant = new Giant(this);
         this.ufo = new UFO(this, () => this.worldBounds);
-        this.markB = new MarkB(this, () => this.worldBounds);
+        this.markB = new MarkB(this);
         this.tokens = new Tokens(this, {
             bounds: () => this.worldBounds,
             open: (x, y) => {
