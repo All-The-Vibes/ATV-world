@@ -14,7 +14,7 @@ ATV World is public and anyone can push to `main`, so the guardrails protect the
 
 - **Keys are only as private as the people who can push.** A workflow or an `api/` function that lands on `main` can read the deploy token and the Static Web App's app settings. Only add keys scoped to this world. Never add keys for paid AI services or for other Azure resources. If a key may have leaked, rotate it (see below).
 - Multiplayer messages are self-reported by each browser, so a player can pretend to be another one. Names and chat are casual, not authenticated. Don't build anything here that trusts them for something that matters.
-- Multiplayer runs on the Web PubSub free tier: 20 connections at once and 20,000 messages a day. Anyone (or a busy event) can fill it, and then people play solo until it frees up. Move to the Standard tier for big events.
+- Multiplayer runs on Web PubSub Standard (one unit): 1,000 connections at once and 1M messages a day included. If it ever fills up, people play solo until it frees up.
 - Anything that runs in the build (`package.json` scripts, `scripts/build.ts`) runs on a GitHub runner next to the deploy token. Treat changes to `package.json`, `scripts/`, `.github/`, and `api/` with extra care when you review what landed.
 - Render text from other people (names, chat, roster) as text, never as HTML.
 - `.github/workflows/deploy-atvworld-webapp.yml` signs in to a separate Azure subscription through OIDC, and that identity trusts pushes to `main`. Its owner should keep its role to Website Contributor on that one web app, or trust only a protected environment.
