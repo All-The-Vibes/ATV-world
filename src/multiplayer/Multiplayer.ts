@@ -134,6 +134,8 @@ export class Multiplayer {
         this.connecting = true;
         try {
             const res = await fetch(`/api/negotiate?id=${encodeURIComponent(myId())}`, { cache: 'no-store' });
+            // Busy (429) or broken: back off and try again soon, rather than going solo for minutes.
+            if (!res.ok) throw new Error(`negotiate ${res.status}`);
             const { url } = (await res.json()) as { url?: string | null };
             if (!url) {
                 // Multiplayer isn't set up on this server: play solo, and look again in a few minutes.

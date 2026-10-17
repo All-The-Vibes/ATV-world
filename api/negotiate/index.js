@@ -1,7 +1,7 @@
 /**
  * /api/negotiate: hands a browser a short-lived WebSocket URL for the multiplayer hub (Azure Web PubSub).
  *
- * GET /api/negotiate?id=<random browser id>  ->  { url } (good for an hour), or { url: null } when multiplayer is off.
+ * GET /api/negotiate?id=<random browser id>  ->  { url } (good for 15 minutes), or { url: null } when multiplayer is off.
  *
  * There are no accounts: the browser's own random id is the identity. The token only lets that connection join and
  * talk in the one "world" group. Needs the WPS_ENDPOINT (host name) and WPS_ACCESS_KEY app settings; without them
@@ -12,11 +12,22 @@ const crypto = require('node:crypto');
 const HUB = 'atv';
 const GROUP = 'world';
 const TTL_S = 15 * 60;
-const LIMIT = 30;
+// Generous, since a whole office or VPN can share one address; it only stops one caller minting endless tokens.
+const LIMIT = 120;
 const WINDOW_MS = 60_000;
 const hits = new Map();
 
-// A per-instance cap on tokens per caller, so one client can't mint endless connections.
+// The caller's address, without the ":port" Azure appends to x-forwarded-for.
+function clientIp(req) {
+    const h = req.headers || {};
+    const raw = String(h['x-azure-clientip'] || h['x-client-ip'] || h['x-forwarded-for'] || 'unknown').split(',')[0].trim();
+    const v4 = /^(\d{1,3}(?:\.\d{1,3}){3}):\d+$/.exec(raw);
+    if (v4) return v4[1];
+    const v6 = /^\[([^\]]+)\](?::\d+)?$/.exec(raw);
+    return v6 ? v6[1] : raw;
+}
+
+// A per-instance cap on tokens per caller.
 function limited(ip) {
     const now = Date.now();
     if (hits.size > 5000) hits.clear();
@@ -44,8 +55,7 @@ module.exports = async function (context, req) {
         context.res = reply(200, { url: null });
         return;
     }
-    const ip = String((req.headers && (req.headers['x-forwarded-for'] || req.headers['x-azure-clientip'])) || 'unknown').split(',')[0].trim();
-    if (limited(ip)) {
+    if (limited(clientIp(req))) {
         context.res = reply(429, { error: 'slow down' });
         return;
     }
