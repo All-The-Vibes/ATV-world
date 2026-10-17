@@ -9,6 +9,7 @@ ATV World is public and anyone can push to `main`, so the guardrails protect the
 - **Browser hardening.** `public/staticwebapp.config.json` sets HSTS, a Content-Security-Policy (no plugins, no foreign framing except Teams/Office, same-origin forms and base URL), and a Permissions-Policy that turns off camera, microphone, location, payments, and USB.
 - **Multiplayer token.** `/api/negotiate` is anonymous by design (there are no accounts). Its tokens last 15 minutes and are rate-limited per address (generous enough for a shared office network). They only allow joining and talking in the one `world` group. Web PubSub refuses connections without a token.
 - **Fork pull requests wait.** Auto-merge only merges pull requests from people who can push here. It talks to the GitHub API and never checks out or runs pull request code.
+- **History stays.** A ruleset blocks force-pushes to `main` and deleting it, so nobody can wipe what's there. Normal pushes and merges work as usual. If history ever has to be rewritten (say, to scrub a leaked key after rotating it), an admin turns the ruleset off for that push.
 
 ## Things to know
 
